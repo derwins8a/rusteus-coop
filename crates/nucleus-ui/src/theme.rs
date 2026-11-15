@@ -84,8 +84,8 @@ pub fn bg_dark() -> Hsla {
 /// Returns GPUI HSLA color for main window background.
 pub fn bg_main() -> Hsla {
     match CURRENT_THEME.load(Ordering::Relaxed) {
-        2 => rgb(0xf5f5f7).into(), // Spectrum 2 Light canvas
-        1 => rgb(0x0f172a).into(), // Slate dark
+        2 => rgb(0xf5f5f7).into(),      // Spectrum 2 Light canvas
+        1 => rgb(0x0f172a).into(),      // Slate dark
         _ => rgb(COLOR_BG_MAIN).into(), // Spectrum 2 dark canvas
     }
 }
@@ -93,8 +93,8 @@ pub fn bg_main() -> Hsla {
 /// Returns GPUI HSLA color for panel/card background (Layer 1).
 pub fn bg_panel() -> Hsla {
     match CURRENT_THEME.load(Ordering::Relaxed) {
-        2 => rgb(0xffffff).into(), // Light surface
-        1 => rgb(0x1e293b).into(), // Slate dark
+        2 => rgb(0xffffff).into(),       // Light surface
+        1 => rgb(0x1e293b).into(),       // Slate dark
         _ => rgb(COLOR_BG_PANEL).into(), // Spectrum 2 dark surface
     }
 }
@@ -219,8 +219,8 @@ pub fn accent() -> Hsla {
         5 => rgb(0x06b6d4).into(), // Cyan
         6 => rgb(0x6366f1).into(), // Indigo
         _ => match CURRENT_THEME.load(Ordering::Relaxed) {
-            2 => rgb(0x0265dc).into(), // Spectrum Light Blue
-            1 => rgb(0x38bdf8).into(), // Sky blue for slate
+            2 => rgb(0x0265dc).into(),     // Spectrum Light Blue
+            1 => rgb(0x38bdf8).into(),     // Sky blue for slate
             _ => rgb(COLOR_ACCENT).into(), // Spectrum 2 Blue
         },
     }
@@ -345,7 +345,6 @@ pub fn overlay_scrim() -> Hsla {
         _ => rgb(0x000000).opacity(0.68).into(),
     }
 }
-
 
 /// Color specification in RGBA format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

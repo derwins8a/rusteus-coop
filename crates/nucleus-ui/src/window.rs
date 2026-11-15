@@ -1,17 +1,19 @@
 //! Native GPUI application window component for NucleusCoop.
 
-use std::sync::Arc;
-use gpui::prelude::*;
-use gpui::*;
-use crate::models::{DeviceItem, HandlerItem, HubPackageItem};
-use crate::theme;
-use crate::{Icon, IconName};
 use crate::big_picture::{
     BigPictureScreen, CarouselState, CouchHubState, CouchOptionItem, CouchSetupState,
     PathResolution, resolve_game_path_or_couch_prompt,
 };
 use crate::callbacks::MainWindowCallbacks;
-use crate::components::{CouchConfirmDialog, CouchContextMenu, CouchSidebarNav, CouchStatusBar, CouchTitleBar};
+use crate::components::{
+    CouchConfirmDialog, CouchContextMenu, CouchSidebarNav, CouchStatusBar, CouchTitleBar,
+};
+use crate::models::{DeviceItem, HandlerItem, HubPackageItem};
+use crate::theme;
+use crate::{Icon, IconName};
+use gpui::prelude::*;
+use gpui::*;
+use std::sync::Arc;
 
 /// Active top-level navigation view tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -332,7 +334,13 @@ impl MainWindow {
 
     /// Injects a mock/virtual controller device for testing.
     pub fn add_virtual_gamepad(&mut self) {
-        let next_id = self.detected_devices_list.iter().map(|d| d.id).max().map(|m| m + 1).unwrap_or(0);
+        let next_id = self
+            .detected_devices_list
+            .iter()
+            .map(|d| d.id)
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
         let dev = DeviceItem::new_virtual(
             next_id,
             format!("Virtual Controller #{} (XInput)", next_id),
@@ -342,7 +350,10 @@ impl MainWindow {
         self.detected_devices = self.detected_devices_list.len();
         self.device_panel.detected_devices = self.detected_devices;
         self.sync_player_assignments();
-        self.status_message = format!("Added Virtual Controller #{} (Ready for assignment)", next_id);
+        self.status_message = format!(
+            "Added Virtual Controller #{} (Ready for assignment)",
+            next_id
+        );
     }
 
     /// Clears any injected virtual controller devices.
@@ -371,7 +382,9 @@ impl MainWindow {
         self.carousel_state.set_count(self.handlers.len());
         if self.is_big_picture {
             if let Some(ref sel) = self.selected_game {
-                if let Some(pos) = self.handlers.iter().position(|h| h.game_name.eq_ignore_ascii_case(sel) || h.guid.eq_ignore_ascii_case(sel)) {
+                if let Some(pos) = self.handlers.iter().position(|h| {
+                    h.game_name.eq_ignore_ascii_case(sel) || h.guid.eq_ignore_ascii_case(sel)
+                }) {
                     self.carousel_state.select(pos);
                 }
             }
@@ -410,7 +423,7 @@ impl MainWindow {
         let h_name = handler_name.to_string();
         self.status_message = format!("Browsing for '{}' executable...", h_name);
         cx.notify();
-        cx.spawn(async move |this, mut cx| {
+        cx.spawn(async move |this, cx| {
             let exe_opt = crate::dialogs::pick_file_async(
                 "Locate Game Executable",
                 "Executables (*.exe)|*.exe|All Files (*.*)|*.*",
@@ -418,7 +431,7 @@ impl MainWindow {
             .await;
             if let Some(exe) = exe_opt {
                 let exe_path = exe.to_string_lossy().to_string();
-                this.update(&mut cx, |this, cx| {
+                this.update(&mut *cx, |this, cx| {
                     if let Some(ref cb) = this.callbacks.on_add_game {
                         let _ = cb(&exe_path);
                     }
@@ -429,11 +442,16 @@ impl MainWindow {
                         item.is_installed = true;
                         item.executable_path = Some(exe_path.clone());
                     }
-                    if !this.handler_names.iter().any(|n| n.eq_ignore_ascii_case(&h_name)) {
+                    if !this
+                        .handler_names
+                        .iter()
+                        .any(|n| n.eq_ignore_ascii_case(&h_name))
+                    {
                         this.handler_names.push(h_name.clone());
                     }
                     this.selected_game = Some(h_name.clone());
-                    this.status_message = format!("Located executable for '{}': {}", h_name, exe_path);
+                    this.status_message =
+                        format!("Located executable for '{}': {}", h_name, exe_path);
                     this.couch_hub_state.dismiss_prompt();
                     this.enter_couch_setup(&h_name, cx);
                 })
@@ -449,7 +467,10 @@ impl MainWindow {
         let supports_keyboard = self
             .handlers
             .iter()
-            .find(|h| h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name))
+            .find(|h| {
+                h.game_name.eq_ignore_ascii_case(game_name)
+                    || h.guid.eq_ignore_ascii_case(game_name)
+            })
             .map(|h| h.supports_keyboard)
             .unwrap_or(false);
 
@@ -478,9 +499,9 @@ impl MainWindow {
         options: Vec<CouchOptionItem>,
         cx: &mut Context<Self>,
     ) {
-        self.couch_hub_state.custom_options_modal = Some(crate::big_picture::CouchOptionsModalState::new(
-            game_name, options,
-        ));
+        self.couch_hub_state.custom_options_modal = Some(
+            crate::big_picture::CouchOptionsModalState::new(game_name, options),
+        );
         cx.notify();
     }
 
@@ -494,7 +515,12 @@ impl MainWindow {
 
     /// Downloads and installs a package from Couch Hub, then immediately drops into Couch Setup.
     pub fn download_and_play_couch_package(&mut self, package_id: &str, cx: &mut Context<Self>) {
-        let pkg = match self.hub_packages.iter().find(|p| p.id == package_id).cloned() {
+        let pkg = match self
+            .hub_packages
+            .iter()
+            .find(|p| p.id == package_id)
+            .cloned()
+        {
             Some(p) => p,
             None => return,
         };
@@ -543,7 +569,8 @@ impl MainWindow {
                 let item = cb(
                     &pkg_id_clone,
                     Box::new(move |progress: f32| {
-                        let _ = tx_prog.send(crate::models::HubInstallProgressMsg::Progress(progress));
+                        let _ =
+                            tx_prog.send(crate::models::HubInstallProgressMsg::Progress(progress));
                     }),
                 );
                 let _ = tx.send(crate::models::HubInstallProgressMsg::Done(item));
@@ -555,55 +582,65 @@ impl MainWindow {
                     let pkg_title = pkg_title_done.clone();
                     let pkg_game = pkg_game_done.clone();
 
-                    let _ = this.update(&mut *cx, |win, cx| {
-                        match msg {
-                            crate::models::HubInstallProgressMsg::Progress(p) => {
-                                win.installing_handlers.insert(pkg_id, p);
-                                cx.notify();
+                    let _ = this.update(&mut *cx, |win, cx| match msg {
+                        crate::models::HubInstallProgressMsg::Progress(p) => {
+                            win.installing_handlers.insert(pkg_id, p);
+                            cx.notify();
+                        }
+                        crate::models::HubInstallProgressMsg::Done(installed_item) => {
+                            win.installing_handlers.remove(&pkg_id);
+                            win.installed_package_ids.insert(pkg_id.clone());
+                            if let Some(p) =
+                                win.hub_packages.iter_mut().find(|item| item.id == pkg_id)
+                            {
+                                p.is_installed = true;
+                                p.has_update = false;
+                                p.is_up_to_date = true;
+                                p.installed_version = Some(p.version_number);
                             }
-                            crate::models::HubInstallProgressMsg::Done(installed_item) => {
-                                win.installing_handlers.remove(&pkg_id);
-                                win.installed_package_ids.insert(pkg_id.clone());
-                                if let Some(p) = win.hub_packages.iter_mut().find(|item| item.id == pkg_id) {
-                                    p.is_installed = true;
-                                    p.has_update = false;
-                                    p.is_up_to_date = true;
-                                    p.installed_version = Some(p.version_number);
-                                }
 
-                                let target_handler = if let Some(h) = installed_item {
-                                    let name = h.game_name.clone();
-                                    if let Some(existing) = win.handlers.iter_mut().find(|e| e.guid == h.guid) {
-                                        *existing = h.clone();
-                                    } else {
-                                        win.handlers.push(h.clone());
-                                    }
-                                    if !win.handler_names.contains(&name) {
-                                        win.handler_names.push(name.clone());
-                                    }
-                                    Some(h)
+                            let target_handler = if let Some(h) = installed_item {
+                                let name = h.game_name.clone();
+                                if let Some(existing) =
+                                    win.handlers.iter_mut().find(|e| e.guid == h.guid)
+                                {
+                                    *existing = h.clone();
                                 } else {
-                                    win.handlers
-                                        .iter()
-                                        .find(|e| e.guid == pkg_id || e.game_name.eq_ignore_ascii_case(&pkg_game))
-                                        .cloned()
-                                };
+                                    win.handlers.push(h.clone());
+                                }
+                                if !win.handler_names.contains(&name) {
+                                    win.handler_names.push(name.clone());
+                                }
+                                Some(h)
+                            } else {
+                                win.handlers
+                                    .iter()
+                                    .find(|e| {
+                                        e.guid == pkg_id
+                                            || e.game_name.eq_ignore_ascii_case(&pkg_game)
+                                    })
+                                    .cloned()
+                            };
 
-                                let candidate = target_handler
-                                    .as_ref()
-                                    .and_then(|h| h.executable_path.as_ref().map(std::path::PathBuf::from));
+                            let candidate = target_handler.as_ref().and_then(|h| {
+                                h.executable_path.as_ref().map(std::path::PathBuf::from)
+                            });
 
-                                match resolve_game_path_or_couch_prompt(candidate) {
-                                    PathResolution::Found(_) => {
-                                        let g_name = target_handler.map(|h| h.game_name).unwrap_or(pkg_game);
-                                        win.status_message = format!("Installed '{}'. Ready for couch setup!", g_name);
-                                        win.enter_couch_setup(&g_name, cx);
-                                    }
-                                    PathResolution::PromptDesktopMode => {
-                                        win.status_message = format!("Installed '{}', but executable was not found.", pkg_title);
-                                        win.couch_hub_state.prompt_desktop_mode(&pkg_title);
-                                        cx.notify();
-                                    }
+                            match resolve_game_path_or_couch_prompt(candidate) {
+                                PathResolution::Found(_) => {
+                                    let g_name =
+                                        target_handler.map(|h| h.game_name).unwrap_or(pkg_game);
+                                    win.status_message =
+                                        format!("Installed '{}'. Ready for couch setup!", g_name);
+                                    win.enter_couch_setup(&g_name, cx);
+                                }
+                                PathResolution::PromptDesktopMode => {
+                                    win.status_message = format!(
+                                        "Installed '{}', but executable was not found.",
+                                        pkg_title
+                                    );
+                                    win.couch_hub_state.prompt_desktop_mode(&pkg_title);
+                                    cx.notify();
                                 }
                             }
                         }
@@ -652,7 +689,12 @@ impl MainWindow {
             let kbm = crate::big_picture::setup::create_keyboard_mouse_device();
             self.couch_setup_state
                 .restore_device(&kbm, &mut self.app_settings.ignored_device_guids);
-        } else if let Some(dev_item) = self.detected_devices_list.iter().find(|d| d.guid == guid).cloned() {
+        } else if let Some(dev_item) = self
+            .detected_devices_list
+            .iter()
+            .find(|d| d.guid == guid)
+            .cloned()
+        {
             self.couch_setup_state
                 .restore_device_from_item(&dev_item, &mut self.app_settings.ignored_device_guids);
         }
@@ -836,7 +878,9 @@ impl MainWindow {
                     self.couch_setup_state.next_step();
                 } else {
                     self.big_picture_screen = self.big_picture_screen.next();
-                    if self.big_picture_screen == BigPictureScreen::CouchHub && self.hub_packages.is_empty() {
+                    if self.big_picture_screen == BigPictureScreen::CouchHub
+                        && self.hub_packages.is_empty()
+                    {
                         self.trigger_hub_search_async(cx);
                     }
                 }
@@ -847,7 +891,9 @@ impl MainWindow {
                     self.couch_setup_state.prev_step();
                 } else {
                     self.big_picture_screen = self.big_picture_screen.prev();
-                    if self.big_picture_screen == BigPictureScreen::CouchHub && self.hub_packages.is_empty() {
+                    if self.big_picture_screen == BigPictureScreen::CouchHub
+                        && self.hub_packages.is_empty()
+                    {
                         self.trigger_hub_search_async(cx);
                     }
                 }
@@ -874,11 +920,8 @@ impl MainWindow {
         if self.couch_hub_state.custom_options_modal.is_none() {
             if let Some(handler) = self.handlers.iter().find(|h| h.game_name == target) {
                 if !handler.options.is_empty() && self.selected_handler_options.is_empty() {
-                    let couch_opts: Vec<CouchOptionItem> = handler
-                        .options
-                        .iter()
-                        .map(CouchOptionItem::from)
-                        .collect();
+                    let couch_opts: Vec<CouchOptionItem> =
+                        handler.options.iter().map(CouchOptionItem::from).collect();
                     self.open_couch_options_modal(&target, couch_opts, cx);
                     return;
                 }
@@ -922,12 +965,19 @@ impl MainWindow {
                 &self.player_audio_device_assignments,
             );
         }
-        self.status_message = format!("Splitscreen session launched for '{}' ({} players)!", target, player_count);
+        self.status_message = format!(
+            "Splitscreen session launched for '{}' ({} players)!",
+            target, player_count
+        );
         cx.notify();
     }
 
     /// Advances disconnect resilience timers for all couch player slots and repaints.
-    pub fn tick_disconnect_resilience(&mut self, delta: std::time::Duration, cx: &mut Context<Self>) {
+    pub fn tick_disconnect_resilience(
+        &mut self,
+        delta: std::time::Duration,
+        cx: &mut Context<Self>,
+    ) {
         self.couch_setup_state.tick_disconnect(delta);
         cx.notify();
     }
@@ -943,7 +993,8 @@ impl MainWindow {
         for prev in &self.detected_devices_list {
             let still_connected = devices.iter().any(|d| d.id == prev.id && d.is_connected);
             if prev.is_connected && !still_connected {
-                self.couch_setup_state.handle_device_disconnect_by_id(prev.id);
+                self.couch_setup_state
+                    .handle_device_disconnect_by_id(prev.id);
             }
         }
         // Detect reconnected devices:
@@ -1001,12 +1052,17 @@ impl MainWindow {
 
             // Preserve existing assignment if valid and not duplicate
             if let Some(existing) = self.player_device_assignments.get(p) {
-                if (existing == "Keyboard & Mouse Slot" || existing == "Keyboard & Mouse (Paired)") && !keyboard_used {
+                if (existing == "Keyboard & Mouse Slot" || existing == "Keyboard & Mouse (Paired)")
+                    && !keyboard_used
+                {
                     keyboard_used = true;
                     assigned_device = Some(existing.clone());
                 } else if existing.contains("ProtoInput") {
                     assigned_device = Some(existing.clone());
-                } else if existing.starts_with("Gamepad #") || existing.starts_with("Virtual Gamepad #") || existing.starts_with("Virtual Controller #") {
+                } else if existing.starts_with("Gamepad #")
+                    || existing.starts_with("Virtual Gamepad #")
+                    || existing.starts_with("Virtual Controller #")
+                {
                     if let Some(dev) = self.detected_devices_list.iter().find(|d| {
                         existing.starts_with(&format!("Gamepad #{}", d.id))
                             || existing.starts_with(&format!("Virtual Controller #{}", d.id))
@@ -1026,7 +1082,11 @@ impl MainWindow {
             }
 
             // Prefer assigning physical or virtual gamepads
-            if let Some(dev) = self.detected_devices_list.iter().find(|d| !used_gamepad_ids.contains(&d.id)) {
+            if let Some(dev) = self
+                .detected_devices_list
+                .iter()
+                .find(|d| !used_gamepad_ids.contains(&d.id))
+            {
                 used_gamepad_ids.push(dev.id);
                 if dev.is_virtual {
                     new_assignments.push(format!("Virtual Gamepad #{} ({})", dev.id, dev.name));
@@ -1045,7 +1105,11 @@ impl MainWindow {
         self.player_device_assignments = new_assignments;
 
         // Synchronize per-player monitor assignments
-        let disp_count = if self.connected_displays.is_empty() { 1 } else { self.connected_displays.len() };
+        let disp_count = if self.connected_displays.is_empty() {
+            1
+        } else {
+            self.connected_displays.len()
+        };
         self.player_monitor_assignments.resize(self.player_count, 0);
         for (i, m) in self.player_monitor_assignments.iter_mut().enumerate() {
             if *m >= disp_count {
@@ -1054,7 +1118,8 @@ impl MainWindow {
         }
 
         // Synchronize per-player audio assignments
-        self.player_audio_device_assignments.resize(self.player_count, "Default".to_string());
+        self.player_audio_device_assignments
+            .resize(self.player_count, "Default".to_string());
     }
 
     /// Cycles the assigned device for the given player slot between available physical gamepads, virtual gamepads, and Keyboard.
@@ -1181,7 +1246,17 @@ impl MainWindow {
     /// Sets the launch callback for starting games from the GUI.
     pub fn with_launcher<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, usize, &str, &std::collections::HashMap<String, String>, &[String], &[usize], &[String]) + Send + Sync + 'static,
+        F: Fn(
+                &str,
+                usize,
+                &str,
+                &std::collections::HashMap<String, String>,
+                &[String],
+                &[usize],
+                &[String],
+            ) + Send
+            + Sync
+            + 'static,
     {
         self.callbacks = self.callbacks.with_launcher(callback);
         self
@@ -1247,18 +1322,22 @@ impl MainWindow {
             self.hub_loading = true;
             let query = self.hub_search_query.clone();
             cx.spawn(async move |this, cx| {
-                let results = cx.background_executor().spawn(async move {
-                    cb(&query)
-                }).await;
+                let results = cx
+                    .background_executor()
+                    .spawn(async move { cb(&query) })
+                    .await;
 
                 this.update(&mut *cx, |win, cx| {
                     win.hub_packages = results;
                     win.hub_loading = false;
                     win.hub_page = 0;
-                    win.status_message = format!("Hub: Loaded {} community packages.", win.hub_packages.len());
+                    win.status_message =
+                        format!("Hub: Loaded {} community packages.", win.hub_packages.len());
                     cx.notify();
-                }).ok();
-            }).detach();
+                })
+                .ok();
+            })
+            .detach();
         }
     }
 
@@ -1284,9 +1363,11 @@ impl MainWindow {
                     win.hub_detail_comments = comments_res;
                     win.hub_detail_loading = false;
                     cx.notify();
-                }).ok();
+                })
+                .ok();
             }
-        }).detach();
+        })
+        .detach();
     }
 
     /// Sets callback for installing a hub handler package with progress reporting.
@@ -1346,7 +1427,10 @@ impl MainWindow {
     /// Sets callback for saving a numbered profile.
     pub fn with_numbered_profile_saver<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, Option<usize>, &nucleus_profile::GameProfile) -> Option<usize> + Send + Sync + 'static,
+        F: Fn(&str, Option<usize>, &nucleus_profile::GameProfile) -> Option<usize>
+            + Send
+            + Sync
+            + 'static,
     {
         self.callbacks = self.callbacks.with_numbered_profile_saver(callback);
         self
@@ -1463,7 +1547,10 @@ impl MainWindow {
     /// Sets callback for creating a save slot.
     pub fn with_save_slot_creator<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync + 'static,
+        F: Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot>
+            + Send
+            + Sync
+            + 'static,
     {
         self.callbacks = self.callbacks.with_save_slot_creator(callback);
         self
@@ -1472,7 +1559,10 @@ impl MainWindow {
     /// Sets callback for cloning a save slot.
     pub fn with_save_slot_cloner<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync + 'static,
+        F: Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot>
+            + Send
+            + Sync
+            + 'static,
     {
         self.callbacks = self.callbacks.with_save_slot_cloner(callback);
         self
@@ -1654,7 +1744,11 @@ impl MainWindow {
     }
 
     /// Toggles the In-Game Couch OSD overlay menu for a specific summoning player slot.
-    pub fn toggle_in_game_osd_for_player(&mut self, summoner_slot: Option<usize>, cx: &mut Context<Self>) {
+    pub fn toggle_in_game_osd_for_player(
+        &mut self,
+        summoner_slot: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
         if !self.is_session_active() {
             return;
         }
@@ -1685,13 +1779,22 @@ impl MainWindow {
     }
 
     /// Reassigns controller device ID for a player slot.
-    pub fn reassign_controller(&mut self, slot_idx: usize, new_device_id: usize, cx: &mut Context<Self>) {
+    pub fn reassign_controller(
+        &mut self,
+        slot_idx: usize,
+        new_device_id: usize,
+        cx: &mut Context<Self>,
+    ) {
         if let Some(ref cb) = self.callbacks.on_reassign_controller {
             cb(slot_idx, new_device_id);
         }
         if let Some(slot) = self.couch_setup_state.slots.get_mut(slot_idx) {
             slot.device_id = Some(new_device_id);
-            if let Some(dev) = self.detected_devices_list.iter().find(|d| d.id == new_device_id) {
+            if let Some(dev) = self
+                .detected_devices_list
+                .iter()
+                .find(|d| d.id == new_device_id)
+            {
                 slot.device_name = dev.name.clone();
                 slot.device_guid = dev.guid.clone();
             }
@@ -1703,9 +1806,14 @@ impl MainWindow {
                 .find(|d| d.id == new_device_id)
                 .map(|d| d.name.clone())
                 .unwrap_or_else(|| format!("Gamepad #{}", new_device_id));
-            self.player_device_assignments[slot_idx] = format!("Gamepad #{} ({})", new_device_id, name);
+            self.player_device_assignments[slot_idx] =
+                format!("Gamepad #{} ({})", new_device_id, name);
         }
-        self.status_message = format!("Player {} controller hot-swapped to Device #{}", slot_idx + 1, new_device_id);
+        self.status_message = format!(
+            "Player {} controller hot-swapped to Device #{}",
+            slot_idx + 1,
+            new_device_id
+        );
         self.in_game_osd.close_reassign();
         cx.notify();
     }
@@ -1758,7 +1866,10 @@ impl MainWindow {
                 self.toggle_freeze_session(cx);
             }
             crate::big_picture::OsdAction::ReassignControllers => {
-                let slot = self.couch_setup_state.focused_slot.min(self.player_count.saturating_sub(1));
+                let slot = self
+                    .couch_setup_state
+                    .focused_slot
+                    .min(self.player_count.saturating_sub(1));
                 self.in_game_osd.open_reassign(slot);
                 cx.notify();
             }
@@ -1844,8 +1955,10 @@ impl MainWindow {
                         cx.notify();
                     }
                 }
-            }).ok();
-        }).detach();
+            })
+            .ok();
+        })
+        .detach();
     }
 
     /// Renders the floating On-Screen Display (OSD) overlay badge when active.
@@ -1871,7 +1984,10 @@ impl MainWindow {
             "Multi-Monitor Span",
         ];
         let current = self.selected_layout.as_str();
-        let idx = layout_options.iter().position(|&l| l.eq_ignore_ascii_case(current)).unwrap_or(0);
+        let idx = layout_options
+            .iter()
+            .position(|&l| l.eq_ignore_ascii_case(current))
+            .unwrap_or(0);
         let next_idx = (idx + 1) % layout_options.len();
         let chosen = layout_options[next_idx].to_string();
         self.selected_layout = chosen.clone();
@@ -1881,7 +1997,11 @@ impl MainWindow {
     }
 
     /// Handles physical keypress recording for lock key or shortcuts.
-    pub fn handle_key_recording(&mut self, event: &gpui::KeyDownEvent, cx: &mut Context<Self>) -> bool {
+    pub fn handle_key_recording(
+        &mut self,
+        event: &gpui::KeyDownEvent,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let key_raw = event.keystroke.key.as_str();
         if key_raw.eq_ignore_ascii_case("escape") {
             self.settings_view.recording_hotkey = None;
@@ -1891,7 +2011,10 @@ impl MainWindow {
         }
 
         // Ignore lonely modifier presses
-        if matches!(key_raw.to_lowercase().as_str(), "control" | "shift" | "alt" | "meta" | "ctrl") {
+        if matches!(
+            key_raw.to_lowercase().as_str(),
+            "control" | "shift" | "alt" | "meta" | "ctrl"
+        ) {
             return true;
         }
 
@@ -1900,12 +2023,20 @@ impl MainWindow {
                 let normalized = crate::settings_view::normalize_key_input(key_raw);
                 self.app_settings.lock_inputs_key = normalized.clone();
                 self.settings_view.recording_hotkey = None;
-                self.status_message = format!("Lock Inputs Key successfully updated to: {}", normalized);
+                self.status_message =
+                    format!("Lock Inputs Key successfully updated to: {}", normalized);
                 self.show_osd(&format!("Lock Key: {}", normalized), 1200, cx);
             } else {
                 let key_clean = crate::settings_view::normalize_key_input(key_raw);
-                let combo = crate::settings_view::format_shortcut_combo(&event.keystroke.modifiers, &key_clean);
-                crate::settings_view::set_hotkey_value(&mut self.app_settings, &target, combo.clone());
+                let combo = crate::settings_view::format_shortcut_combo(
+                    &event.keystroke.modifiers,
+                    &key_clean,
+                );
+                crate::settings_view::set_hotkey_value(
+                    &mut self.app_settings,
+                    &target,
+                    combo.clone(),
+                );
                 self.settings_view.recording_hotkey = None;
                 self.status_message = format!("Shortcut successfully updated to: {}", combo);
                 self.show_osd(&format!("Shortcut: {}", combo), 1200, cx);
@@ -1928,7 +2059,10 @@ impl MainWindow {
                     .unwrap_or_else(|| "Custom Shortcut".to_string()),
             };
 
-            let focus_handle = self.hotkey_record_focus.clone().unwrap_or_else(|| cx.focus_handle());
+            let focus_handle = self
+                .hotkey_record_focus
+                .clone()
+                .unwrap_or_else(|| cx.focus_handle());
 
             let on_cancel = cx.listener(|this: &mut MainWindow, _, _, cx| {
                 this.settings_view.recording_hotkey = None;
@@ -1936,9 +2070,11 @@ impl MainWindow {
                 cx.notify();
             });
 
-            let on_key_down = cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                this.handle_key_recording(event, cx);
-            });
+            let on_key_down = cx.listener(
+                |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                    this.handle_key_recording(event, cx);
+                },
+            );
 
             return Some(crate::osd::render_hotkey_recording_modal(
                 &target_name,
@@ -1970,13 +2106,19 @@ impl MainWindow {
             .on_maximize(cx.listener(|_this, _, window, _cx| {
                 #[cfg(target_os = "windows")]
                 unsafe {
+                    use windows::Win32::Foundation::{LPARAM, WPARAM};
                     use windows::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
-                    use windows::Win32::UI::WindowsAndMessaging::{IsZoomed, PostMessageW, WM_SYSCOMMAND};
-                    use windows::Win32::Foundation::{WPARAM, LPARAM};
+                    use windows::Win32::UI::WindowsAndMessaging::{
+                        IsZoomed, PostMessageW, WM_SYSCOMMAND,
+                    };
                     let hwnd = GetActiveWindow();
                     if !hwnd.is_invalid() {
                         let is_zoomed = IsZoomed(hwnd).as_bool();
-                        let sc_cmd = if is_zoomed { 0xF120 /* SC_RESTORE */ } else { 0xF030 /* SC_MAXIMIZE */ };
+                        let sc_cmd = if is_zoomed {
+                            0xF120 /* SC_RESTORE */
+                        } else {
+                            0xF030 /* SC_MAXIMIZE */
+                        };
                         let _ = PostMessageW(hwnd, WM_SYSCOMMAND, WPARAM(sc_cmd), LPARAM(0));
                         _cx.notify();
                         return;
@@ -2052,7 +2194,11 @@ impl MainWindow {
     }
 
     /// Executes the action confirmed by the user in `CouchConfirmDialog`.
-    pub fn execute_confirm_action(&mut self, action: &crate::models::ConfirmAction, cx: &mut Context<Self>) {
+    pub fn execute_confirm_action(
+        &mut self,
+        action: &crate::models::ConfirmAction,
+        cx: &mut Context<Self>,
+    ) {
         match action {
             crate::models::ConfirmAction::ResetDefaults => {
                 self.app_settings = nucleus_profile::AppSettings::default();
@@ -2394,7 +2540,12 @@ impl MainWindow {
         )
     }
     /// Remaps a controller action to a target button name.
-    pub fn remap_controller_action(&mut self, action: &str, button_name: &str, cx: &mut Context<Self>) {
+    pub fn remap_controller_action(
+        &mut self,
+        action: &str,
+        button_name: &str,
+        cx: &mut Context<Self>,
+    ) {
         let is_single = matches!(action, "drag_drop" | "right_click" | "left_click");
         let new_binding = if is_single {
             button_name.to_string()
@@ -2407,7 +2558,8 @@ impl MainWindow {
             }
         };
 
-        self.app_settings.set_gamepad_binding(action, new_binding.clone());
+        self.app_settings
+            .set_gamepad_binding(action, new_binding.clone());
         let _ = self.app_settings.save();
         self.remapping_controller_shortcut = None;
         let action_display = match action {
@@ -2462,9 +2614,23 @@ impl MainWindow {
             .py_1()
             .rounded_md()
             .border_1()
-            .border_color(if is_active { theme::accent() } else { theme::border_color() })
-            .bg(if is_active { theme::accent().opacity(0.18) } else { theme::bg_panel() })
-            .hover(|s| if is_active { s } else { s.bg(theme::bg_hover()) })
+            .border_color(if is_active {
+                theme::accent()
+            } else {
+                theme::border_color()
+            })
+            .bg(if is_active {
+                theme::accent().opacity(0.18)
+            } else {
+                theme::bg_panel()
+            })
+            .hover(|s| {
+                if is_active {
+                    s
+                } else {
+                    s.bg(theme::bg_hover())
+                }
+            })
             .tooltip(crate::make_tooltip(if is_active {
                 "Listening for replacement button... (Click to cancel)"
             } else {
@@ -2483,7 +2649,11 @@ impl MainWindow {
                 div()
                     .text_xs()
                     .font_weight(FontWeight::MEDIUM)
-                    .text_color(if is_active { theme::accent() } else { theme::text_primary() })
+                    .text_color(if is_active {
+                        theme::accent()
+                    } else {
+                        theme::text_primary()
+                    })
                     .child(label),
             )
             .child(
@@ -2511,9 +2681,17 @@ impl MainWindow {
                             .h(px(20.0))
                             .px_1p5()
                             .rounded_sm()
-                            .bg(if is_active { theme::accent() } else { theme::bg_subtle() })
+                            .bg(if is_active {
+                                theme::accent()
+                            } else {
+                                theme::bg_subtle()
+                            })
                             .border_1()
-                            .border_color(if is_active { theme::accent() } else { theme::border_color() })
+                            .border_color(if is_active {
+                                theme::accent()
+                            } else {
+                                theme::border_color()
+                            })
                             .text_xs()
                             .font_weight(FontWeight::BOLD)
                             .text_color(rgb(0xffffff))
@@ -2549,9 +2727,23 @@ impl MainWindow {
             .py_1()
             .rounded_md()
             .border_1()
-            .border_color(if is_active { theme::accent() } else { theme::border_color() })
-            .bg(if is_active { theme::accent().opacity(0.18) } else { theme::bg_panel() })
-            .hover(|s| if is_active { s } else { s.bg(theme::bg_hover()) })
+            .border_color(if is_active {
+                theme::accent()
+            } else {
+                theme::border_color()
+            })
+            .bg(if is_active {
+                theme::accent().opacity(0.18)
+            } else {
+                theme::bg_panel()
+            })
+            .hover(|s| {
+                if is_active {
+                    s
+                } else {
+                    s.bg(theme::bg_hover())
+                }
+            })
             .tooltip(crate::make_tooltip(if is_active {
                 "Listening for replacement button... (Click to cancel)"
             } else {
@@ -2570,7 +2762,11 @@ impl MainWindow {
                 div()
                     .text_xs()
                     .font_weight(FontWeight::MEDIUM)
-                    .text_color(if is_active { theme::accent() } else { theme::text_primary() })
+                    .text_color(if is_active {
+                        theme::accent()
+                    } else {
+                        theme::text_primary()
+                    })
                     .child(label),
             )
             .child(
@@ -2579,9 +2775,17 @@ impl MainWindow {
                     .h(px(20.0))
                     .px_2()
                     .rounded_sm()
-                    .bg(if is_active { theme::accent() } else { theme::bg_subtle() })
+                    .bg(if is_active {
+                        theme::accent()
+                    } else {
+                        theme::bg_subtle()
+                    })
                     .border_1()
-                    .border_color(if is_active { theme::accent() } else { theme::border_color() })
+                    .border_color(if is_active {
+                        theme::accent()
+                    } else {
+                        theme::border_color()
+                    })
                     .text_xs()
                     .font_weight(FontWeight::BOLD)
                     .text_color(rgb(0xffffff))
@@ -2599,7 +2803,10 @@ impl MainWindow {
             return None;
         }
 
-        let is_ps = self.app_settings.gamepad_type.eq_ignore_ascii_case("Playstation");
+        let is_ps = self
+            .app_settings
+            .gamepad_type
+            .eq_ignore_ascii_case("Playstation");
         let deadzone_val = self.app_settings.gamepad_deadzone;
         let is_enabled = self.app_settings.gamepad_shortcuts_enabled;
 
@@ -3401,7 +3608,10 @@ impl MainWindow {
         if !self.save_slots_modal.is_open {
             return None;
         }
-        let active_slot = self.player_save_slots.get(self.save_slots_modal.target_player_index).and_then(|s| s.as_deref());
+        let active_slot = self
+            .player_save_slots
+            .get(self.save_slots_modal.target_player_index)
+            .and_then(|s| s.as_deref());
         let on_close = cx.listener(|this: &mut MainWindow, _, _, cx| {
             this.save_slots_modal.close();
             cx.notify();
@@ -3437,23 +3647,101 @@ impl MainWindow {
 /// Formats a controller button code into a display glyph based on Xbox vs PlayStation style.
 pub fn format_gamepad_button_glyph(button_code: &str, is_ps: bool) -> &'static str {
     match button_code {
-        "A" => if is_ps { "✕" } else { "A" },
-        "B" => if is_ps { "◯" } else { "B" },
-        "X" => if is_ps { "□" } else { "X" },
-        "Y" => if is_ps { "△" } else { "Y" },
-        "LB" => if is_ps { "L1" } else { "LB" },
-        "RB" => if is_ps { "R1" } else { "RB" },
-        "LT" => if is_ps { "L2" } else { "LT" },
-        "RT" => if is_ps { "R2" } else { "RT" },
-        "LS" | "L3" => if is_ps { "L3" } else { "LS" },
-        "RS" | "R3" => if is_ps { "R3" } else { "RS" },
-        "Start" | "Menu" => if is_ps { "Opt" } else { "≡" },
-        "Back" | "View" => if is_ps { "Shr" } else { "⧉" },
+        "A" => {
+            if is_ps {
+                "✕"
+            } else {
+                "A"
+            }
+        }
+        "B" => {
+            if is_ps {
+                "◯"
+            } else {
+                "B"
+            }
+        }
+        "X" => {
+            if is_ps {
+                "□"
+            } else {
+                "X"
+            }
+        }
+        "Y" => {
+            if is_ps {
+                "△"
+            } else {
+                "Y"
+            }
+        }
+        "LB" => {
+            if is_ps {
+                "L1"
+            } else {
+                "LB"
+            }
+        }
+        "RB" => {
+            if is_ps {
+                "R1"
+            } else {
+                "RB"
+            }
+        }
+        "LT" => {
+            if is_ps {
+                "L2"
+            } else {
+                "LT"
+            }
+        }
+        "RT" => {
+            if is_ps {
+                "R2"
+            } else {
+                "RT"
+            }
+        }
+        "LS" | "L3" => {
+            if is_ps {
+                "L3"
+            } else {
+                "LS"
+            }
+        }
+        "RS" | "R3" => {
+            if is_ps {
+                "R3"
+            } else {
+                "RS"
+            }
+        }
+        "Start" | "Menu" => {
+            if is_ps {
+                "Opt"
+            } else {
+                "≡"
+            }
+        }
+        "Back" | "View" => {
+            if is_ps {
+                "Shr"
+            } else {
+                "⧉"
+            }
+        }
         "DPadUp" | "Up" => "▲",
         "DPadDown" | "Down" => "▼",
         "DPadLeft" | "Left" => "◀",
         "DPadRight" | "Right" => "▶",
-        "Guide" | "Home" => if is_ps { "🅟" } else { "⨂" },
+        "Guide" | "Home" => {
+            if is_ps {
+                "🅟"
+            } else {
+                "⨂"
+            }
+        }
         _ => "•",
     }
 }
@@ -3507,27 +3795,41 @@ impl Render for MainWindow {
                 .id("in-game-couch-osd-root")
                 .size_full()
                 .track_focus(&win_focus)
-                .on_key_down(cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                    let key = event.keystroke.key.as_str();
-                    let ctrl = event.keystroke.modifiers.control;
-                    let shift = event.keystroke.modifiers.shift;
+                .on_key_down(cx.listener(
+                    |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                        let key = event.keystroke.key.as_str();
+                        let ctrl = event.keystroke.modifiers.control;
+                        let shift = event.keystroke.modifiers.shift;
 
-                    if let Some(action_name) = crate::big_picture::input::map_key_to_couch_action_name(key, ctrl, shift) {
-                        this.dispatch_couch_action_by_name(action_name, cx);
-                    }
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateUp, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateUp", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateDown, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateDown", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
-                    this.dispatch_couch_action_by_name("Confirm", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::CancelAction, _window, cx| {
-                    this.dispatch_couch_action_by_name("Cancel", cx);
-                }))
+                        if let Some(action_name) =
+                            crate::big_picture::input::map_key_to_couch_action_name(
+                                key, ctrl, shift,
+                            )
+                        {
+                            this.dispatch_couch_action_by_name(action_name, cx);
+                        }
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateUp, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateUp", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateDown, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateDown", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
+                        this.dispatch_couch_action_by_name("Confirm", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::CancelAction, _window, cx| {
+                        this.dispatch_couch_action_by_name("Cancel", cx);
+                    },
+                ))
                 .child(crate::big_picture::render_in_game_osd(self, cx))
                 .into_any_element();
         }
@@ -3541,62 +3843,99 @@ impl Render for MainWindow {
                 .bg(theme::bg_main())
                 .text_color(theme::text_primary())
                 .track_focus(&win_focus)
-                .on_mouse_down(MouseButton::Left, cx.listener(|this, _, window, cx| {
-                    if window.focused(cx).is_none() {
-                        if let Some(ref f) = this.window_focus {
-                            f.focus(window, cx);
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(|this, _, window, cx| {
+                        if window.focused(cx).is_none() {
+                            if let Some(ref f) = this.window_focus {
+                                f.focus(window, cx);
+                            }
                         }
-                    }
-                }))
-                .on_key_down(cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                    let key = event.keystroke.key.as_str();
-                    let ctrl = event.keystroke.modifiers.control;
-                    let shift = event.keystroke.modifiers.shift;
+                    }),
+                )
+                .on_key_down(cx.listener(
+                    |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                        let key = event.keystroke.key.as_str();
+                        let ctrl = event.keystroke.modifiers.control;
+                        let shift = event.keystroke.modifiers.shift;
 
-                    if let Some(action_name) = crate::big_picture::input::map_key_to_couch_action_name(key, ctrl, shift) {
-                        this.dispatch_couch_action_by_name(action_name, cx);
-                    }
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ToggleBigPicture, _window, cx| {
-                    this.dispatch_couch_action_by_name("ToggleBigPicture", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ToggleOsd, _window, cx| {
-                    this.dispatch_couch_action_by_name("ToggleOsd", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateUp, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateUp", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateDown, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateDown", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateLeft, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateLeft", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateRight, _window, cx| {
-                    this.dispatch_couch_action_by_name("NavigateRight", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
-                    this.dispatch_couch_action_by_name("Confirm", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::CancelAction, _window, cx| {
-                    this.dispatch_couch_action_by_name("Cancel", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::QuickLaunch, _window, cx| {
-                    this.dispatch_couch_action_by_name("QuickLaunch", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ContextAction1, _window, cx| {
-                    this.dispatch_couch_action_by_name("Context1", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ContextAction2, _window, cx| {
-                    this.dispatch_couch_action_by_name("Context2", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NextTab, _window, cx| {
-                    this.dispatch_couch_action_by_name("NextTab", cx);
-                }))
-                .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::PrevTab, _window, cx| {
-                    this.dispatch_couch_action_by_name("PrevTab", cx);
-                }))
-                .child(crate::big_picture::render_big_picture_view(self, _window, cx))
+                        if let Some(action_name) =
+                            crate::big_picture::input::map_key_to_couch_action_name(
+                                key, ctrl, shift,
+                            )
+                        {
+                            this.dispatch_couch_action_by_name(action_name, cx);
+                        }
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ToggleBigPicture, _window, cx| {
+                        this.dispatch_couch_action_by_name("ToggleBigPicture", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ToggleOsd, _window, cx| {
+                        this.dispatch_couch_action_by_name("ToggleOsd", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateUp, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateUp", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateDown, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateDown", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateLeft, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateLeft", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NavigateRight, _window, cx| {
+                        this.dispatch_couch_action_by_name("NavigateRight", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
+                        this.dispatch_couch_action_by_name("Confirm", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::CancelAction, _window, cx| {
+                        this.dispatch_couch_action_by_name("Cancel", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::QuickLaunch, _window, cx| {
+                        this.dispatch_couch_action_by_name("QuickLaunch", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ContextAction1, _window, cx| {
+                        this.dispatch_couch_action_by_name("Context1", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::ContextAction2, _window, cx| {
+                        this.dispatch_couch_action_by_name("Context2", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::NextTab, _window, cx| {
+                        this.dispatch_couch_action_by_name("NextTab", cx);
+                    },
+                ))
+                .on_action(cx.listener(
+                    |this: &mut MainWindow, _: &crate::actions::PrevTab, _window, cx| {
+                        this.dispatch_couch_action_by_name("PrevTab", cx);
+                    },
+                ))
+                .child(crate::big_picture::render_big_picture_view(
+                    self, _window, cx,
+                ))
                 .into_any_element();
         }
 
@@ -3642,10 +3981,7 @@ impl Render for MainWindow {
                 self.hub_loading,
                 cx,
             ),
-            ActiveTab::Settings => crate::settings_view::render_settings_view(
-                self,
-                cx,
-            ),
+            ActiveTab::Settings => crate::settings_view::render_settings_view(self, cx),
             ActiveTab::Extensions => crate::extensions_view::render_extensions_view(
                 &self.extensions_view_state,
                 &self.installed_extensions,
@@ -3653,7 +3989,10 @@ impl Render for MainWindow {
                 self.callbacks.on_install_extension.as_ref().map(|cb| {
                     let c = cb.clone();
                     Arc::new(move || {
-                        if let Some(path) = crate::dialogs::pick_file("Select Extension Package (*.nucplugin, *.nucaddon, *.zip)", "*.nucplugin;*.nucaddon;*.zip") {
+                        if let Some(path) = crate::dialogs::pick_file(
+                            "Select Extension Package (*.nucplugin, *.nucaddon, *.zip)",
+                            "*.nucplugin;*.nucaddon;*.zip",
+                        ) {
                             let path_str = path.to_string_lossy();
                             let _ = c(&path_str);
                         }
@@ -3662,7 +4001,9 @@ impl Render for MainWindow {
                 None,
                 Some(Arc::new(|| {
                     if let Some(globals) = nucleus_common::Globals::try_get() {
-                        let _ = std::process::Command::new("explorer").arg(globals.app_data_path.join("plugins")).spawn();
+                        let _ = std::process::Command::new("explorer")
+                            .arg(globals.app_data_path.join("plugins"))
+                            .spawn();
                     }
                 })),
                 self.callbacks.on_grant_extension_permission.clone(),
@@ -3693,184 +4034,201 @@ impl Render for MainWindow {
             .bg(theme::bg_main())
             .text_color(theme::text_primary())
             .track_focus(&win_focus)
-            .on_mouse_down(MouseButton::Left, cx.listener(|this, _, window, cx| {
-                if this.settings_view.recording_hotkey.is_none() && window.focused(cx).is_none() {
-                    if let Some(ref f) = this.window_focus {
-                        f.focus(window, cx);
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(|this, _, window, cx| {
+                    if this.settings_view.recording_hotkey.is_none() && window.focused(cx).is_none()
+                    {
+                        if let Some(ref f) = this.window_focus {
+                            f.focus(window, cx);
+                        }
                     }
-                }
-            }))
-            .on_key_down(cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                if this.settings_view.recording_hotkey.is_some() {
-                    this.handle_key_recording(event, cx);
-                    return;
-                }
-                if let Some((idx, field)) = this.settings_view.editing_player {
-                    let key = event.keystroke.key.as_str();
-                    if key.eq_ignore_ascii_case("escape") || key.eq_ignore_ascii_case("enter") {
-                        this.settings_view.editing_player = None;
-                        cx.notify();
+                }),
+            )
+            .on_key_down(cx.listener(
+                |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                    if this.settings_view.recording_hotkey.is_some() {
+                        this.handle_key_recording(event, cx);
                         return;
                     }
-                    match field {
-                        crate::settings_view::PlayerEditField::Nickname => {
-                            let mut cur = this.app_settings.get_player_nickname(idx);
-                            if key.eq_ignore_ascii_case("backspace") {
-                                cur.pop();
-                            } else if key.eq_ignore_ascii_case("space") {
-                                if cur.len() < 24 {
-                                    cur.push(' ');
-                                }
-                            } else if let Some(ref s) = event.keystroke.key_char {
-                                if cur.len() < 24 {
-                                    cur.push_str(s);
-                                }
-                            } else if key.chars().count() == 1 {
-                                if cur.len() < 24 {
-                                    cur.push_str(key);
-                                }
-                            }
-                            this.app_settings.set_player_nickname(idx, cur);
+                    if let Some((idx, field)) = this.settings_view.editing_player {
+                        let key = event.keystroke.key.as_str();
+                        if key.eq_ignore_ascii_case("escape") || key.eq_ignore_ascii_case("enter") {
+                            this.settings_view.editing_player = None;
                             cx.notify();
+                            return;
                         }
-                        crate::settings_view::PlayerEditField::SteamId => {
-                            let mut cur = this.app_settings.get_player_steam_id(idx);
-                            if key.eq_ignore_ascii_case("backspace") {
-                                cur.pop();
-                            } else if let Some(ref s) = event.keystroke.key_char {
-                                for c in s.chars() {
+                        match field {
+                            crate::settings_view::PlayerEditField::Nickname => {
+                                let mut cur = this.app_settings.get_player_nickname(idx);
+                                if key.eq_ignore_ascii_case("backspace") {
+                                    cur.pop();
+                                } else if key.eq_ignore_ascii_case("space") {
+                                    if cur.len() < 24 {
+                                        cur.push(' ');
+                                    }
+                                } else if let Some(ref s) = event.keystroke.key_char {
+                                    if cur.len() < 24 {
+                                        cur.push_str(s);
+                                    }
+                                } else if key.chars().count() == 1 {
+                                    if cur.len() < 24 {
+                                        cur.push_str(key);
+                                    }
+                                }
+                                this.app_settings.set_player_nickname(idx, cur);
+                                cx.notify();
+                            }
+                            crate::settings_view::PlayerEditField::SteamId => {
+                                let mut cur = this.app_settings.get_player_steam_id(idx);
+                                if key.eq_ignore_ascii_case("backspace") {
+                                    cur.pop();
+                                } else if let Some(ref s) = event.keystroke.key_char {
+                                    for c in s.chars() {
+                                        if c.is_ascii_digit() && cur.len() < 17 {
+                                            cur.push(c);
+                                        }
+                                    }
+                                } else if key.chars().count() == 1 {
+                                    let c = key.chars().next().unwrap();
                                     if c.is_ascii_digit() && cur.len() < 17 {
                                         cur.push(c);
                                     }
                                 }
-                            } else if key.chars().count() == 1 {
-                                let c = key.chars().next().unwrap();
-                                if c.is_ascii_digit() && cur.len() < 17 {
-                                    cur.push(c);
-                                }
+                                this.app_settings.set_player_steam_id(idx, cur);
+                                cx.notify();
                             }
-                            this.app_settings.set_player_steam_id(idx, cur);
+                        }
+                        return;
+                    }
+                    let key = event.keystroke.key.as_str();
+                    if key.eq_ignore_ascii_case("f11") {
+                        this.toggle_big_picture(cx);
+                        return;
+                    }
+                    if key.eq_ignore_ascii_case("escape") {
+                        if this.context_menu_handler.is_some() {
+                            this.context_menu_handler = None;
                             cx.notify();
+                            return;
+                        }
+                        if this.inspecting_hub_package.is_some() {
+                            this.inspecting_hub_package = None;
+                            cx.notify();
+                            return;
                         }
                     }
-                    return;
-                }
-                let key = event.keystroke.key.as_str();
-                if key.eq_ignore_ascii_case("f11") {
+                    if event.keystroke.modifiers.control && key.eq_ignore_ascii_case("escape") {
+                        this.toggle_in_game_osd(cx);
+                        return;
+                    }
+                    if this.in_game_osd.is_visible {
+                        if key.eq_ignore_ascii_case("escape") || key.eq_ignore_ascii_case("b") {
+                            if this.in_game_osd.reassign_modal_open {
+                                this.in_game_osd.close_reassign();
+                            } else {
+                                this.set_osd_visible(false);
+                            }
+                            cx.notify();
+                            return;
+                        }
+                        if key.eq_ignore_ascii_case("up") || key.eq_ignore_ascii_case("w") {
+                            this.in_game_osd.move_up();
+                            cx.notify();
+                            return;
+                        }
+                        if key.eq_ignore_ascii_case("down") || key.eq_ignore_ascii_case("s") {
+                            this.in_game_osd.move_down();
+                            cx.notify();
+                            return;
+                        }
+                        if key.eq_ignore_ascii_case("enter") || key.eq_ignore_ascii_case("space") {
+                            this.handle_osd_confirm(cx);
+                            return;
+                        }
+                        return;
+                    }
+                    if event.keystroke.modifiers.control && key.eq_ignore_ascii_case("n") {
+                        this.cycle_layout(cx);
+                    }
+                },
+            ))
+            .on_action(cx.listener(
+                |this: &mut MainWindow, _: &crate::actions::ToggleBigPicture, _window, cx| {
                     this.toggle_big_picture(cx);
-                    return;
-                }
-                if key.eq_ignore_ascii_case("escape") {
-                    if this.context_menu_handler.is_some() {
-                        this.context_menu_handler = None;
-                        cx.notify();
-                        return;
-                    }
-                    if this.inspecting_hub_package.is_some() {
-                        this.inspecting_hub_package = None;
-                        cx.notify();
-                        return;
-                    }
-                }
-                if event.keystroke.modifiers.control && key.eq_ignore_ascii_case("escape") {
+                },
+            ))
+            .on_action(cx.listener(
+                |this: &mut MainWindow, _: &crate::actions::ToggleOsd, _window, cx| {
                     this.toggle_in_game_osd(cx);
-                    return;
-                }
-                if this.in_game_osd.is_visible {
-                    if key.eq_ignore_ascii_case("escape") || key.eq_ignore_ascii_case("b") {
-                        if this.in_game_osd.reassign_modal_open {
-                            this.in_game_osd.close_reassign();
+                },
+            ))
+            .on_action(cx.listener(
+                |this: &mut MainWindow, _: &crate::actions::NavigateLeft, _window, cx| {
+                    if this.is_big_picture {
+                        if let Some(ref mut m) = this.couch_hub_state.custom_options_modal {
+                            m.cycle_choice(false);
+                        } else if this.big_picture_screen == BigPictureScreen::CouchSetup {
+                            this.couch_setup_state.navigate_slot_left();
+                        } else if this.big_picture_screen == BigPictureScreen::CouchHub {
+                            let count = this.get_filtered_couch_hub_packages().len();
+                            this.couch_hub_state.move_left(count);
                         } else {
-                            this.set_osd_visible(false);
+                            this.carousel_state.move_left();
                         }
                         cx.notify();
-                        return;
                     }
-                    if key.eq_ignore_ascii_case("up") || key.eq_ignore_ascii_case("w") {
-                        this.in_game_osd.move_up();
-                        cx.notify();
-                        return;
-                    }
-                    if key.eq_ignore_ascii_case("down") || key.eq_ignore_ascii_case("s") {
-                        this.in_game_osd.move_down();
-                        cx.notify();
-                        return;
-                    }
-                    if key.eq_ignore_ascii_case("enter") || key.eq_ignore_ascii_case("space") {
-                        this.handle_osd_confirm(cx);
-                        return;
-                    }
-                    return;
-                }
-                if event.keystroke.modifiers.control && key.eq_ignore_ascii_case("n") {
-                    this.cycle_layout(cx);
-                }
-            }))
-            .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ToggleBigPicture, _window, cx| {
-                this.toggle_big_picture(cx);
-            }))
-            .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ToggleOsd, _window, cx| {
-                this.toggle_in_game_osd(cx);
-            }))
-            .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateLeft, _window, cx| {
-                if this.is_big_picture {
-                    if let Some(ref mut m) = this.couch_hub_state.custom_options_modal {
-                        m.cycle_choice(false);
-                    } else if this.big_picture_screen == BigPictureScreen::CouchSetup {
-                        this.couch_setup_state.navigate_slot_left();
-                    } else if this.big_picture_screen == BigPictureScreen::CouchHub {
-                        let count = this.get_filtered_couch_hub_packages().len();
-                        this.couch_hub_state.move_left(count);
-                    } else {
-                        this.carousel_state.move_left();
-                    }
-                    cx.notify();
-                }
-            }))
-            .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::NavigateRight, _window, cx| {
-                if this.is_big_picture {
-                    if let Some(ref mut m) = this.couch_hub_state.custom_options_modal {
-                        m.cycle_choice(true);
-                    } else if this.big_picture_screen == BigPictureScreen::CouchSetup {
-                        this.couch_setup_state.navigate_slot_right();
-                    } else if this.big_picture_screen == BigPictureScreen::CouchHub {
-                        let count = this.get_filtered_couch_hub_packages().len();
-                        this.couch_hub_state.move_right(count);
-                    } else {
-                        this.carousel_state.move_right();
-                    }
-                    cx.notify();
-                }
-            }))
-            .on_action(cx.listener(|this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
-                if this.is_big_picture {
-                    if this.couch_hub_state.custom_options_modal.is_some() {
-                        this.confirm_couch_options_and_launch(cx);
-                        return;
-                    }
-                    if let Some(h_name) = this.couch_hub_state.missing_exe_modal_handler.clone() {
-                        this.locate_exe_for_handler(&h_name, cx);
-                        return;
-                    }
-                    if this.big_picture_screen == BigPictureScreen::CouchSetup {
-                        let focused = this.couch_setup_state.focused_slot;
-                        if this.couch_setup_state.grabbed_slot.is_some() {
-                            this.couch_setup_state.drop_swap_target(focused);
+                },
+            ))
+            .on_action(cx.listener(
+                |this: &mut MainWindow, _: &crate::actions::NavigateRight, _window, cx| {
+                    if this.is_big_picture {
+                        if let Some(ref mut m) = this.couch_hub_state.custom_options_modal {
+                            m.cycle_choice(true);
+                        } else if this.big_picture_screen == BigPictureScreen::CouchSetup {
+                            this.couch_setup_state.navigate_slot_right();
+                        } else if this.big_picture_screen == BigPictureScreen::CouchHub {
+                            let count = this.get_filtered_couch_hub_packages().len();
+                            this.couch_hub_state.move_right(count);
                         } else {
-                            this.couch_setup_state.grab_slot(focused);
+                            this.carousel_state.move_right();
                         }
                         cx.notify();
-                    } else if this.big_picture_screen == BigPictureScreen::CouchHub {
-                        let pkgs = this.get_filtered_couch_hub_packages();
-                        if this.couch_hub_state.selected_index < pkgs.len() {
-                            let pid = pkgs[this.couch_hub_state.selected_index].id.clone();
-                            this.download_and_play_couch_package(&pid, cx);
-                        }
-                    } else {
-                        this.select_carousel_game(this.carousel_state.selected_index, cx);
                     }
-                }
-            }))
+                },
+            ))
+            .on_action(cx.listener(
+                |this: &mut MainWindow, _: &crate::actions::ConfirmAction, _window, cx| {
+                    if this.is_big_picture {
+                        if this.couch_hub_state.custom_options_modal.is_some() {
+                            this.confirm_couch_options_and_launch(cx);
+                            return;
+                        }
+                        if let Some(h_name) = this.couch_hub_state.missing_exe_modal_handler.clone()
+                        {
+                            this.locate_exe_for_handler(&h_name, cx);
+                            return;
+                        }
+                        if this.big_picture_screen == BigPictureScreen::CouchSetup {
+                            let focused = this.couch_setup_state.focused_slot;
+                            if this.couch_setup_state.grabbed_slot.is_some() {
+                                this.couch_setup_state.drop_swap_target(focused);
+                            } else {
+                                this.couch_setup_state.grab_slot(focused);
+                            }
+                            cx.notify();
+                        } else if this.big_picture_screen == BigPictureScreen::CouchHub {
+                            let pkgs = this.get_filtered_couch_hub_packages();
+                            if this.couch_hub_state.selected_index < pkgs.len() {
+                                let pid = pkgs[this.couch_hub_state.selected_index].id.clone();
+                                this.download_and_play_couch_package(&pid, cx);
+                            }
+                        } else {
+                            this.select_carousel_game(this.carousel_state.selected_index, cx);
+                        }
+                    }
+                },
+            ))
             // Client-Side Decorations (Custom Title Bar)
             .child(self.render_title_bar(_window, cx))
             // Top body (Sidebar + Content)
@@ -3969,21 +4327,23 @@ mod tests {
             let _el = div()
                 .id("test")
                 .track_focus(handle)
-                .on_key_down(cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                    let key = event.keystroke.key.as_str();
-                    if key == "backspace" {
-                        this.hub_search_query.pop();
-                    } else if key == "escape" {
-                        this.hub_search_query.clear();
-                    } else if key == "space" {
-                        this.hub_search_query.push(' ');
-                    } else if let Some(ref s) = event.keystroke.key_char {
-                        this.hub_search_query.push_str(s);
-                    } else if key.chars().count() == 1 {
-                        this.hub_search_query.push_str(key);
-                    }
-                    cx.notify();
-                }));
+                .on_key_down(cx.listener(
+                    |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                        let key = event.keystroke.key.as_str();
+                        if key == "backspace" {
+                            this.hub_search_query.pop();
+                        } else if key == "escape" {
+                            this.hub_search_query.clear();
+                        } else if key == "space" {
+                            this.hub_search_query.push(' ');
+                        } else if let Some(ref s) = event.keystroke.key_char {
+                            this.hub_search_query.push_str(s);
+                        } else if key.chars().count() == 1 {
+                            this.hub_search_query.push_str(key);
+                        }
+                        cx.notify();
+                    },
+                ));
         }
         let _ = check;
     }
@@ -3994,13 +4354,23 @@ mod tests {
             name: "Graphics API".to_string(),
             description: "Select renderer".to_string(),
             key: "gfx".to_string(),
-            values: vec!["DirectX 9".to_string(), "DirectX 11".to_string(), "Vulkan".to_string()],
+            values: vec![
+                "DirectX 9".to_string(),
+                "DirectX 11".to_string(),
+                "Vulkan".to_string(),
+            ],
         };
-        let item = HandlerItem::new("l4d2".to_string(), "Left 4 Dead 2".to_string(), "left4dead2.exe".to_string(), 4, "Zombie shooter".to_string())
-            .with_favorite(true)
-            .with_input_support(true, true, true)
-            .with_options(vec![opt])
-            .with_handler_path(Some("C:/Games/NucleusCoop/handlers/l4d2.js".to_string()));
+        let item = HandlerItem::new(
+            "l4d2".to_string(),
+            "Left 4 Dead 2".to_string(),
+            "left4dead2.exe".to_string(),
+            4,
+            "Zombie shooter".to_string(),
+        )
+        .with_favorite(true)
+        .with_input_support(true, true, true)
+        .with_options(vec![opt])
+        .with_handler_path(Some("C:/Games/NucleusCoop/handlers/l4d2.js".to_string()));
 
         assert!(item.is_favorite);
         assert!(item.supports_gamepad);
@@ -4009,7 +4379,10 @@ mod tests {
         assert_eq!(item.options.len(), 1);
         assert_eq!(item.options[0].key, "gfx");
         assert_eq!(item.options[0].values.len(), 3);
-        assert_eq!(item.handler_path.as_deref(), Some("C:/Games/NucleusCoop/handlers/l4d2.js"));
+        assert_eq!(
+            item.handler_path.as_deref(),
+            Some("C:/Games/NucleusCoop/handlers/l4d2.js")
+        );
     }
 
     #[test]
@@ -4035,8 +4408,18 @@ mod tests {
 
         let launch_called = Arc::new(AtomicBool::new(false));
         let launch_called_clone = launch_called.clone();
-        let launcher = move |name: &str, players: usize, layout: &str, opts: &std::collections::HashMap<String, String>, _assignments: &[String], _monitors: &[usize], _audio: &[String]| {
-            if name == "Game" && players == 2 && layout == "2x1 (Side-by-Side)" && opts.get("mode").map(|s| s.as_str()) == Some("versus") {
+        let launcher = move |name: &str,
+                             players: usize,
+                             layout: &str,
+                             opts: &std::collections::HashMap<String, String>,
+                             _assignments: &[String],
+                             _monitors: &[usize],
+                             _audio: &[String]| {
+            if name == "Game"
+                && players == 2
+                && layout == "2x1 (Side-by-Side)"
+                && opts.get("mode").map(|s| s.as_str()) == Some("versus")
+            {
                 launch_called_clone.store(true, Ordering::SeqCst);
             }
         };
@@ -4065,7 +4448,10 @@ mod tests {
 
         let save_num_called = Arc::new(AtomicBool::new(false));
         let save_num_called_clone = save_num_called.clone();
-        let save_numbered = move |guid: &str, num: Option<usize>, _p: &nucleus_profile::GameProfile| -> Option<usize> {
+        let save_numbered = move |guid: &str,
+                                  num: Option<usize>,
+                                  _p: &nucleus_profile::GameProfile|
+              -> Option<usize> {
             if guid == "test_guid" && num == Some(1) {
                 save_num_called_clone.store(true, Ordering::SeqCst);
                 Some(1)
@@ -4140,7 +4526,13 @@ mod tests {
             .with_input_lock_toggler(input_lock_toggler)
             .with_session_stopper(session_stopper);
 
-        let mut item = HandlerItem::new("test_guid".to_string(), "Game".to_string(), "game.exe".to_string(), 4, "".to_string());
+        let mut item = HandlerItem::new(
+            "test_guid".to_string(),
+            "Game".to_string(),
+            "game.exe".to_string(),
+            4,
+            "".to_string(),
+        );
         item.assign_gamepads_by_index = true;
 
         if let Some(ref cb) = win.callbacks.on_toggle_favorite {
@@ -4152,8 +4544,19 @@ mod tests {
         if let Some(ref cb) = win.callbacks.on_launch {
             let mut opts = std::collections::HashMap::new();
             opts.insert("mode".to_string(), "versus".to_string());
-            let dev_assignments = vec!["Keyboard & Mouse (Paired)".to_string(), "Gamepad #0 (Xbox)".to_string()];
-            cb("Game", 2, "2x1 (Side-by-Side)", &opts, &dev_assignments, &[0, 1], &["Default".to_string(), "Default".to_string()]);
+            let dev_assignments = vec![
+                "Keyboard & Mouse (Paired)".to_string(),
+                "Gamepad #0 (Xbox)".to_string(),
+            ];
+            cb(
+                "Game",
+                2,
+                "2x1 (Side-by-Side)",
+                &opts,
+                &dev_assignments,
+                &[0, 1],
+                &["Default".to_string(), "Default".to_string()],
+            );
         }
         if let Some(ref cb) = win.callbacks.on_list_profiles {
             let res = cb("test_guid");
@@ -4163,7 +4566,14 @@ mod tests {
             assert!(cb("test_guid", 1).is_some());
         }
         if let Some(ref cb) = win.callbacks.on_save_numbered_profile {
-            assert_eq!(cb("test_guid", Some(1), &nucleus_profile::GameProfile::default()), Some(1));
+            assert_eq!(
+                cb(
+                    "test_guid",
+                    Some(1),
+                    &nucleus_profile::GameProfile::default()
+                ),
+                Some(1)
+            );
         }
         if let Some(ref cb) = win.callbacks.on_delete_numbered_profile {
             assert!(cb("test_guid", 1));

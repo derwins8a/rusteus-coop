@@ -333,10 +333,10 @@ pub fn render_game_card(
                                                 let h_name = h_name.clone();
                                                 this.status_message = format!("Locating executable for '{}'...", h_name);
                                                 cx.notify();
-                                                cx.spawn(async move |this, mut cx| {
+                                                cx.spawn(async move |this, cx| {
                                                     if let Some(exe) = crate::dialogs::pick_file_async(title, filter).await {
                                                         let exe_path = exe.to_string_lossy().to_string();
-                                                        this.update(&mut cx, |this, cx| {
+                                                        this.update(&mut *cx, |this, cx| {
                                                             if let Some(ref cb) = this.callbacks.on_add_game {
                                                                 let _ = cb(&exe_path);
                                                             }
