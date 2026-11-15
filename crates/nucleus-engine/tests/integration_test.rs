@@ -6,8 +6,17 @@ use nucleus_script::HandlerConfig;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Default)]
-struct TestPlatform;
+struct TestPlatform {
+    credentials: nucleus_platform::InMemoryCredentialStore,
+}
+
+impl Default for TestPlatform {
+    fn default() -> Self {
+        Self {
+            credentials: nucleus_platform::InMemoryCredentialStore::new(),
+        }
+    }
+}
 
 impl PlatformServices for TestPlatform {
     fn window_manager(&self) -> &dyn nucleus_platform::WindowManager {
@@ -45,6 +54,9 @@ impl PlatformServices for TestPlatform {
     }
     fn osd_manager(&self) -> &dyn nucleus_platform::OsdManager {
         panic!("osd_manager not needed in test")
+    }
+    fn credential_store(&self) -> &dyn nucleus_platform::CredentialStore {
+        &self.credentials
     }
 }
 
