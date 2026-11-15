@@ -1,8 +1,8 @@
 //! DirectInput device blocker configuration and deployment.
 
-use std::path::Path;
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::Path;
 
 /// Tool for deploying and configuring DirectInput blocking modules to prevent
 /// dual-input detection on games that read both XInput and DirectInput concurrently.
@@ -14,7 +14,10 @@ impl DinputBlockerTool {
     pub fn generate_ini(block_all: bool, allowed_guids: &[&str]) -> String {
         let mut ini = String::new();
         ini.push_str("[Settings]\r\n");
-        ini.push_str(&format!("BlockAll={}\r\n", if block_all { "1" } else { "0" }));
+        ini.push_str(&format!(
+            "BlockAll={}\r\n",
+            if block_all { "1" } else { "0" }
+        ));
         ini.push_str("\r\n[AllowedDevices]\r\n");
         for (idx, guid) in allowed_guids.iter().enumerate() {
             ini.push_str(&format!("Device{}={}\r\n", idx + 1, guid));
@@ -49,7 +52,8 @@ mod tests {
 
     #[test]
     fn test_setup_blocker() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_dinput_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_dinput_test_{}", std::process::id()));
         DinputBlockerTool::setup_blocker(&temp_dir, false, &["{DEV-1}", "{DEV-2}"]).unwrap();
 
         let ini_path = temp_dir.join("dinputblocker.ini");

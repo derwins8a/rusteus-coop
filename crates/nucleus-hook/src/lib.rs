@@ -10,9 +10,8 @@ pub mod proto_input;
 pub use focus_hook::FocusHook;
 pub use injector::DllInjector;
 pub use proto_input::{
-    guid_bytes_to_dinput_fields, guid_to_dinput_fields, DrawFakeCursor, InjectMethod,
-    MoveWindowHook, PlayerProtoInputConfig, ProcessBitness, ProtoHookIDs, ProtoInput,
-    ProtoInputConfig, ProtoInputLoader, ProtoInputMessageFilterIDs, ProtoInputRuntime,
-    ProtoInputUtil, ProtoMessageFilterIDs, PutMouseInsideWindow, SetRemoveBorderHook,
-    SetWindowPosHook,
+    DrawFakeCursor, InjectMethod, MoveWindowHook, PlayerProtoInputConfig, ProcessBitness,
+    ProtoHookIDs, ProtoInput, ProtoInputConfig, ProtoInputLoader, ProtoInputMessageFilterIDs,
+    ProtoInputRuntime, ProtoInputUtil, ProtoMessageFilterIDs, PutMouseInsideWindow,
+    SetRemoveBorderHook, SetWindowPosHook, guid_bytes_to_dinput_fields, guid_to_dinput_fields,
 };

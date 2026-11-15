@@ -5,8 +5,8 @@
 //! and native window minimize, maximize/restore, and close controls.
 
 use gpui::{
-    div, px, rgb, AnyElement, App, ClickEvent, FontWeight, InteractiveElement,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement, MouseButton,
+    MouseDownEvent, ParentElement, StatefulInteractiveElement, Styled, Window, div, px, rgb,
 };
 
 use crate::components::button::{CouchButton, CouchButtonSize};
@@ -122,11 +122,11 @@ impl CouchTitleBar {
                     if event.click_count == 2 {
                         #[cfg(target_os = "windows")]
                         unsafe {
+                            use windows::Win32::Foundation::{LPARAM, WPARAM};
                             use windows::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
                             use windows::Win32::UI::WindowsAndMessaging::{
                                 IsZoomed, PostMessageW, WM_SYSCOMMAND,
                             };
-                            use windows::Win32::Foundation::{LPARAM, WPARAM};
                             let hwnd = GetActiveWindow();
                             if !hwnd.is_invalid() {
                                 let is_zoomed = IsZoomed(hwnd).as_bool();
@@ -135,7 +135,8 @@ impl CouchTitleBar {
                                 } else {
                                     0xF030 /* SC_MAXIMIZE */
                                 };
-                                let _ = PostMessageW(hwnd, WM_SYSCOMMAND, WPARAM(sc_cmd), LPARAM(0));
+                                let _ =
+                                    PostMessageW(hwnd, WM_SYSCOMMAND, WPARAM(sc_cmd), LPARAM(0));
                                 return;
                             }
                         }
@@ -143,13 +144,13 @@ impl CouchTitleBar {
                     } else {
                         #[cfg(target_os = "windows")]
                         unsafe {
+                            use windows::Win32::Foundation::{LPARAM, WPARAM};
                             use windows::Win32::UI::Input::KeyboardAndMouse::{
                                 GetActiveWindow, ReleaseCapture,
                             };
                             use windows::Win32::UI::WindowsAndMessaging::{
                                 PostMessageW, WM_NCLBUTTONDOWN,
                             };
-                            use windows::Win32::Foundation::{LPARAM, WPARAM};
                             let hwnd = GetActiveWindow();
                             if !hwnd.is_invalid() {
                                 let _ = ReleaseCapture();
@@ -197,22 +198,14 @@ impl CouchTitleBar {
                                     .text_color(theme::text_primary())
                                     .child("Nucleus Co-op"),
                             )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(theme::text_muted())
-                                    .child("•"),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(theme::text_muted())
-                                    .child(if let Some(ref sel) = self.selected_game {
-                                        format!("Configuring: {}", sel)
-                                    } else {
-                                        "Desktop Launcher".to_string()
-                                    }),
-                            ),
+                            .child(div().text_xs().text_color(theme::text_muted()).child("•"))
+                            .child(div().text_xs().text_color(theme::text_muted()).child(
+                                if let Some(ref sel) = self.selected_game {
+                                    format!("Configuring: {}", sel)
+                                } else {
+                                    "Desktop Launcher".to_string()
+                                },
+                            )),
                     ),
             );
 
@@ -279,11 +272,11 @@ impl CouchTitleBar {
             max_btn = max_btn.on_click(|_ev, win, _app| {
                 #[cfg(target_os = "windows")]
                 unsafe {
+                    use windows::Win32::Foundation::{LPARAM, WPARAM};
                     use windows::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
                     use windows::Win32::UI::WindowsAndMessaging::{
                         IsZoomed, PostMessageW, WM_SYSCOMMAND,
                     };
-                    use windows::Win32::Foundation::{LPARAM, WPARAM};
                     let hwnd = GetActiveWindow();
                     if !hwnd.is_invalid() {
                         let is_zoomed = IsZoomed(hwnd).as_bool();

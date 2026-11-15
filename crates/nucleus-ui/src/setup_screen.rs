@@ -81,13 +81,30 @@ pub fn render_screen_partition_preview(players: usize, layout: &str) -> AnyEleme
         NefosSplitLayout::TopOneBottomTwo
     } else if lower.contains("top 2 / bottom 1") {
         NefosSplitLayout::TopTwoBottomOne
-    } else if lower.contains("3x2") || lower.contains("2x3") || lower.contains("grid 6") || lower.contains("grid6") || players == 6 {
+    } else if lower.contains("3x2")
+        || lower.contains("2x3")
+        || lower.contains("grid 6")
+        || lower.contains("grid6")
+        || players == 6
+    {
         NefosSplitLayout::Grid6
-    } else if lower.contains("4x2") || lower.contains("2x4") || lower.contains("grid 8") || lower.contains("grid8") || players == 8 {
+    } else if lower.contains("4x2")
+        || lower.contains("2x4")
+        || lower.contains("grid 8")
+        || lower.contains("grid8")
+        || players == 8
+    {
         NefosSplitLayout::Grid8
-    } else if lower.contains("4x4") || lower.contains("grid 16") || lower.contains("grid16") || players > 8 {
+    } else if lower.contains("4x4")
+        || lower.contains("grid 16")
+        || lower.contains("grid16")
+        || players > 8
+    {
         NefosSplitLayout::Grid16
-    } else if lower.contains("multi-monitor") || lower.contains("multimonitor") || lower.contains("multi monitor") {
+    } else if lower.contains("multi-monitor")
+        || lower.contains("multimonitor")
+        || lower.contains("multi monitor")
+    {
         NefosSplitLayout::MultiMonitor { monitor_count: 2 }
     } else if players == 4 || lower.contains("grid") || lower.contains("2x2") {
         NefosSplitLayout::Grid4
@@ -110,21 +127,21 @@ fn is_merged_kbm_str(s: &str) -> bool {
 
 /// Helper to test if a device string represents an individual raw keyboard.
 fn is_raw_keyboard_str(s: &str) -> bool {
-    (s.contains("Keyboard") || s.contains("K#"))
-        && !s.contains("Mouse")
-        && !s.contains("M#")
+    (s.contains("Keyboard") || s.contains("K#")) && !s.contains("Mouse") && !s.contains("M#")
 }
 
 /// Helper to test if a device string represents an individual raw mouse.
 fn is_raw_mouse_str(s: &str) -> bool {
-    (s.contains("Mouse") || s.contains("M#"))
-        && !s.contains("Keyboard")
-        && !s.contains("K#")
+    (s.contains("Mouse") || s.contains("M#")) && !s.contains("Keyboard") && !s.contains("K#")
 }
 
 /// Helper to test if a device string represents any keyboard or mouse device.
 fn is_kbm_str(s: &str) -> bool {
-    s.contains("Keyboard") || s.contains("Mouse") || s.contains("K#") || s.contains("M#") || s.contains("KBM")
+    s.contains("Keyboard")
+        || s.contains("Mouse")
+        || s.contains("K#")
+        || s.contains("M#")
+        || s.contains("KBM")
 }
 
 /// Helper to test if an option values list represents a boolean switch.
@@ -336,7 +353,9 @@ fn render_profile_management_section(
                 .child("Game Profile Management")
                 .child(active_badge),
         )
-        .description_text("Save and load custom per-game player setups, layout presets, and option configs")
+        .description_text(
+            "Save and load custom per-game player setups, layout presets, and option configs",
+        )
         .header_action(header_actions)
         .child(profiles_body)
         .into_any_element()
@@ -364,83 +383,84 @@ fn render_unassigned_tray(
         return None;
     }
 
-    let tray_body = div()
-        .flex()
-        .flex_wrap()
-        .gap_3()
-        .children(unassigned_devices.into_iter().enumerate().map(|(_i, dev)| {
-            let dev_id = dev.id;
-            let dev_name = dev.name.clone();
-            let is_virt = dev.is_virtual;
+    let tray_body =
+        div()
+            .flex()
+            .flex_wrap()
+            .gap_3()
+            .children(unassigned_devices.into_iter().enumerate().map(|(_i, dev)| {
+                let dev_id = dev.id;
+                let dev_name = dev.name.clone();
+                let is_virt = dev.is_virtual;
 
-            div()
-                .id(("tray-item", dev_id))
-                .flex()
-                .items_center()
-                .justify_between()
-                .gap_3()
-                .px_3()
-                .py_2()
-                .rounded_lg()
-                .bg(theme::bg_subtle())
-                .border_1()
-                .border_color(theme::border_subtle())
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2p5()
-                        .child(
-                            gpui_component::Icon::new(IconName::Gamepad2)
-                                .size(px(18.0))
-                                .text_color(theme::text_muted()),
-                        )
-                        .child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(theme::text_primary())
-                                        .child(dev_name.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(theme::text_muted())
-                                        .child(format!("ID: #{} | {}", dev_id, dev.guid)),
-                                ),
-                        ),
-                )
-                .child(
-                    NefosButton::primary(("btn-reclaim-tray", dev_id), "+ Assign")
-                        .size(NefosButtonSize::Sm)
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            let new_assign_str = if is_virt {
-                                format!("Virtual Gamepad #{} ({})", dev_id, dev_name)
-                            } else {
-                                format!("Gamepad #{} ({})", dev_id, dev_name)
-                            };
+                div()
+                    .id(("tray-item", dev_id))
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .gap_3()
+                    .px_3()
+                    .py_2()
+                    .rounded_lg()
+                    .bg(theme::bg_subtle())
+                    .border_1()
+                    .border_color(theme::border_subtle())
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap_2p5()
+                            .child(
+                                gpui_component::Icon::new(IconName::Gamepad2)
+                                    .size(px(18.0))
+                                    .text_color(theme::text_muted()),
+                            )
+                            .child(
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .font_weight(FontWeight::BOLD)
+                                            .text_color(theme::text_primary())
+                                            .child(dev_name.clone()),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .text_color(theme::text_muted())
+                                            .child(format!("ID: #{} | {}", dev_id, dev.guid)),
+                                    ),
+                            ),
+                    )
+                    .child(
+                        NefosButton::primary(("btn-reclaim-tray", dev_id), "+ Assign")
+                            .size(NefosButtonSize::Sm)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let new_assign_str = if is_virt {
+                                    format!("Virtual Gamepad #{} ({})", dev_id, dev_name)
+                                } else {
+                                    format!("Gamepad #{} ({})", dev_id, dev_name)
+                                };
 
-                            if let Some(pos) = this
-                                .player_device_assignments
-                                .iter()
-                                .position(|a| a.starts_with("Unassigned"))
-                            {
-                                this.player_device_assignments[pos] = new_assign_str;
-                            } else if this.player_count < 8 {
-                                this.player_count += 1;
-                                this.setup_screen.set_player_count(this.player_count);
-                                this.player_device_assignments.push(new_assign_str);
-                            }
-                            this.status_message =
-                                format!("Assigned device #{} to player slot.", dev_id);
-                            cx.notify();
-                        })),
-                )
-        }));
+                                if let Some(pos) = this
+                                    .player_device_assignments
+                                    .iter()
+                                    .position(|a| a.starts_with("Unassigned"))
+                                {
+                                    this.player_device_assignments[pos] = new_assign_str;
+                                } else if this.player_count < 8 {
+                                    this.player_count += 1;
+                                    this.setup_screen.set_player_count(this.player_count);
+                                    this.player_device_assignments.push(new_assign_str);
+                                }
+                                this.status_message =
+                                    format!("Assigned device #{} to player slot.", dev_id);
+                                cx.notify();
+                            })),
+                    )
+            }));
 
     Some(
         NefosCard::surface("setup-unassigned-tray-card")
@@ -578,8 +598,7 @@ fn render_audio_routing_section(
                                                 .hover(|h| h.bg(theme::bg_hover()))
                                         })
                                         .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.app_settings
-                                                .set_audio_instance(p_idx, &dev_str);
+                                            this.app_settings.set_audio_instance(p_idx, &dev_str);
                                             this.setup_screen.dropdown_audio_instance = None;
                                             this.status_message = format!(
                                                 "Instance {} audio routed to {}",
@@ -590,7 +609,11 @@ fn render_audio_routing_section(
                                         }))
                                         .child(d_name)
                                         .children(if is_cur {
-                                            Some(gpui_component::Icon::new(IconName::Check).size(px(14.0)).text_color(theme::accent()))
+                                            Some(
+                                                gpui_component::Icon::new(IconName::Check)
+                                                    .size(px(14.0))
+                                                    .text_color(theme::accent()),
+                                            )
                                         } else {
                                             None
                                         })
@@ -622,7 +645,11 @@ fn render_handler_options_modal(
     let modal_tabs = if supports_proto {
         Some(
             NefosSegmentedControl::new("modal-options-tabs")
-                .item("Game Options", Some(IconName::SlidersHorizontal), active_tab == 0)
+                .item(
+                    "Game Options",
+                    Some(IconName::SlidersHorizontal),
+                    active_tab == 0,
+                )
                 .item("ProtoInput & Hooks", Some(IconName::Zap), active_tab == 1)
                 .on_select(move |this, idx, _window, cx| {
                     this.setup_screen.options_modal_tab = idx;
@@ -645,46 +672,39 @@ fn render_handler_options_modal(
             let opt_desc = opt.description.clone();
             let opt_values = opt.values.clone();
 
-            let current_val = selected_options
-                .get(&opt_key)
-                .cloned()
-                .unwrap_or_else(|| {
-                    opt_values
-                        .first()
-                        .cloned()
-                        .unwrap_or_else(|| "Default".to_string())
-                });
+            let current_val = selected_options.get(&opt_key).cloned().unwrap_or_else(|| {
+                opt_values
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "Default".to_string())
+            });
 
             if is_boolean_option(&opt_values) {
                 let is_enabled = parse_boolean_value(&current_val);
                 let opt_key_click = opt_key.clone();
                 let vals_toggle = opt_values.clone();
 
-                NefosToggle::new(
-                    ("modal-opt-toggle", opt_idx),
-                    opt_name,
-                    is_enabled,
-                )
-                .description(opt_desc)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    let next_val = if is_enabled {
-                        vals_toggle
-                            .iter()
-                            .find(|v| !parse_boolean_value(v))
-                            .cloned()
-                            .unwrap_or_else(|| "false".to_string())
-                    } else {
-                        vals_toggle
-                            .iter()
-                            .find(|v| parse_boolean_value(v))
-                            .cloned()
-                            .unwrap_or_else(|| "true".to_string())
-                    };
-                    this.selected_handler_options
-                        .insert(opt_key_click.clone(), next_val);
-                    cx.notify();
-                }))
-                .into_any_element()
+                NefosToggle::new(("modal-opt-toggle", opt_idx), opt_name, is_enabled)
+                    .description(opt_desc)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        let next_val = if is_enabled {
+                            vals_toggle
+                                .iter()
+                                .find(|v| !parse_boolean_value(v))
+                                .cloned()
+                                .unwrap_or_else(|| "false".to_string())
+                        } else {
+                            vals_toggle
+                                .iter()
+                                .find(|v| parse_boolean_value(v))
+                                .cloned()
+                                .unwrap_or_else(|| "true".to_string())
+                        };
+                        this.selected_handler_options
+                            .insert(opt_key_click.clone(), next_val);
+                        cx.notify();
+                    }))
+                    .into_any_element()
             } else if should_use_combobox(&opt_values) {
                 let is_open = setup_state.combobox_open_key.as_deref() == Some(opt_key.as_str());
                 let draft = if is_open {
@@ -739,47 +759,52 @@ fn render_handler_options_modal(
                     this.setup_screen.combobox_validation_error = None;
                     cx.notify();
                 }))
-                .on_key_down(cx.listener(move |this, event: &gpui::KeyDownEvent, _window, cx| {
-                    if event.keystroke.modifiers.control || event.keystroke.modifiers.alt || event.keystroke.modifiers.platform {
-                        return;
-                    }
-                    let key = event.keystroke.key.as_str();
-                    if key.eq_ignore_ascii_case("escape") {
-                        this.setup_screen.close_combobox();
-                        cx.notify();
-                    } else if key.eq_ignore_ascii_case("backspace") {
-                        this.setup_screen.combobox_search_draft.pop();
-                        this.setup_screen.combobox_validation_error = None;
-                        cx.notify();
-                    } else if key.eq_ignore_ascii_case("enter") {
-                        let draft = this.setup_screen.combobox_search_draft.trim();
-                        if !draft.is_empty() {
-                            match validate_combobox_input(draft, &vals_key) {
-                                Ok(valid_val) => {
-                                    this.selected_handler_options
-                                        .insert(opt_key_key.clone(), valid_val);
-                                    this.setup_screen.close_combobox();
+                .on_key_down(
+                    cx.listener(move |this, event: &gpui::KeyDownEvent, _window, cx| {
+                        if event.keystroke.modifiers.control
+                            || event.keystroke.modifiers.alt
+                            || event.keystroke.modifiers.platform
+                        {
+                            return;
+                        }
+                        let key = event.keystroke.key.as_str();
+                        if key.eq_ignore_ascii_case("escape") {
+                            this.setup_screen.close_combobox();
+                            cx.notify();
+                        } else if key.eq_ignore_ascii_case("backspace") {
+                            this.setup_screen.combobox_search_draft.pop();
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                        } else if key.eq_ignore_ascii_case("enter") {
+                            let draft = this.setup_screen.combobox_search_draft.trim();
+                            if !draft.is_empty() {
+                                match validate_combobox_input(draft, &vals_key) {
+                                    Ok(valid_val) => {
+                                        this.selected_handler_options
+                                            .insert(opt_key_key.clone(), valid_val);
+                                        this.setup_screen.close_combobox();
+                                    }
+                                    Err(err) => {
+                                        this.setup_screen.combobox_validation_error = Some(err);
+                                    }
                                 }
-                                Err(err) => {
-                                    this.setup_screen.combobox_validation_error = Some(err);
-                                }
+                                cx.notify();
                             }
+                        } else if key.eq_ignore_ascii_case("space") {
+                            this.setup_screen.combobox_search_draft.push(' ');
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                        } else if let Some(ref s) = event.keystroke.key_char {
+                            this.setup_screen.combobox_search_draft.push_str(s);
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                        } else if key.chars().count() == 1 {
+                            this.setup_screen.combobox_search_draft.push_str(key);
+                            this.setup_screen.combobox_validation_error = None;
                             cx.notify();
                         }
-                    } else if key.eq_ignore_ascii_case("space") {
-                        this.setup_screen.combobox_search_draft.push(' ');
-                        this.setup_screen.combobox_validation_error = None;
-                        cx.notify();
-                    } else if let Some(ref s) = event.keystroke.key_char {
-                        this.setup_screen.combobox_search_draft.push_str(s);
-                        this.setup_screen.combobox_validation_error = None;
-                        cx.notify();
-                    } else if key.chars().count() == 1 {
-                        this.setup_screen.combobox_search_draft.push_str(key);
-                        this.setup_screen.combobox_validation_error = None;
-                        cx.notify();
-                    }
-                }))
+                    }),
+                )
                 .into_any_element()
             } else {
                 let opt_key_prev = opt_key.clone();
@@ -789,76 +814,99 @@ fn render_handler_options_modal(
                 let cur_for_prev = current_val.clone();
                 let cur_for_next = current_val.clone();
 
-                NefosOptionRow::new(
-                    ("modal-opt-row", opt_idx),
-                    opt_name,
-                    opt_desc,
-                    current_val,
-                )
-                .on_prev(cx.listener(move |this, _, _, cx| {
-                    if let Some(pos) = vals_prev.iter().position(|v| v == &cur_for_prev) {
-                        let prev_idx = if pos == 0 {
-                            vals_prev.len().saturating_sub(1)
-                        } else {
-                            pos - 1
-                        };
-                        if let Some(new_val) = vals_prev.get(prev_idx) {
+                NefosOptionRow::new(("modal-opt-row", opt_idx), opt_name, opt_desc, current_val)
+                    .on_prev(cx.listener(move |this, _, _, cx| {
+                        if let Some(pos) = vals_prev.iter().position(|v| v == &cur_for_prev) {
+                            let prev_idx = if pos == 0 {
+                                vals_prev.len().saturating_sub(1)
+                            } else {
+                                pos - 1
+                            };
+                            if let Some(new_val) = vals_prev.get(prev_idx) {
+                                this.selected_handler_options
+                                    .insert(opt_key_prev.clone(), new_val.clone());
+                            }
+                        } else if let Some(first) = vals_prev.first() {
                             this.selected_handler_options
-                                .insert(opt_key_prev.clone(), new_val.clone());
+                                .insert(opt_key_prev.clone(), first.clone());
                         }
-                    } else if let Some(first) = vals_prev.first() {
-                        this.selected_handler_options
-                            .insert(opt_key_prev.clone(), first.clone());
-                    }
-                    cx.notify();
-                }))
-                .on_next(cx.listener(move |this, _, _, cx| {
-                    if let Some(pos) = vals_next.iter().position(|v| v == &cur_for_next) {
-                        let next_idx = (pos + 1) % vals_next.len();
-                        if let Some(new_val) = vals_next.get(next_idx) {
+                        cx.notify();
+                    }))
+                    .on_next(cx.listener(move |this, _, _, cx| {
+                        if let Some(pos) = vals_next.iter().position(|v| v == &cur_for_next) {
+                            let next_idx = (pos + 1) % vals_next.len();
+                            if let Some(new_val) = vals_next.get(next_idx) {
+                                this.selected_handler_options
+                                    .insert(opt_key_next.clone(), new_val.clone());
+                            }
+                        } else if let Some(first) = vals_next.first() {
                             this.selected_handler_options
-                                .insert(opt_key_next.clone(), new_val.clone());
+                                .insert(opt_key_next.clone(), first.clone());
                         }
-                    } else if let Some(first) = vals_next.first() {
-                        this.selected_handler_options
-                            .insert(opt_key_next.clone(), first.clone());
-                    }
-                    cx.notify();
-                }))
-                .into_any_element()
+                        cx.notify();
+                    }))
+                    .into_any_element()
             }
         }));
 
     let content = if active_tab == 1 && supports_proto {
         let proto_options = [
-            ("proto_lock_input", "Lock External Input", "Intercept mouse and keyboard when windows lose focus", "true"),
-            ("proto_hook_cursor", "Hook Message Filter", "Filter Windows cursor and activation messages", "true"),
-            ("proto_virtual_cursor", "Virtual Mouse Cursor", "Emulate independent virtual mouse cursors for each instance", "true"),
-            ("proto_hook_controllers", "Direct Controller Hook", "Hook XInput and DirectInput controllers directly to game instances", "true"),
-            ("proto_fake_focus", "Fake Focus Heartbeat", "Send continuous WM_ACTIVATE and WM_SETFOCUS messages", "true"),
+            (
+                "proto_lock_input",
+                "Lock External Input",
+                "Intercept mouse and keyboard when windows lose focus",
+                "true",
+            ),
+            (
+                "proto_hook_cursor",
+                "Hook Message Filter",
+                "Filter Windows cursor and activation messages",
+                "true",
+            ),
+            (
+                "proto_virtual_cursor",
+                "Virtual Mouse Cursor",
+                "Emulate independent virtual mouse cursors for each instance",
+                "true",
+            ),
+            (
+                "proto_hook_controllers",
+                "Direct Controller Hook",
+                "Hook XInput and DirectInput controllers directly to game instances",
+                "true",
+            ),
+            (
+                "proto_fake_focus",
+                "Fake Focus Heartbeat",
+                "Send continuous WM_ACTIVATE and WM_SETFOCUS messages",
+                "true",
+            ),
         ];
 
         div()
             .flex()
             .flex_col()
             .gap_3()
-            .children(proto_options.into_iter().enumerate().map(|(idx, (key, title, desc, def_val))| {
-                let current_val = selected_options
-                    .get(key)
-                    .map(|s| s.as_str())
-                    .unwrap_or(def_val);
-                let is_enabled = parse_boolean_value(current_val);
-                let key_str = key.to_string();
+            .children(proto_options.into_iter().enumerate().map(
+                |(idx, (key, title, desc, def_val))| {
+                    let current_val = selected_options
+                        .get(key)
+                        .map(|s| s.as_str())
+                        .unwrap_or(def_val);
+                    let is_enabled = parse_boolean_value(current_val);
+                    let key_str = key.to_string();
 
-                NefosToggle::new(("proto-opt-toggle", idx), title, is_enabled)
-                    .description(desc)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        let next = if is_enabled { "false" } else { "true" };
-                        this.selected_handler_options.insert(key_str.clone(), next.to_string());
-                        cx.notify();
-                    }))
-                    .into_any_element()
-            }))
+                    NefosToggle::new(("proto-opt-toggle", idx), title, is_enabled)
+                        .description(desc)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            let next = if is_enabled { "false" } else { "true" };
+                            this.selected_handler_options
+                                .insert(key_str.clone(), next.to_string());
+                            cx.notify();
+                        }))
+                        .into_any_element()
+                },
+            ))
     } else {
         body
     };
@@ -880,26 +928,26 @@ fn render_handler_options_modal(
     .body(modal_content);
 
     modal
-    .action(
-        NefosButton::secondary("btn-cancel-modal-options", "Cancel / Close")
-            .icon(IconName::X)
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.setup_screen.options_modal_open = false;
-                this.setup_screen.close_combobox();
-                cx.notify();
-            })),
-    )
-    .action(
-        NefosButton::primary("btn-save-modal-options", "Apply & Save Preferences")
-            .icon(IconName::Check)
-            .on_click(cx.listener(|this, _, _, cx| {
-                this.setup_screen.options_modal_open = false;
-                this.setup_screen.close_combobox();
-                this.status_message = "Handler options applied successfully.".to_string();
-                cx.notify();
-            })),
-    )
-    .into_any_element()
+        .action(
+            NefosButton::secondary("btn-cancel-modal-options", "Cancel / Close")
+                .icon(IconName::X)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.setup_screen.options_modal_open = false;
+                    this.setup_screen.close_combobox();
+                    cx.notify();
+                })),
+        )
+        .action(
+            NefosButton::primary("btn-save-modal-options", "Apply & Save Preferences")
+                .icon(IconName::Check)
+                .on_click(cx.listener(|this, _, _, cx| {
+                    this.setup_screen.options_modal_open = false;
+                    this.setup_screen.close_combobox();
+                    this.status_message = "Handler options applied successfully.".to_string();
+                    cx.notify();
+                })),
+        )
+        .into_any_element()
 }
 
 /// Renders the complete modernized setup screen view with player count selector, monitor layout, and device assignment.
@@ -1001,8 +1049,7 @@ pub fn render_setup_view(
 
     let grabbed_desktop_slot = setup_state.grabbed_slot;
 
-    let unassigned_tray =
-        render_unassigned_tray(detected_devices, player_device_assignments, cx);
+    let unassigned_tray = render_unassigned_tray(detected_devices, player_device_assignments, cx);
 
     div()
         .relative()

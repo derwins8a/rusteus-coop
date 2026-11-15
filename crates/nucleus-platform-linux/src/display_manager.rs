@@ -19,14 +19,20 @@ impl LinuxDisplayManager {
 
 impl DisplayManager for LinuxDisplayManager {
     fn get_displays(&self) -> NucleusResult<Vec<Display>> {
-        Err(NucleusError::Unsupported("Display enumeration not yet implemented on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Display enumeration not yet implemented on Linux".into(),
+        ))
     }
 
     fn get_primary_display(&self) -> NucleusResult<Display> {
-        Err(NucleusError::Unsupported("Primary display query not yet implemented on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Primary display query not yet implemented on Linux".into(),
+        ))
     }
 
     fn get_dpi_for_display(&self, _display_id: u32) -> NucleusResult<f64> {
-        Err(NucleusError::Unsupported("DPI querying not yet implemented on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "DPI querying not yet implemented on Linux".into(),
+        ))
     }
 }

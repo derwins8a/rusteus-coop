@@ -1,15 +1,15 @@
 //! Windows Data Protection API (DPAPI) credential and secret storage.
 
-use std::fs;
-use std::path::PathBuf;
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_platform::CredentialStore;
+use std::fs;
+use std::path::PathBuf;
 
 #[cfg(windows)]
 use windows::Win32::Foundation::LocalFree;
 #[cfg(windows)]
 use windows::Win32::Security::Cryptography::{
-    CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
+    CRYPT_INTEGER_BLOB, CRYPTPROTECT_UI_FORBIDDEN, CryptProtectData, CryptUnprotectData,
 };
 
 /// RAII wrapper for LocalFree on Win32 memory pointers allocated by DPAPI.
@@ -97,9 +97,8 @@ impl CredentialStore for WindowsDpapiCredentialStore {
         }
 
         let _guard = LocalAllocGuard(data_out.pbData);
-        let cipher_slice = unsafe {
-            std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize)
-        };
+        let cipher_slice =
+            unsafe { std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize) };
 
         fs::write(&path, cipher_slice)?;
         Ok(())
@@ -146,9 +145,8 @@ impl CredentialStore for WindowsDpapiCredentialStore {
         }
 
         let _guard = LocalAllocGuard(data_out.pbData);
-        let plain_slice = unsafe {
-            std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize)
-        };
+        let plain_slice =
+            unsafe { std::slice::from_raw_parts(data_out.pbData, data_out.cbData as usize) };
 
         Ok(Some(plain_slice.to_vec()))
     }
@@ -178,7 +176,8 @@ mod tests {
 
     #[test]
     fn test_dpapi_credential_store_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_dpapi_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_dpapi_test_{}", std::process::id()));
         let store = WindowsDpapiCredentialStore::with_dir(temp_dir.clone());
 
         let service = "hub.splitscreen.me";

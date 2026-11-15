@@ -107,19 +107,27 @@ impl CouchButton {
     }
 
     pub fn primary(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id).label(label).variant(CouchButtonVariant::Primary)
+        Self::new(id)
+            .label(label)
+            .variant(CouchButtonVariant::Primary)
     }
 
     pub fn secondary(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id).label(label).variant(CouchButtonVariant::Secondary)
+        Self::new(id)
+            .label(label)
+            .variant(CouchButtonVariant::Secondary)
     }
 
     pub fn ghost(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id).label(label).variant(CouchButtonVariant::Ghost)
+        Self::new(id)
+            .label(label)
+            .variant(CouchButtonVariant::Ghost)
     }
 
     pub fn danger(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id).label(label).variant(CouchButtonVariant::Danger)
+        Self::new(id)
+            .label(label)
+            .variant(CouchButtonVariant::Danger)
     }
 
     pub fn danger_outline(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
@@ -129,7 +137,9 @@ impl CouchButton {
     }
 
     pub fn success(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
-        Self::new(id).label(label).variant(CouchButtonVariant::Success)
+        Self::new(id)
+            .label(label)
+            .variant(CouchButtonVariant::Success)
     }
 
     pub fn success_outline(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
@@ -276,9 +286,7 @@ impl CouchButton {
         if self.is_disabled {
             btn = btn.opacity(0.40).cursor_not_allowed();
         } else {
-            btn = btn
-                .cursor_pointer()
-                .hover(move |s| s.bg(bg_hover));
+            btn = btn.cursor_pointer().hover(move |s| s.bg(bg_hover));
 
             if let Some(handler) = self.on_click {
                 btn = btn.on_click(move |ev, win, cx| {

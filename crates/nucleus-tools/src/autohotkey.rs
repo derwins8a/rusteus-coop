@@ -1,13 +1,13 @@
 //! Centralized AutoHotkey v1/v2 runtime management, prelude generation, and subprocess lifecycle.
 
+use nucleus_common::error::{NucleusError, NucleusResult};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::{NucleusError, NucleusResult};
 
 /// AutoHotkey major version target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -30,8 +30,14 @@ pub enum AhkTiming {
 /// Source representation of an AutoHotkey script.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AhkSource {
-    File { path: PathBuf },
-    Inline { label: String, code: String, working_dir: PathBuf },
+    File {
+        path: PathBuf,
+    },
+    Inline {
+        label: String,
+        code: String,
+        working_dir: PathBuf,
+    },
 }
 
 /// Runtime variables injected into the AutoHotkey script prelude.
@@ -112,7 +118,11 @@ impl AhkManager {
         }
 
         // Heuristics for v1 syntax (legacy command-style with commas, e.g. "MsgBox,", "Run,", "EnvGet,")
-        if lower.contains("msgbox,") || lower.contains("run,") || lower.contains("send,") || lower.contains("setworkingdir,") {
+        if lower.contains("msgbox,")
+            || lower.contains("run,")
+            || lower.contains("send,")
+            || lower.contains("setworkingdir,")
+        {
             return AhkVersion::V1;
         }
 
@@ -135,34 +145,70 @@ impl AhkManager {
         out.push_str("#SingleInstance Off\n");
 
         if is_v2 {
-            out.push_str(&format!("global Nucleus_PlayerIndex := {}\n", vars.player_index));
+            out.push_str(&format!(
+                "global Nucleus_PlayerIndex := {}\n",
+                vars.player_index
+            ));
             out.push_str(&format!("global Nucleus_PlayerID := {}\n", vars.player_id));
-            out.push_str(&format!("global Nucleus_Nickname := \"{}\"\n", Self::escape_ahk_string(&vars.nickname)));
+            out.push_str(&format!(
+                "global Nucleus_Nickname := \"{}\"\n",
+                Self::escape_ahk_string(&vars.nickname)
+            ));
             out.push_str(&format!("global Nucleus_PID := {}\n", vars.process_id));
             out.push_str(&format!("global Nucleus_HWND := {}\n", vars.window_handle));
             out.push_str(&format!("global Nucleus_PosX := {}\n", vars.pos_x));
             out.push_str(&format!("global Nucleus_PosY := {}\n", vars.pos_y));
             out.push_str(&format!("global Nucleus_Width := {}\n", vars.width));
             out.push_str(&format!("global Nucleus_Height := {}\n", vars.height));
-            out.push_str(&format!("global Nucleus_InstanceFolder := \"{}\"\n", Self::escape_ahk_string(&vars.instance_folder)));
-            out.push_str(&format!("global Nucleus_RootInstallFolder := \"{}\"\n", Self::escape_ahk_string(&vars.root_install_folder)));
-            out.push_str(&format!("global Nucleus_HandlerFolder := \"{}\"\n", Self::escape_ahk_string(&vars.handler_folder)));
-            out.push_str(&format!("global Nucleus_IsKeyboardPlayer := {}\n", if vars.is_keyboard_player { 1 } else { 0 }));
-            out.push_str(&format!("global Nucleus_GamepadId := {}\n", vars.gamepad_id));
+            out.push_str(&format!(
+                "global Nucleus_InstanceFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.instance_folder)
+            ));
+            out.push_str(&format!(
+                "global Nucleus_RootInstallFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.root_install_folder)
+            ));
+            out.push_str(&format!(
+                "global Nucleus_HandlerFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.handler_folder)
+            ));
+            out.push_str(&format!(
+                "global Nucleus_IsKeyboardPlayer := {}\n",
+                if vars.is_keyboard_player { 1 } else { 0 }
+            ));
+            out.push_str(&format!(
+                "global Nucleus_GamepadId := {}\n",
+                vars.gamepad_id
+            ));
         } else {
             out.push_str(&format!("Nucleus_PlayerIndex := {}\n", vars.player_index));
             out.push_str(&format!("Nucleus_PlayerID := {}\n", vars.player_id));
-            out.push_str(&format!("Nucleus_Nickname := \"{}\"\n", Self::escape_ahk_string(&vars.nickname)));
+            out.push_str(&format!(
+                "Nucleus_Nickname := \"{}\"\n",
+                Self::escape_ahk_string(&vars.nickname)
+            ));
             out.push_str(&format!("Nucleus_PID := {}\n", vars.process_id));
             out.push_str(&format!("Nucleus_HWND := {}\n", vars.window_handle));
             out.push_str(&format!("Nucleus_PosX := {}\n", vars.pos_x));
             out.push_str(&format!("Nucleus_PosY := {}\n", vars.pos_y));
             out.push_str(&format!("Nucleus_Width := {}\n", vars.width));
             out.push_str(&format!("Nucleus_Height := {}\n", vars.height));
-            out.push_str(&format!("Nucleus_InstanceFolder := \"{}\"\n", Self::escape_ahk_string(&vars.instance_folder)));
-            out.push_str(&format!("Nucleus_RootInstallFolder := \"{}\"\n", Self::escape_ahk_string(&vars.root_install_folder)));
-            out.push_str(&format!("Nucleus_HandlerFolder := \"{}\"\n", Self::escape_ahk_string(&vars.handler_folder)));
-            out.push_str(&format!("Nucleus_IsKeyboardPlayer := {}\n", if vars.is_keyboard_player { 1 } else { 0 }));
+            out.push_str(&format!(
+                "Nucleus_InstanceFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.instance_folder)
+            ));
+            out.push_str(&format!(
+                "Nucleus_RootInstallFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.root_install_folder)
+            ));
+            out.push_str(&format!(
+                "Nucleus_HandlerFolder := \"{}\"\n",
+                Self::escape_ahk_string(&vars.handler_folder)
+            ));
+            out.push_str(&format!(
+                "Nucleus_IsKeyboardPlayer := {}\n",
+                if vars.is_keyboard_player { 1 } else { 0 }
+            ));
             out.push_str(&format!("Nucleus_GamepadId := {}\n", vars.gamepad_id));
         }
 
@@ -207,12 +253,24 @@ impl AhkManager {
     }
 
     /// Discovers an AutoHotkey executable for the requested version.
-    pub fn discover_runtime(&self, version: AhkVersion, prefer_64bit: bool) -> NucleusResult<PathBuf> {
+    pub fn discover_runtime(
+        &self,
+        version: AhkVersion,
+        prefer_64bit: bool,
+    ) -> NucleusResult<PathBuf> {
         let is_v2 = matches!(version, AhkVersion::V2 | AhkVersion::Auto);
         let bitness_exe = if prefer_64bit {
-            if is_v2 { "AutoHotkey64.exe" } else { "AutoHotkeyU64.exe" }
+            if is_v2 {
+                "AutoHotkey64.exe"
+            } else {
+                "AutoHotkeyU64.exe"
+            }
         } else {
-            if is_v2 { "AutoHotkey32.exe" } else { "AutoHotkeyU32.exe" }
+            if is_v2 {
+                "AutoHotkey32.exe"
+            } else {
+                "AutoHotkeyU32.exe"
+            }
         };
 
         // 1. Check custom runtime path
@@ -221,7 +279,11 @@ impl AhkManager {
             if candidate.exists() {
                 return Ok(candidate);
             }
-            let sub_v = if is_v2 { custom_dir.join("v2") } else { custom_dir.join("v1") };
+            let sub_v = if is_v2 {
+                custom_dir.join("v2")
+            } else {
+                custom_dir.join("v1")
+            };
             let sub_cand = sub_v.join(bitness_exe);
             if sub_cand.exists() {
                 return Ok(sub_cand);
@@ -235,7 +297,11 @@ impl AhkManager {
             PathBuf::from("utils").join("AutoHotkey")
         };
 
-        let sub_v = if is_v2 { utils_dir.join("v2") } else { utils_dir.join("v1") };
+        let sub_v = if is_v2 {
+            utils_dir.join("v2")
+        } else {
+            utils_dir.join("v1")
+        };
         let candidate = sub_v.join(bitness_exe);
         if candidate.exists() {
             return Ok(candidate);
@@ -249,12 +315,18 @@ impl AhkManager {
         // 3. Fallback to standard Program Files system install
         #[cfg(windows)]
         {
-            let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
-            let sys_v2 = Path::new(&program_files).join("AutoHotkey").join("v2").join(bitness_exe);
+            let program_files =
+                std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
+            let sys_v2 = Path::new(&program_files)
+                .join("AutoHotkey")
+                .join("v2")
+                .join(bitness_exe);
             if sys_v2.exists() {
                 return Ok(sys_v2);
             }
-            let sys_v1 = Path::new(&program_files).join("AutoHotkey").join(bitness_exe);
+            let sys_v1 = Path::new(&program_files)
+                .join("AutoHotkey")
+                .join(bitness_exe);
             if sys_v1.exists() {
                 return Ok(sys_v1);
             }
@@ -277,7 +349,9 @@ impl AhkManager {
             }
         };
 
-        let is_64bit = nucleus_common::is_64bit_executable(Path::new(&spec.vars.root_install_folder)).unwrap_or(true);
+        let is_64bit =
+            nucleus_common::is_64bit_executable(Path::new(&spec.vars.root_install_folder))
+                .unwrap_or(true);
         let runtime_exe = if let Some(ref custom) = spec.custom_runtime {
             custom.clone()
         } else {
@@ -287,7 +361,9 @@ impl AhkManager {
         let prelude = Self::render_prelude(version, &spec.vars);
 
         let (mut cmd, pipe_input) = match &spec.source {
-            AhkSource::Inline { code, working_dir, .. } => {
+            AhkSource::Inline {
+                code, working_dir, ..
+            } => {
                 // If code contains #Include, stage it into .nucleus_ahk to preserve relative path resolution
                 if code.contains("#Include") || code.contains("#include") {
                     let ahk_dir = Path::new(&spec.vars.instance_folder).join(".nucleus_ahk");
@@ -333,10 +409,17 @@ impl AhkManager {
 
         cmd.stderr(Stdio::piped());
 
-        tracing::info!("AhkManager: Spawning AutoHotkey script '{}' with {:?}", spec.id, runtime_exe);
+        tracing::info!(
+            "AhkManager: Spawning AutoHotkey script '{}' with {:?}",
+            spec.id,
+            runtime_exe
+        );
 
         let mut child = cmd.spawn().map_err(|e| {
-            NucleusError::Process(format!("Failed to spawn AutoHotkey runtime at {:?}: {}", runtime_exe, e))
+            NucleusError::Process(format!(
+                "Failed to spawn AutoHotkey runtime at {:?}: {}",
+                runtime_exe, e
+            ))
         })?;
 
         if let Some(input) = pipe_input {
@@ -346,9 +429,10 @@ impl AhkManager {
         }
 
         let pid = child.id();
-        let mut active = self.active_scripts.lock().map_err(|e| {
-            NucleusError::Platform(format!("Lock poisoned: {}", e))
-        })?;
+        let mut active = self
+            .active_scripts
+            .lock()
+            .map_err(|e| NucleusError::Platform(format!("Lock poisoned: {}", e)))?;
 
         active.insert(
             spec.id.clone(),
@@ -364,9 +448,10 @@ impl AhkManager {
 
     /// Stops a specific running AutoHotkey script by ID.
     pub fn stop_by_id(&self, script_id: &str) -> NucleusResult<()> {
-        let mut active = self.active_scripts.lock().map_err(|e| {
-            NucleusError::Platform(format!("Lock poisoned: {}", e))
-        })?;
+        let mut active = self
+            .active_scripts
+            .lock()
+            .map_err(|e| NucleusError::Platform(format!("Lock poisoned: {}", e)))?;
 
         if let Some(mut script) = active.remove(script_id) {
             let _ = script.child.kill();
@@ -379,7 +464,11 @@ impl AhkManager {
     pub fn stop_all(&self) {
         if let Ok(mut active) = self.active_scripts.lock() {
             for (_id, mut script) in active.drain() {
-                tracing::info!("AhkManager: Terminating AHK script '{}' (PID {})", script.id, script.pid);
+                tracing::info!(
+                    "AhkManager: Terminating AHK script '{}' (PID {})",
+                    script.id,
+                    script.pid
+                );
                 let _ = script.child.kill();
                 let _ = script.child.wait();
             }
@@ -439,7 +528,9 @@ mod tests {
         let prelude_v2 = AhkManager::render_prelude(AhkVersion::V2, &vars);
         assert!(prelude_v2.contains("global Nucleus_PlayerIndex := 1"));
         assert!(prelude_v2.contains("global Nucleus_Nickname := \"Player `\"Co-op`\" 2\""));
-        assert!(prelude_v2.contains("global Nucleus_InstanceFolder := \"C:\\Games\\Halo `\"Test`\"\\Instance2\""));
+        assert!(prelude_v2.contains(
+            "global Nucleus_InstanceFolder := \"C:\\Games\\Halo `\"Test`\"\\Instance2\""
+        ));
         assert!(prelude_v2.contains("#SingleInstance Off"));
 
         let prelude_v1 = AhkManager::render_prelude(AhkVersion::V1, &vars);
@@ -450,7 +541,8 @@ mod tests {
     #[test]
     fn test_path_traversal_blocked() {
         let temp = std::env::temp_dir();
-        let res = AhkManager::resolve_handler_ahk_file(&temp, &temp, "../../Windows/System32/cmd.ahk");
+        let res =
+            AhkManager::resolve_handler_ahk_file(&temp, &temp, "../../Windows/System32/cmd.ahk");
         assert!(res.is_err());
     }
 }

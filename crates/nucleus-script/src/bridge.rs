@@ -1,16 +1,16 @@
 //! Bridge utilities for bidirectional communication between Rust and the JavaScript runtime.
 
-use std::path::Path;
+use crate::handler_context::HandlerContext;
 use boa_engine::native_function::NativeFunction;
-use boa_engine::object::builtins::JsArray;
 use boa_engine::object::FunctionObjectBuilder;
+use boa_engine::object::builtins::JsArray;
 use boa_engine::property::Attribute;
 use boa_engine::{Context, JsResult, JsString, JsValue};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::file_util;
 use nucleus_common::types::SearchMode;
 use nucleus_tools::HexEditTool;
-use crate::handler_context::HandlerContext;
+use std::path::Path;
 
 /// Bridge helper for registering native Rust callbacks and converting types in the JS engine.
 pub struct JsBridge;
@@ -42,10 +42,11 @@ impl JsBridge {
         func: fn(&JsValue, &[JsValue], &mut Context) -> JsResult<JsValue>,
     ) -> JsValue {
         let native = NativeFunction::from_fn_ptr(func);
-        let js_fn = FunctionObjectBuilder::new(context.realm(), native).constructor(true).build();
+        let js_fn = FunctionObjectBuilder::new(context.realm(), native)
+            .constructor(true)
+            .build();
         JsValue::from(js_fn)
     }
-
 
     /// Registers the System.IO namespace and Nucleus helper constructors into global scope.
     pub fn register_globals(context: &mut Context) -> NucleusResult<()> {
@@ -69,7 +70,12 @@ impl JsBridge {
             .set(JsString::from("Combine"), path_combine, false, context)
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         io_obj
-            .set(JsString::from("Path"), JsValue::from(path_obj), false, context)
+            .set(
+                JsString::from("Path"),
+                JsValue::from(path_obj),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // File.Copy & File.Exists
@@ -113,7 +119,12 @@ impl JsBridge {
             .set(JsString::from("Delete"), file_delete, false, context)
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         io_obj
-            .set(JsString::from("File"), JsValue::from(file_obj), false, context)
+            .set(
+                JsString::from("File"),
+                JsValue::from(file_obj),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Directory.Exists & Directory.CreateDirectory
@@ -137,10 +148,20 @@ impl JsBridge {
             .set(JsString::from("Exists"), dir_exists, false, context)
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         dir_obj
-            .set(JsString::from("CreateDirectory"), dir_create, false, context)
+            .set(
+                JsString::from("CreateDirectory"),
+                dir_create,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         io_obj
-            .set(JsString::from("Directory"), JsValue::from(dir_obj), false, context)
+            .set(
+                JsString::from("Directory"),
+                JsValue::from(dir_obj),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         system_obj
@@ -148,16 +169,37 @@ impl JsBridge {
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         context
-            .register_global_property(JsString::from("System"), JsValue::from(system_obj), Attribute::all())
+            .register_global_property(
+                JsString::from("System"),
+                JsValue::from(system_obj),
+                Attribute::all(),
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Also register Nucleus helper constructors: IniSaveInfo and CfgSaveInfo
         let ini_save_info = Self::create_native_constructor(context, |_this, args, ctx| {
             let obj = boa_engine::object::JsObject::default();
-            let section = args.get(0).and_then(|v| v.as_string()).cloned().unwrap_or_default();
-            let key = args.get(1).and_then(|v| v.as_string()).cloned().unwrap_or_default();
-            let val = args.get(2).and_then(|v| v.as_string()).cloned().unwrap_or_default();
-            let _ = obj.set(JsString::from("Section"), JsValue::from(section), false, ctx);
+            let section = args
+                .get(0)
+                .and_then(|v| v.as_string())
+                .cloned()
+                .unwrap_or_default();
+            let key = args
+                .get(1)
+                .and_then(|v| v.as_string())
+                .cloned()
+                .unwrap_or_default();
+            let val = args
+                .get(2)
+                .and_then(|v| v.as_string())
+                .cloned()
+                .unwrap_or_default();
+            let _ = obj.set(
+                JsString::from("Section"),
+                JsValue::from(section),
+                false,
+                ctx,
+            );
             let _ = obj.set(JsString::from("Key"), JsValue::from(key), false, ctx);
             let _ = obj.set(JsString::from("Value"), JsValue::from(val), false, ctx);
             Ok(JsValue::from(obj))
@@ -168,17 +210,37 @@ impl JsBridge {
             let (section, key, val) = if args.len() == 2 {
                 (
                     JsString::default(),
-                    args.get(0).and_then(|v| v.as_string()).cloned().unwrap_or_default(),
-                    args.get(1).and_then(|v| v.as_string()).cloned().unwrap_or_default(),
+                    args.get(0)
+                        .and_then(|v| v.as_string())
+                        .cloned()
+                        .unwrap_or_default(),
+                    args.get(1)
+                        .and_then(|v| v.as_string())
+                        .cloned()
+                        .unwrap_or_default(),
                 )
             } else {
                 (
-                    args.get(0).and_then(|v| v.as_string()).cloned().unwrap_or_default(),
-                    args.get(1).and_then(|v| v.as_string()).cloned().unwrap_or_default(),
-                    args.get(2).and_then(|v| v.as_string()).cloned().unwrap_or_default(),
+                    args.get(0)
+                        .and_then(|v| v.as_string())
+                        .cloned()
+                        .unwrap_or_default(),
+                    args.get(1)
+                        .and_then(|v| v.as_string())
+                        .cloned()
+                        .unwrap_or_default(),
+                    args.get(2)
+                        .and_then(|v| v.as_string())
+                        .cloned()
+                        .unwrap_or_default(),
                 )
             };
-            let _ = obj.set(JsString::from("Section"), JsValue::from(section), false, ctx);
+            let _ = obj.set(
+                JsString::from("Section"),
+                JsValue::from(section),
+                false,
+                ctx,
+            );
             let _ = obj.set(JsString::from("Key"), JsValue::from(key), false, ctx);
             let _ = obj.set(JsString::from("Value"), JsValue::from(val), false, ctx);
             Ok(JsValue::from(obj))
@@ -188,25 +250,59 @@ impl JsBridge {
         let global = context.global_object();
         if let Ok(nucleus_val) = global.get(JsString::from("Nucleus"), context) {
             if let Some(nucleus_obj) = nucleus_val.as_object() {
-                let _ = nucleus_obj.set(JsString::from("IniSaveInfo"), ini_save_info, false, context);
-                let _ = nucleus_obj.set(JsString::from("CfgSaveInfo"), cfg_save_info, false, context);
+                let _ =
+                    nucleus_obj.set(JsString::from("IniSaveInfo"), ini_save_info, false, context);
+                let _ =
+                    nucleus_obj.set(JsString::from("CfgSaveInfo"), cfg_save_info, false, context);
 
                 // Nucleus.SearchType (C# SearchType: Contains=0, Full=1, StartsWith=2, EndsWith=3)
                 let search_type_obj = boa_engine::object::JsObject::default();
-                let _ = search_type_obj.set(JsString::from("Contains"), JsValue::from(0), false, context);
-                let _ = search_type_obj.set(JsString::from("Full"), JsValue::from(1), false, context);
-                let _ = search_type_obj.set(JsString::from("Exact"), JsValue::from(1), false, context); // alias
-                let _ = search_type_obj.set(JsString::from("StartsWith"), JsValue::from(2), false, context);
-                let _ = search_type_obj.set(JsString::from("EndsWith"), JsValue::from(3), false, context);
-                let _ = nucleus_obj.set(JsString::from("SearchType"), JsValue::from(search_type_obj), false, context);
+                let _ = search_type_obj.set(
+                    JsString::from("Contains"),
+                    JsValue::from(0),
+                    false,
+                    context,
+                );
+                let _ =
+                    search_type_obj.set(JsString::from("Full"), JsValue::from(1), false, context);
+                let _ =
+                    search_type_obj.set(JsString::from("Exact"), JsValue::from(1), false, context); // alias
+                let _ = search_type_obj.set(
+                    JsString::from("StartsWith"),
+                    JsValue::from(2),
+                    false,
+                    context,
+                );
+                let _ = search_type_obj.set(
+                    JsString::from("EndsWith"),
+                    JsValue::from(3),
+                    false,
+                    context,
+                );
+                let _ = nucleus_obj.set(
+                    JsString::from("SearchType"),
+                    JsValue::from(search_type_obj),
+                    false,
+                    context,
+                );
 
                 // Nucleus.DPIHandling (C# DPIHandling: True=0, Scaled=1, InvScaled=2)
                 let dpi_obj = boa_engine::object::JsObject::default();
                 let _ = dpi_obj.set(JsString::from("True"), JsValue::from(0), false, context);
                 let _ = dpi_obj.set(JsString::from("None"), JsValue::from(0), false, context); // backwards-compatible alias
                 let _ = dpi_obj.set(JsString::from("Scaled"), JsValue::from(1), false, context);
-                let _ = dpi_obj.set(JsString::from("InvScaled"), JsValue::from(2), false, context);
-                let _ = nucleus_obj.set(JsString::from("DPIHandling"), JsValue::from(dpi_obj), false, context);
+                let _ = dpi_obj.set(
+                    JsString::from("InvScaled"),
+                    JsValue::from(2),
+                    false,
+                    context,
+                );
+                let _ = nucleus_obj.set(
+                    JsString::from("DPIHandling"),
+                    JsValue::from(dpi_obj),
+                    false,
+                    context,
+                );
 
                 // Nucleus.SaveType (C# SaveType: None=0, INI=1, CFG=2, SCR=3, RegKey=4)
                 let save_type_obj = boa_engine::object::JsObject::default();
@@ -214,33 +310,71 @@ impl JsBridge {
                 let _ = save_type_obj.set(JsString::from("INI"), JsValue::from(1), false, context);
                 let _ = save_type_obj.set(JsString::from("CFG"), JsValue::from(2), false, context);
                 let _ = save_type_obj.set(JsString::from("SCR"), JsValue::from(3), false, context);
-                let _ = save_type_obj.set(JsString::from("RegKey"), JsValue::from(4), false, context);
-                let _ = nucleus_obj.set(JsString::from("SaveType"), JsValue::from(save_type_obj), false, context);
+                let _ =
+                    save_type_obj.set(JsString::from("RegKey"), JsValue::from(4), false, context);
+                let _ = nucleus_obj.set(
+                    JsString::from("SaveType"),
+                    JsValue::from(save_type_obj),
+                    false,
+                    context,
+                );
 
                 // Nucleus.Folder
                 let folder_obj = boa_engine::object::JsObject::default();
-                let _ = folder_obj.set(JsString::from("Documents"), JsValue::from(0), false, context);
-                let _ = folder_obj.set(JsString::from("MainGameFolder"), JsValue::from(1), false, context);
-                let _ = folder_obj.set(JsString::from("InstancedGameFolder"), JsValue::from(2), false, context);
-                let _ = nucleus_obj.set(JsString::from("Folder"), JsValue::from(folder_obj), false, context);
+                let _ = folder_obj.set(
+                    JsString::from("Documents"),
+                    JsValue::from(0),
+                    false,
+                    context,
+                );
+                let _ = folder_obj.set(
+                    JsString::from("MainGameFolder"),
+                    JsValue::from(1),
+                    false,
+                    context,
+                );
+                let _ = folder_obj.set(
+                    JsString::from("InstancedGameFolder"),
+                    JsValue::from(2),
+                    false,
+                    context,
+                );
+                let _ = nucleus_obj.set(
+                    JsString::from("Folder"),
+                    JsValue::from(folder_obj),
+                    false,
+                    context,
+                );
             }
         }
 
         // Global Plugins namespace
         let plugins_obj = boa_engine::object::JsObject::default();
-        let _ = context.register_global_property(JsString::from("Plugins"), JsValue::from(plugins_obj), Attribute::all());
+        let _ = context.register_global_property(
+            JsString::from("Plugins"),
+            JsValue::from(plugins_obj),
+            Attribute::all(),
+        );
 
         Ok(())
     }
 
     /// Injects the `Context` object configured for `handler_ctx` into the global JS scope.
-    pub fn inject_context(context: &mut Context, handler_ctx: &HandlerContext) -> NucleusResult<()> {
+    pub fn inject_context(
+        context: &mut Context,
+        handler_ctx: &HandlerContext,
+    ) -> NucleusResult<()> {
         let ctx_obj = boa_engine::object::JsObject::default();
 
         macro_rules! set_str {
             ($key:expr, $val:expr) => {
                 ctx_obj
-                    .set(JsString::from($key), JsValue::from(JsString::from($val)), false, context)
+                    .set(
+                        JsString::from($key),
+                        JsValue::from(JsString::from($val)),
+                        false,
+                        context,
+                    )
                     .map_err(|e| NucleusError::Script(e.to_string()))?;
             };
         }
@@ -273,19 +407,31 @@ impl JsBridge {
         set_num!("DPIHandling", handler_ctx.dpi_handling as i32);
         set_bool!("IsKeyboardPlayer", handler_ctx.is_keyboard_player);
         set_bool!("IsRawKeyboard", handler_ctx.is_raw_keyboard);
-        set_str!("RawKeyboardGuid", handler_ctx.raw_keyboard_guid.as_deref().unwrap_or_default());
+        set_str!(
+            "RawKeyboardGuid",
+            handler_ctx.raw_keyboard_guid.as_deref().unwrap_or_default()
+        );
         set_bool!("IsRawMouse", handler_ctx.is_raw_mouse);
-        set_str!("RawMouseGuid", handler_ctx.raw_mouse_guid.as_deref().unwrap_or_default());
+        set_str!(
+            "RawMouseGuid",
+            handler_ctx.raw_mouse_guid.as_deref().unwrap_or_default()
+        );
         set_num!("NumberOfPlayers", handler_ctx.number_of_players as i32);
         set_num!("GamepadId", handler_ctx.gamepad_id);
 
         set_str!("Nickname", handler_ctx.nickname.as_str());
         set_str!("HandlerGUID", handler_ctx.handler_guid.as_str());
         set_str!("ExePath", handler_ctx.exe_path.as_str());
-        set_str!("RootInstallFolder", handler_ctx.root_install_folder.as_str());
+        set_str!(
+            "RootInstallFolder",
+            handler_ctx.root_install_folder.as_str()
+        );
         set_str!("RootFolder", handler_ctx.root_folder.as_str());
         set_str!("OrigRootFolder", handler_ctx.orig_root_folder.as_str());
-        set_str!("SavePath", handler_ctx.save_path.as_deref().unwrap_or_default());
+        set_str!(
+            "SavePath",
+            handler_ctx.save_path.as_deref().unwrap_or_default()
+        );
         set_str!("StartArguments", handler_ctx.start_arguments.as_str());
         set_str!("AspectRatio", handler_ctx.aspect_ratio().as_str());
         set_num!("AspectRatioDecimal", handler_ctx.aspect_ratio_decimal());
@@ -306,23 +452,52 @@ impl JsBridge {
         // Context.Options map
         let options_obj = boa_engine::object::JsObject::default();
         for (k, v) in &handler_ctx.options {
-            let _ = options_obj.set(JsString::from(k.as_str()), JsValue::from(JsString::from(v.as_str())), false, context);
+            let _ = options_obj.set(
+                JsString::from(k.as_str()),
+                JsValue::from(JsString::from(v.as_str())),
+                false,
+                context,
+            );
         }
         if !handler_ctx.options.contains_key("Native") {
-            let _ = options_obj.set(JsString::from("Native"), JsValue::from(JsString::from("No")), false, context);
+            let _ = options_obj.set(
+                JsString::from("Native"),
+                JsValue::from(JsString::from("No")),
+                false,
+                context,
+            );
         }
         if !handler_ctx.options.contains_key("Scale") {
-            let _ = options_obj.set(JsString::from("Scale"), JsValue::from(JsString::from("NoScaled")), false, context);
+            let _ = options_obj.set(
+                JsString::from("Scale"),
+                JsValue::from(JsString::from("NoScaled")),
+                false,
+                context,
+            );
         }
         if !handler_ctx.options.contains_key("Hooks") {
-            let _ = options_obj.set(JsString::from("Hooks"), JsValue::from(JsString::from("No")), false, context);
+            let _ = options_obj.set(
+                JsString::from("Hooks"),
+                JsValue::from(JsString::from("No")),
+                false,
+                context,
+            );
         }
         ctx_obj
-            .set(JsString::from("Options"), JsValue::from(options_obj), false, context)
+            .set(
+                JsString::from("Options"),
+                JsValue::from(options_obj),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         let doc_root = dirs::home_dir()
-            .map(|h| h.join("NucleusCoop").join(&handler_ctx.nickname).join("Documents"))
+            .map(|h| {
+                h.join("NucleusCoop")
+                    .join(&handler_ctx.nickname)
+                    .join("Documents")
+            })
             .map(|p| {
                 if !p.exists() {
                     let _ = std::fs::create_dir_all(&p);
@@ -355,7 +530,6 @@ impl JsBridge {
             .set(JsString::from("GetFolder"), get_folder_fn, false, context)
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
-
         // FindLineNumberInTextFile(path, pattern, searchType)
         let find_line_fn = Self::create_native_function(context, |_this, args, _ctx| {
             if let (Some(path_val), Some(pattern_val)) = (
@@ -372,15 +546,21 @@ impl JsBridge {
                     3 => SearchMode::EndsWith,
                     _ => SearchMode::Contains,
                 };
-                let line_num = file_util::find_line_number_in_file(Path::new(&path), &pattern, mode)
-                    .unwrap_or(-1);
+                let line_num =
+                    file_util::find_line_number_in_file(Path::new(&path), &pattern, mode)
+                        .unwrap_or(-1);
                 Ok(JsValue::from(line_num))
             } else {
                 Ok(JsValue::from(-1))
             }
         });
         ctx_obj
-            .set(JsString::from("FindLineNumberInTextFile"), find_line_fn, false, context)
+            .set(
+                JsString::from("FindLineNumberInTextFile"),
+                find_line_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // ReplaceLinesInTextFile(path, linesArray)
@@ -388,7 +568,8 @@ impl JsBridge {
             if let Some(path_val) = args.get(0).and_then(|v| v.as_string()) {
                 let path = path_val.to_std_string_escaped();
                 if let Some(arr_obj) = args.get(1).and_then(|v| v.as_object()) {
-                    let len = arr_obj.get(JsString::from("length"), ctx)
+                    let len = arr_obj
+                        .get(JsString::from("length"), ctx)
                         .ok()
                         .and_then(|v| v.as_number())
                         .unwrap_or(0.0) as usize;
@@ -411,7 +592,12 @@ impl JsBridge {
             Ok(JsValue::undefined())
         });
         ctx_obj
-            .set(JsString::from("ReplaceLinesInTextFile"), replace_lines_fn, false, context)
+            .set(
+                JsString::from("ReplaceLinesInTextFile"),
+                replace_lines_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // RemoveLineInTextFile(path, lineNum) OR RemoveLineInTextFile(path, searchValue, searchType)
@@ -431,15 +617,21 @@ impl JsBridge {
                         3 => SearchMode::EndsWith,
                         _ => SearchMode::Contains,
                     };
-                    let changed = file_util::remove_lines_matching_pattern(Path::new(&path), &pattern, mode)
-                        .unwrap_or(false);
+                    let changed =
+                        file_util::remove_lines_matching_pattern(Path::new(&path), &pattern, mode)
+                            .unwrap_or(false);
                     return Ok(JsValue::from(changed));
                 }
             }
             Ok(JsValue::from(false))
         });
         ctx_obj
-            .set(JsString::from("RemoveLineInTextFile"), remove_line_fn, false, context)
+            .set(
+                JsString::from("RemoveLineInTextFile"),
+                remove_line_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // ModifySaveFile(installSavePath, saveFullPath, saveType, saveInfos)
@@ -467,7 +659,8 @@ impl JsBridge {
                 let mut info_objects = Vec::new();
                 if let Some(arr_obj) = args.get(3).and_then(|v| v.as_object()) {
                     if arr_obj.is_array() {
-                        let len = arr_obj.get(JsString::from("length"), ctx)
+                        let len = arr_obj
+                            .get(JsString::from("length"), ctx)
                             .ok()
                             .and_then(|v| v.as_number())
                             .unwrap_or(0.0) as usize;
@@ -489,39 +682,45 @@ impl JsBridge {
                 }
 
                 for info_obj in info_objects {
-                    let section = info_obj.get(JsString::from("Section"), ctx)
+                    let section = info_obj
+                        .get(JsString::from("Section"), ctx)
                         .ok()
                         .as_ref()
                         .and_then(|v| v.as_string())
                         .map(|s| s.to_std_string_escaped())
                         .or_else(|| {
-                            info_obj.get(JsString::from("section"), ctx)
+                            info_obj
+                                .get(JsString::from("section"), ctx)
                                 .ok()
                                 .as_ref()
                                 .and_then(|v| v.as_string())
                                 .map(|s| s.to_std_string_escaped())
                         })
                         .unwrap_or_default();
-                    let key = info_obj.get(JsString::from("Key"), ctx)
+                    let key = info_obj
+                        .get(JsString::from("Key"), ctx)
                         .ok()
                         .as_ref()
                         .and_then(|v| v.as_string())
                         .map(|s| s.to_std_string_escaped())
                         .or_else(|| {
-                            info_obj.get(JsString::from("key"), ctx)
+                            info_obj
+                                .get(JsString::from("key"), ctx)
                                 .ok()
                                 .as_ref()
                                 .and_then(|v| v.as_string())
                                 .map(|s| s.to_std_string_escaped())
                         })
                         .unwrap_or_default();
-                    let val = info_obj.get(JsString::from("Value"), ctx)
+                    let val = info_obj
+                        .get(JsString::from("Value"), ctx)
                         .ok()
                         .as_ref()
                         .and_then(|v| v.as_string())
                         .map(|s| s.to_std_string_escaped())
                         .or_else(|| {
-                            info_obj.get(JsString::from("value"), ctx)
+                            info_obj
+                                .get(JsString::from("value"), ctx)
                                 .ok()
                                 .as_ref()
                                 .and_then(|v| v.as_string())
@@ -530,16 +729,31 @@ impl JsBridge {
                         .unwrap_or_default();
 
                     if is_cfg {
-                        let _ = file_util::modify_cfg_value(Path::new(&dest_path), &section, &key, &val);
+                        let _ = file_util::modify_cfg_value(
+                            Path::new(&dest_path),
+                            &section,
+                            &key,
+                            &val,
+                        );
                     } else {
-                        let _ = file_util::modify_ini_value(Path::new(&dest_path), &section, &key, &val);
+                        let _ = file_util::modify_ini_value(
+                            Path::new(&dest_path),
+                            &section,
+                            &key,
+                            &val,
+                        );
                     }
                 }
             }
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("ModifySaveFile"), modify_save_fn, false, context)
+            .set(
+                JsString::from("ModifySaveFile"),
+                modify_save_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // PatchFile(src, dst, findBytes/str, replaceBytes/str)
@@ -593,7 +807,12 @@ impl JsBridge {
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("PatchFileFindAll"), patch_file_all_fn, false, context)
+            .set(
+                JsString::from("PatchFileFindAll"),
+                patch_file_all_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // PatchFileFindPattern(src, dst, origPattern, patchPattern, patchall)
@@ -635,7 +854,12 @@ impl JsBridge {
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("PatchFileFindPattern"), patch_pattern_fn, false, context)
+            .set(
+                JsString::from("PatchFileFindPattern"),
+                patch_pattern_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // ConvertToBytes(num)
@@ -660,7 +884,12 @@ impl JsBridge {
             Ok(JsValue::from(arr))
         });
         ctx_obj
-            .set(JsString::from("ConvertToBytes"), convert_bytes_fn, false, context)
+            .set(
+                JsString::from("ConvertToBytes"),
+                convert_bytes_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Log(msg)
@@ -706,7 +935,12 @@ impl JsBridge {
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("ChangeXmlAttributeValue"), change_xml_attr_fn, false, context)
+            .set(
+                JsString::from("ChangeXmlAttributeValue"),
+                change_xml_attr_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // ChangeXmlNodeValue / ChangeXmlNodeInnerTextValue(path, xpath, value)
@@ -729,19 +963,25 @@ impl JsBridge {
                     String::new()
                 };
 
-                let _ = file_util::change_xml_node_value(
-                    Path::new(&path_str),
-                    &xpath,
-                    &node_val,
-                );
+                let _ = file_util::change_xml_node_value(Path::new(&path_str), &xpath, &node_val);
             }
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("ChangeXmlNodeValue"), change_xml_node_fn.clone(), false, context)
+            .set(
+                JsString::from("ChangeXmlNodeValue"),
+                change_xml_node_fn.clone(),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         ctx_obj
-            .set(JsString::from("ChangeXmlNodeInnerTextValue"), change_xml_node_fn, false, context)
+            .set(
+                JsString::from("ChangeXmlNodeInnerTextValue"),
+                change_xml_node_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // WriteTextFile(path, ...lines) OR WriteTextFile(path, linesArray)
@@ -752,7 +992,8 @@ impl JsBridge {
 
                 let content = if let Some(arr_obj) = args.get(1).and_then(|v| v.as_object()) {
                     if arr_obj.is_array() {
-                        let len = arr_obj.get(JsString::from("length"), ctx)
+                        let len = arr_obj
+                            .get(JsString::from("length"), ctx)
                             .ok()
                             .and_then(|v| v.as_number())
                             .unwrap_or(0.0) as usize;
@@ -791,7 +1032,12 @@ impl JsBridge {
             Ok(JsValue::from(true))
         });
         ctx_obj
-            .set(JsString::from("WriteTextFile"), write_text_fn, false, context)
+            .set(
+                JsString::from("WriteTextFile"),
+                write_text_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // ReadTextFile(path)
@@ -832,7 +1078,12 @@ impl JsBridge {
             Ok(JsValue::from(false))
         });
         ctx_obj
-            .set(JsString::from("DirectoryExists"), dir_exists_fn, false, context)
+            .set(
+                JsString::from("DirectoryExists"),
+                dir_exists_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // RandomInt(min, max)
@@ -840,7 +1091,11 @@ impl JsBridge {
             let min = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as i64;
             let max = args.get(1).and_then(|v| v.as_number()).unwrap_or(100.0) as i64;
             let delta = (max - min).max(1);
-            let pseudo = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() % delta as u128) as i64;
+            let pseudo = (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+                % delta as u128) as i64;
             Ok(JsValue::from(min + pseudo))
         });
         ctx_obj
@@ -859,42 +1114,91 @@ impl JsBridge {
             }
         });
         ctx_obj
-            .set(JsString::from("ConvertToInt"), convert_to_int_fn, false, context)
+            .set(
+                JsString::from("ConvertToInt"),
+                convert_to_int_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // HideTaskBar / HideTaskbar
-        let hide_taskbar_fn = Self::create_native_function(context, |_this, _args, _ctx| {
-            Ok(JsValue::undefined())
-        });
+        let hide_taskbar_fn =
+            Self::create_native_function(context, |_this, _args, _ctx| Ok(JsValue::undefined()));
         ctx_obj
-            .set(JsString::from("HideTaskBar"), hide_taskbar_fn.clone(), false, context)
+            .set(
+                JsString::from("HideTaskBar"),
+                hide_taskbar_fn.clone(),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         ctx_obj
-            .set(JsString::from("HideTaskbar"), hide_taskbar_fn, false, context)
+            .set(
+                JsString::from("HideTaskbar"),
+                hide_taskbar_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Initialize _ahkDirectives tracking array
         let ahk_directives_arr = JsArray::new(context);
         for directive in &handler_ctx.ahk_directives {
             let d_obj = boa_engine::object::JsObject::default();
-            let _ = d_obj.set(JsString::from("id"), JsValue::from(JsString::from(directive.id.as_str())), false, context);
-            let _ = d_obj.set(JsString::from("is_inline"), JsValue::from(directive.is_inline), false, context);
-            let _ = d_obj.set(JsString::from("content"), JsValue::from(JsString::from(directive.content.as_str())), false, context);
+            let _ = d_obj.set(
+                JsString::from("id"),
+                JsValue::from(JsString::from(directive.id.as_str())),
+                false,
+                context,
+            );
+            let _ = d_obj.set(
+                JsString::from("is_inline"),
+                JsValue::from(directive.is_inline),
+                false,
+                context,
+            );
+            let _ = d_obj.set(
+                JsString::from("content"),
+                JsValue::from(JsString::from(directive.content.as_str())),
+                false,
+                context,
+            );
             if let Some(ref ver) = directive.version {
-                let _ = d_obj.set(JsString::from("version"), JsValue::from(JsString::from(ver.as_str())), false, context);
+                let _ = d_obj.set(
+                    JsString::from("version"),
+                    JsValue::from(JsString::from(ver.as_str())),
+                    false,
+                    context,
+                );
             }
             if let Some(ref tim) = directive.timing {
-                let _ = d_obj.set(JsString::from("timing"), JsValue::from(JsString::from(tim.as_str())), false, context);
+                let _ = d_obj.set(
+                    JsString::from("timing"),
+                    JsValue::from(JsString::from(tim.as_str())),
+                    false,
+                    context,
+                );
             }
             let args_arr = JsArray::new(context);
             for arg in &directive.args {
                 let _ = args_arr.push(JsValue::from(JsString::from(arg.as_str())), context);
             }
-            let _ = d_obj.set(JsString::from("args"), JsValue::from(args_arr), false, context);
+            let _ = d_obj.set(
+                JsString::from("args"),
+                JsValue::from(args_arr),
+                false,
+                context,
+            );
             let _ = ahk_directives_arr.push(JsValue::from(d_obj), context);
         }
         ctx_obj
-            .set(JsString::from("_ahkDirectives"), JsValue::from(ahk_directives_arr), false, context)
+            .set(
+                JsString::from("_ahkDirectives"),
+                JsValue::from(ahk_directives_arr),
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Context.ImportAhkFile(path, [options_or_version], [timing], [args])
@@ -919,7 +1223,12 @@ impl JsBridge {
                         }
                         if let Ok(v) = opt_obj.get(JsString::from("args"), ctx) {
                             if let Some(arr) = v.as_object() {
-                                let len = arr.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as usize;
+                                let len = arr
+                                    .get(JsString::from("length"), ctx)
+                                    .ok()
+                                    .and_then(|l| l.as_number())
+                                    .unwrap_or(0.0)
+                                    as usize;
                                 for i in 0..len {
                                     if let Ok(elem) = arr.get(i, ctx) {
                                         if let Some(s) = elem.as_string() {
@@ -930,7 +1239,11 @@ impl JsBridge {
                             }
                         }
                     } else {
-                        let len = opt_obj.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as usize;
+                        let len = opt_obj
+                            .get(JsString::from("length"), ctx)
+                            .ok()
+                            .and_then(|l| l.as_number())
+                            .unwrap_or(0.0) as usize;
                         for i in 0..len {
                             if let Ok(elem) = opt_obj.get(i, ctx) {
                                 if let Some(s) = elem.as_string() {
@@ -951,7 +1264,11 @@ impl JsBridge {
 
                 if script_args.is_empty() {
                     if let Some(arr) = args.get(3).and_then(|v| v.as_object()) {
-                        let len = arr.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as usize;
+                        let len = arr
+                            .get(JsString::from("length"), ctx)
+                            .ok()
+                            .and_then(|l| l.as_number())
+                            .unwrap_or(0.0) as usize;
                         for i in 0..len {
                             if let Ok(elem) = arr.get(i, ctx) {
                                 if let Some(s) = elem.as_string() {
@@ -965,22 +1282,57 @@ impl JsBridge {
                 if let Some(this_obj) = this.as_object() {
                     if let Ok(dir_val) = this_obj.get(JsString::from("_ahkDirectives"), ctx) {
                         if let Some(dir_arr) = dir_val.as_object() {
-                            let len = dir_arr.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as u32;
+                            let len = dir_arr
+                                .get(JsString::from("length"), ctx)
+                                .ok()
+                                .and_then(|l| l.as_number())
+                                .unwrap_or(0.0) as u32;
                             let d_obj = boa_engine::object::JsObject::default();
-                            let _ = d_obj.set(JsString::from("id"), JsValue::from(JsString::from(format!("file_{len}"))), false, ctx);
-                            let _ = d_obj.set(JsString::from("is_inline"), JsValue::from(false), false, ctx);
-                            let _ = d_obj.set(JsString::from("content"), JsValue::from(JsString::from(path_str.as_str())), false, ctx);
+                            let _ = d_obj.set(
+                                JsString::from("id"),
+                                JsValue::from(JsString::from(format!("file_{len}"))),
+                                false,
+                                ctx,
+                            );
+                            let _ = d_obj.set(
+                                JsString::from("is_inline"),
+                                JsValue::from(false),
+                                false,
+                                ctx,
+                            );
+                            let _ = d_obj.set(
+                                JsString::from("content"),
+                                JsValue::from(JsString::from(path_str.as_str())),
+                                false,
+                                ctx,
+                            );
                             if let Some(ver) = version {
-                                let _ = d_obj.set(JsString::from("version"), JsValue::from(JsString::from(ver.as_str())), false, ctx);
+                                let _ = d_obj.set(
+                                    JsString::from("version"),
+                                    JsValue::from(JsString::from(ver.as_str())),
+                                    false,
+                                    ctx,
+                                );
                             }
                             if let Some(tim) = timing {
-                                let _ = d_obj.set(JsString::from("timing"), JsValue::from(JsString::from(tim.as_str())), false, ctx);
+                                let _ = d_obj.set(
+                                    JsString::from("timing"),
+                                    JsValue::from(JsString::from(tim.as_str())),
+                                    false,
+                                    ctx,
+                                );
                             }
                             let args_arr = JsArray::new(ctx);
                             for a in script_args {
-                                let _ = args_arr.push(JsValue::from(JsString::from(a.as_str())), ctx);
+                                let _ =
+                                    args_arr.push(JsValue::from(JsString::from(a.as_str())), ctx);
                             }
-                            let _ = d_obj.set(JsString::from("args"), JsValue::from(args_arr), false, ctx);
+                            let _ = d_obj.set(
+                                JsString::from("args"),
+                                JsValue::from(args_arr),
+                                false,
+                                ctx,
+                            );
                             let _ = dir_arr.set(len, JsValue::from(d_obj), false, ctx);
                         }
                     }
@@ -989,7 +1341,12 @@ impl JsBridge {
             Ok(JsValue::undefined())
         });
         ctx_obj
-            .set(JsString::from("ImportAhkFile"), import_ahk_fn, false, context)
+            .set(
+                JsString::from("ImportAhkFile"),
+                import_ahk_fn,
+                false,
+                context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Context.RunAhkCode(code, [options_or_version], [timing], [args])
@@ -1014,7 +1371,12 @@ impl JsBridge {
                         }
                         if let Ok(v) = opt_obj.get(JsString::from("args"), ctx) {
                             if let Some(arr) = v.as_object() {
-                                let len = arr.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as usize;
+                                let len = arr
+                                    .get(JsString::from("length"), ctx)
+                                    .ok()
+                                    .and_then(|l| l.as_number())
+                                    .unwrap_or(0.0)
+                                    as usize;
                                 for i in 0..len {
                                     if let Ok(elem) = arr.get(i, ctx) {
                                         if let Some(s) = elem.as_string() {
@@ -1038,22 +1400,57 @@ impl JsBridge {
                 if let Some(this_obj) = this.as_object() {
                     if let Ok(dir_val) = this_obj.get(JsString::from("_ahkDirectives"), ctx) {
                         if let Some(dir_arr) = dir_val.as_object() {
-                            let len = dir_arr.get(JsString::from("length"), ctx).ok().and_then(|l| l.as_number()).unwrap_or(0.0) as u32;
+                            let len = dir_arr
+                                .get(JsString::from("length"), ctx)
+                                .ok()
+                                .and_then(|l| l.as_number())
+                                .unwrap_or(0.0) as u32;
                             let d_obj = boa_engine::object::JsObject::default();
-                            let _ = d_obj.set(JsString::from("id"), JsValue::from(JsString::from(format!("inline_{len}"))), false, ctx);
-                            let _ = d_obj.set(JsString::from("is_inline"), JsValue::from(true), false, ctx);
-                            let _ = d_obj.set(JsString::from("content"), JsValue::from(JsString::from(code_str.as_str())), false, ctx);
+                            let _ = d_obj.set(
+                                JsString::from("id"),
+                                JsValue::from(JsString::from(format!("inline_{len}"))),
+                                false,
+                                ctx,
+                            );
+                            let _ = d_obj.set(
+                                JsString::from("is_inline"),
+                                JsValue::from(true),
+                                false,
+                                ctx,
+                            );
+                            let _ = d_obj.set(
+                                JsString::from("content"),
+                                JsValue::from(JsString::from(code_str.as_str())),
+                                false,
+                                ctx,
+                            );
                             if let Some(ver) = version {
-                                let _ = d_obj.set(JsString::from("version"), JsValue::from(JsString::from(ver.as_str())), false, ctx);
+                                let _ = d_obj.set(
+                                    JsString::from("version"),
+                                    JsValue::from(JsString::from(ver.as_str())),
+                                    false,
+                                    ctx,
+                                );
                             }
                             if let Some(tim) = timing {
-                                let _ = d_obj.set(JsString::from("timing"), JsValue::from(JsString::from(tim.as_str())), false, ctx);
+                                let _ = d_obj.set(
+                                    JsString::from("timing"),
+                                    JsValue::from(JsString::from(tim.as_str())),
+                                    false,
+                                    ctx,
+                                );
                             }
                             let args_arr = JsArray::new(ctx);
                             for a in script_args {
-                                let _ = args_arr.push(JsValue::from(JsString::from(a.as_str())), ctx);
+                                let _ =
+                                    args_arr.push(JsValue::from(JsString::from(a.as_str())), ctx);
                             }
-                            let _ = d_obj.set(JsString::from("args"), JsValue::from(args_arr), false, ctx);
+                            let _ = d_obj.set(
+                                JsString::from("args"),
+                                JsValue::from(args_arr),
+                                false,
+                                ctx,
+                            );
                             let _ = dir_arr.set(len, JsValue::from(d_obj), false, ctx);
                         }
                     }
@@ -1067,83 +1464,183 @@ impl JsBridge {
 
         // Register global Context
         context
-            .register_global_property(JsString::from("Context"), JsValue::from(ctx_obj), Attribute::all())
+            .register_global_property(
+                JsString::from("Context"),
+                JsValue::from(ctx_obj),
+                Attribute::all(),
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register global Player
         let player_obj = boa_engine::object::JsObject::default();
-        let _ = player_obj.set(JsString::from("PlayerID"), JsValue::from(handler_ctx.player_index as i32), false, context);
-        let _ = player_obj.set(JsString::from("PlayerId"), JsValue::from(handler_ctx.player_index as i32), false, context);
-        let _ = player_obj.set(JsString::from("Nickname"), JsValue::from(JsString::from(handler_ctx.nickname.as_str())), false, context);
-        let _ = player_obj.set(JsString::from("IsKeyboardPlayer"), JsValue::from(handler_ctx.is_keyboard_player), false, context);
-        let _ = player_obj.set(JsString::from("GamepadId"), JsValue::from(handler_ctx.gamepad_id), false, context);
+        let _ = player_obj.set(
+            JsString::from("PlayerID"),
+            JsValue::from(handler_ctx.player_index as i32),
+            false,
+            context,
+        );
+        let _ = player_obj.set(
+            JsString::from("PlayerId"),
+            JsValue::from(handler_ctx.player_index as i32),
+            false,
+            context,
+        );
+        let _ = player_obj.set(
+            JsString::from("Nickname"),
+            JsValue::from(JsString::from(handler_ctx.nickname.as_str())),
+            false,
+            context,
+        );
+        let _ = player_obj.set(
+            JsString::from("IsKeyboardPlayer"),
+            JsValue::from(handler_ctx.is_keyboard_player),
+            false,
+            context,
+        );
+        let _ = player_obj.set(
+            JsString::from("GamepadId"),
+            JsValue::from(handler_ctx.gamepad_id),
+            false,
+            context,
+        );
 
         // Player.Owner object representing the layout/screen partition
         let owner_obj = boa_engine::object::JsObject::default();
-        let _ = owner_obj.set(JsString::from("Width"), JsValue::from(handler_ctx.monitor_width), false, context);
-        let _ = owner_obj.set(JsString::from("Height"), JsValue::from(handler_ctx.monitor_height), false, context);
+        let _ = owner_obj.set(
+            JsString::from("Width"),
+            JsValue::from(handler_ctx.monitor_width),
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("Height"),
+            JsValue::from(handler_ctx.monitor_height),
+            false,
+            context,
+        );
 
         let n_players = handler_ctx.number_of_players;
         let layout_lower = handler_ctx.layout.to_lowercase();
 
-        let is_dual_horiz = n_players == 2 && (layout_lower.contains("1x2") || layout_lower.contains("horizontal") || layout_lower.contains("stacked"));
-        let is_dual_vert = n_players == 2 && (layout_lower.contains("2x1") || layout_lower.contains("vertical") || layout_lower.contains("side-by-side"));
+        let is_dual_horiz = n_players == 2
+            && (layout_lower.contains("1x2")
+                || layout_lower.contains("horizontal")
+                || layout_lower.contains("stacked"));
+        let is_dual_vert = n_players == 2
+            && (layout_lower.contains("2x1")
+                || layout_lower.contains("vertical")
+                || layout_lower.contains("side-by-side"));
         let is_fullscreen = n_players == 1 || layout_lower.contains("fullscreen");
-        let is_four = n_players == 4 || layout_lower.contains("2x2") || layout_lower.contains("four");
+        let is_four =
+            n_players == 4 || layout_lower.contains("2x2") || layout_lower.contains("four");
         let p_count = n_players as i32;
 
-        let _ = owner_obj.set(JsString::from("_is_dual_horizontal"), JsValue::from(is_dual_horiz), false, context);
-        let _ = owner_obj.set(JsString::from("_is_dual_vertical"), JsValue::from(is_dual_vert), false, context);
-        let _ = owner_obj.set(JsString::from("_is_fullscreen"), JsValue::from(is_fullscreen), false, context);
-        let _ = owner_obj.set(JsString::from("_is_four_players"), JsValue::from(is_four), false, context);
-        let _ = owner_obj.set(JsString::from("_player_count"), JsValue::from(p_count), false, context);
+        let _ = owner_obj.set(
+            JsString::from("_is_dual_horizontal"),
+            JsValue::from(is_dual_horiz),
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("_is_dual_vertical"),
+            JsValue::from(is_dual_vert),
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("_is_fullscreen"),
+            JsValue::from(is_fullscreen),
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("_is_four_players"),
+            JsValue::from(is_four),
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("_player_count"),
+            JsValue::from(p_count),
+            false,
+            context,
+        );
 
         let dual_horiz_fn = Self::create_native_function(context, |this, _args, ctx| {
-            let val = this.as_object()
+            let val = this
+                .as_object()
                 .and_then(|o| o.get(JsString::from("_is_dual_horizontal"), ctx).ok())
                 .and_then(|v| v.as_boolean())
                 .unwrap_or(false);
             Ok(JsValue::from(val))
         });
         let dual_vert_fn = Self::create_native_function(context, |this, _args, ctx| {
-            let val = this.as_object()
+            let val = this
+                .as_object()
                 .and_then(|o| o.get(JsString::from("_is_dual_vertical"), ctx).ok())
                 .and_then(|v| v.as_boolean())
                 .unwrap_or(false);
             Ok(JsValue::from(val))
         });
         let fullscreen_fn = Self::create_native_function(context, |this, _args, ctx| {
-            let val = this.as_object()
+            let val = this
+                .as_object()
                 .and_then(|o| o.get(JsString::from("_is_fullscreen"), ctx).ok())
                 .and_then(|v| v.as_boolean())
                 .unwrap_or(false);
             Ok(JsValue::from(val))
         });
         let four_fn = Self::create_native_function(context, |this, _args, ctx| {
-            let val = this.as_object()
+            let val = this
+                .as_object()
                 .and_then(|o| o.get(JsString::from("_is_four_players"), ctx).ok())
                 .and_then(|v| v.as_boolean())
                 .unwrap_or(false);
             Ok(JsValue::from(val))
         });
         let count_fn = Self::create_native_function(context, |this, _args, ctx| {
-            let val = this.as_object()
+            let val = this
+                .as_object()
                 .and_then(|o| o.get(JsString::from("_player_count"), ctx).ok())
                 .and_then(|v| v.as_number())
                 .unwrap_or(1.0) as i32;
             Ok(JsValue::from(val))
         });
 
-        let _ = owner_obj.set(JsString::from("IsDualHorizontal"), dual_horiz_fn, false, context);
-        let _ = owner_obj.set(JsString::from("IsDualVertical"), dual_vert_fn, false, context);
-        let _ = owner_obj.set(JsString::from("IsFullscreen"), fullscreen_fn, false, context);
+        let _ = owner_obj.set(
+            JsString::from("IsDualHorizontal"),
+            dual_horiz_fn,
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("IsDualVertical"),
+            dual_vert_fn,
+            false,
+            context,
+        );
+        let _ = owner_obj.set(
+            JsString::from("IsFullscreen"),
+            fullscreen_fn,
+            false,
+            context,
+        );
         let _ = owner_obj.set(JsString::from("IsFourPlayers"), four_fn, false, context);
         let _ = owner_obj.set(JsString::from("GetPlayerCount"), count_fn, false, context);
 
-        let _ = player_obj.set(JsString::from("Owner"), JsValue::from(owner_obj), false, context);
+        let _ = player_obj.set(
+            JsString::from("Owner"),
+            JsValue::from(owner_obj),
+            false,
+            context,
+        );
 
         context
-            .register_global_property(JsString::from("Player"), JsValue::from(player_obj), Attribute::all())
+            .register_global_property(
+                JsString::from("Player"),
+                JsValue::from(player_obj),
+                Attribute::all(),
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         Ok(())
@@ -1174,8 +1671,4 @@ impl JsBridge {
         }
         Vec::new()
     }
-
 }
-
-
-

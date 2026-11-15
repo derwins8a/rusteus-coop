@@ -1,8 +1,8 @@
 //! OSD overlay and key recording modal helpers.
 
 use gpui::{
-    div, px, rgb, FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement,
-    StatefulInteractiveElement, Styled,
+    FontWeight, InteractiveElement, IntoElement, MouseButton, ParentElement,
+    StatefulInteractiveElement, Styled, div, px, rgb,
 };
 
 use crate::theme;

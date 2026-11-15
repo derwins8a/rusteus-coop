@@ -30,9 +30,7 @@ impl Globals {
         GLOBALS.get_or_init(|| {
             let user_environment_root = dirs::home_dir().unwrap_or_default();
             let user_documents_root = dirs::document_dir().unwrap_or_default();
-            let app_data_path = dirs::data_dir()
-                .unwrap_or_default()
-                .join("Nucleus Coop");
+            let app_data_path = dirs::data_dir().unwrap_or_default().join("Nucleus Coop");
             let handlers_path = install_root.join("handlers");
             let utils_path = install_root.join("utils");
             let gui_path = install_root.join("gui");
@@ -54,7 +52,9 @@ impl Globals {
     /// # Panics
     /// Panics if [`Globals::init`] has not been called.
     pub fn get() -> &'static Globals {
-        GLOBALS.get().expect("Globals not initialized. Call Globals::init() first.")
+        GLOBALS
+            .get()
+            .expect("Globals not initialized. Call Globals::init() first.")
     }
 
     /// Gets the global application paths instance if initialized, or None.

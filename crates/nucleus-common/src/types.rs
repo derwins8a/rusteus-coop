@@ -1,8 +1,8 @@
 //! Common shared types used across NucleusCoop crates.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 
 /// Two-dimensional integer vector representing coordinates, sizes, or offsets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

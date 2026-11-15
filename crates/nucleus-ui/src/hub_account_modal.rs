@@ -1,15 +1,15 @@
 //! Splitscreen.Me Community Hub Account authentication and session modal.
 
-use std::sync::Arc;
+use crate::components::badge::{CouchTag, TagTone};
+use crate::components::button::{CouchButton, CouchButtonSize};
+use crate::components::modal::{CouchModal, ModalWidth};
+use crate::theme;
 use gpui::prelude::*;
 use gpui::*;
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
 use nucleus_profile::hub_account::HubAccountSummary;
-use crate::components::badge::{CouchTag, TagTone};
-use crate::components::button::{CouchButton, CouchButtonSize};
-use crate::components::modal::{CouchModal, ModalWidth};
-use crate::theme;
+use std::sync::Arc;
 
 /// State for the Hub account login dialog form.
 #[derive(Debug, Clone, Default)]
@@ -126,26 +126,21 @@ pub fn render_hub_account_modal(
                     .child("Session credentials are securely stored locally using Windows DPAPI."),
             )
             .child(
-                div()
-                    .flex()
-                    .justify_end()
-                    .gap_2()
-                    .pt_2()
-                    .child(
-                        CouchButton::danger("btn-hub-logout", "Sign Out")
-                            .size(CouchButtonSize::Sm)
-                            .icon(IconName::LogOut)
-                            .on_click({
-                                let logout_cb = on_logout.clone();
-                                let close_cb = on_close.clone();
-                                move |ev, win, app| {
-                                    if let Some(ref cb) = logout_cb {
-                                        cb();
-                                    }
-                                    close_cb(ev, win, app);
+                div().flex().justify_end().gap_2().pt_2().child(
+                    CouchButton::danger("btn-hub-logout", "Sign Out")
+                        .size(CouchButtonSize::Sm)
+                        .icon(IconName::LogOut)
+                        .on_click({
+                            let logout_cb = on_logout.clone();
+                            let close_cb = on_close.clone();
+                            move |ev, win, app| {
+                                if let Some(ref cb) = logout_cb {
+                                    cb();
                                 }
-                            }),
-                    ),
+                                close_cb(ev, win, app);
+                            }
+                        }),
+                ),
             )
     } else {
         // Login form view

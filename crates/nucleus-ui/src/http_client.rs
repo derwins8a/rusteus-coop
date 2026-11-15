@@ -3,11 +3,11 @@
 //! Provides image asset downloading with local disk caching to prevent
 //! redundant network traffic and ensure responsive UI pagination.
 
+use futures::FutureExt;
+use futures::future::BoxFuture;
+use gpui::http_client::{self, AsyncBody, HttpClient, Url};
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use gpui::http_client::{self, AsyncBody, HttpClient, Url};
-use futures::future::BoxFuture;
-use futures::FutureExt;
 use tracing::debug;
 
 static TOKIO_RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
@@ -128,7 +128,10 @@ impl HttpClient for NucleusHttpClient {
                 let candidate = alt_cache.join(format!("{}.{}", hash, ext));
                 if candidate.exists() {
                     if let Ok(bytes) = std::fs::read(&candidate) {
-                        debug!("Serving image from historical cache: {}", candidate.display());
+                        debug!(
+                            "Serving image from historical cache: {}",
+                            candidate.display()
+                        );
                         let resp = http_client::http::Response::builder()
                             .status(200)
                             .header("Content-Type", "image/jpeg")
@@ -177,7 +180,8 @@ impl HttpClient for NucleusHttpClient {
                 let body = AsyncBody::from(bytes.to_vec());
                 let final_resp = resp_builder.body(body)?;
                 Ok(final_resp)
-            }.await;
+            }
+            .await;
 
             let _ = tx.send(res);
         });
@@ -200,7 +204,8 @@ mod tests {
     #[test]
     fn test_nucleus_http_client_creation() {
         let client = NucleusHttpClient::new();
-        let cache_path = client.cache_path_for_url("https://images.igdb.com/igdb/image/upload/t_cover_big/co1x7j.jpg");
+        let cache_path = client
+            .cache_path_for_url("https://images.igdb.com/igdb/image/upload/t_cover_big/co1x7j.jpg");
         assert!(cache_path.is_some());
         let path = cache_path.unwrap();
         assert!(path.to_string_lossy().ends_with(".jpg"));
@@ -209,19 +214,26 @@ mod tests {
     #[test]
     fn test_cache_path_extensions() {
         let client = NucleusHttpClient::new();
-        let png = client.cache_path_for_url("https://example.com/cover.png").unwrap();
+        let png = client
+            .cache_path_for_url("https://example.com/cover.png")
+            .unwrap();
         assert!(png.to_string_lossy().ends_with(".png"));
 
-        let webp = client.cache_path_for_url("https://example.com/art.webp").unwrap();
+        let webp = client
+            .cache_path_for_url("https://example.com/art.webp")
+            .unwrap();
         assert!(webp.to_string_lossy().ends_with(".webp"));
 
-        let jpg = client.cache_path_for_url("https://example.com/banner.jpeg").unwrap();
+        let jpg = client
+            .cache_path_for_url("https://example.com/banner.jpeg")
+            .unwrap();
         assert!(jpg.to_string_lossy().ends_with(".jpg"));
     }
 
     #[tokio::test]
     async fn test_nucleus_http_client_disk_cache_serving() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_cache_{}", uuid::Uuid::new_v4()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_cache_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let mut client = NucleusHttpClient::new();
@@ -238,14 +250,19 @@ mod tests {
             .body(AsyncBody::empty())
             .expect("valid request");
 
-        let mut resp = client.send(req).await.expect("send must succeed from cache");
+        let mut resp = client
+            .send(req)
+            .await
+            .expect("send must succeed from cache");
         assert_eq!(resp.status().as_u16(), 200);
 
         let mut body = Vec::new();
-        resp.body_mut().read_to_end(&mut body).await.expect("read body");
+        resp.body_mut()
+            .read_to_end(&mut body)
+            .await
+            .expect("read body");
         assert_eq!(body, fake_image_data);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-

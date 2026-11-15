@@ -56,7 +56,11 @@ fn test_session_freeze_and_controller_reassignment() {
 fn test_launch_countdown_osd_format() {
     let player_idx = 1; // Player 2
     let remaining_secs = 24;
-    let msg = format!("Launching Player {} in {}s...", player_idx + 1, remaining_secs);
+    let msg = format!(
+        "Launching Player {} in {}s...",
+        player_idx + 1,
+        remaining_secs
+    );
     assert_eq!(msg, "Launching Player 2 in 24s...");
     assert!(msg.starts_with("Launching Player 2"));
     assert!(msg.ends_with("in 24s..."));

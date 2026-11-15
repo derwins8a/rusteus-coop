@@ -28,4 +28,3 @@ pub use types::{
     ProcessHandle, ProcessInfo, ProcessPriority, Rect, RegistryBackup, RegistryValueBackup,
     SearchMode, UserInfo, WindowHandle, WindowStyle,
 };
-

@@ -90,11 +90,7 @@ impl CouchToggle {
             );
 
         if self.compact {
-            let mut mini = div()
-                .id(self.id.clone())
-                .flex()
-                .items_center()
-                .gap_2();
+            let mut mini = div().id(self.id.clone()).flex().items_center().gap_2();
 
             if !self.disabled {
                 mini = mini.cursor_pointer();
@@ -141,9 +137,7 @@ impl CouchToggle {
             });
 
         if !self.disabled {
-            row = row
-                .cursor_pointer()
-                .hover(|s| s.bg(theme::bg_panel()));
+            row = row.cursor_pointer().hover(|s| s.bg(theme::bg_panel()));
 
             if let Some(h) = self.on_click {
                 row = row.on_click(move |ev, win, cx| h(ev, win, cx));
@@ -152,28 +146,18 @@ impl CouchToggle {
             row = row.opacity(0.4).cursor_not_allowed();
         }
 
-        let mut label_col = div()
-            .flex()
-            .flex_col()
-            .flex_1()
-            .min_w_0()
-            .gap_0p5()
-            .child(
-                div()
-                    .text_xs()
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(theme::text_primary())
-                    .child(self.title),
-            );
+        let mut label_col = div().flex().flex_col().flex_1().min_w_0().gap_0p5().child(
+            div()
+                .text_xs()
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(theme::text_primary())
+                .child(self.title),
+        );
 
         if let Some(desc) = self.description {
             if !desc.trim().is_empty() {
-                label_col = label_col.child(
-                    div()
-                        .text_xs()
-                        .text_color(theme::text_muted())
-                        .child(desc),
-                );
+                label_col =
+                    label_col.child(div().text_xs().text_color(theme::text_muted()).child(desc));
             }
         }
 

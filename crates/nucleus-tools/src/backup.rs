@@ -1,8 +1,8 @@
 //! Save game and configuration backup and restoration tooling.
 
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::{Path, PathBuf};
 
 /// Tool for backing up original user saves and configuration files before session launch,
 /// and restoring them when instances exit.

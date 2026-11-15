@@ -1,6 +1,6 @@
 use gpui::{
-    AnyElement, FontWeight, IntoElement, ParentElement, Pixels, SharedString, Styled,
-    StyledImage, div, img, px,
+    AnyElement, FontWeight, IntoElement, ParentElement, Pixels, SharedString, Styled, StyledImage,
+    div, img, px,
 };
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
@@ -95,7 +95,11 @@ impl GameCover {
                 ph = ph
                     .gap_1()
                     .p_1()
-                    .child(Icon::new(IconName::Gamepad2).size_4().text_color(theme::accent()))
+                    .child(
+                        Icon::new(IconName::Gamepad2)
+                            .size_4()
+                            .text_color(theme::accent()),
+                    )
                     .child(
                         div()
                             .text_xs()
@@ -107,7 +111,11 @@ impl GameCover {
                 ph = ph
                     .gap_3()
                     .p_4()
-                    .child(Icon::new(IconName::Gamepad2).size_10().text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::Gamepad2)
+                            .size_10()
+                            .text_color(theme::text_muted()),
+                    )
                     .child(
                         div()
                             .text_sm()

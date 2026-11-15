@@ -27,26 +27,28 @@ pub fn render_handler_details_modal(
         .flex_row()
         .items_start()
         .gap_4()
-        .child(
-            if let Some(ref cover) = h.cover_image_url {
-                NefosCover::new(&h.game_name, px(68.0), px(96.0))
-                    .cover_url(Some(cover.clone()))
-                    .into_any_element()
-            } else {
-                div()
-                    .w(px(68.0))
-                    .h(px(96.0))
-                    .rounded_lg()
-                    .bg(theme::accent_subtle())
-                    .border_1()
-                    .border_color(theme::border_color())
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(Icon::new(IconName::Gamepad2).size(px(28.0)).text_color(theme::accent()))
-                    .into_any_element()
-            },
-        )
+        .child(if let Some(ref cover) = h.cover_image_url {
+            NefosCover::new(&h.game_name, px(68.0), px(96.0))
+                .cover_url(Some(cover.clone()))
+                .into_any_element()
+        } else {
+            div()
+                .w(px(68.0))
+                .h(px(96.0))
+                .rounded_lg()
+                .bg(theme::accent_subtle())
+                .border_1()
+                .border_color(theme::border_color())
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    Icon::new(IconName::Gamepad2)
+                        .size(px(28.0))
+                        .text_color(theme::accent()),
+                )
+                .into_any_element()
+        })
         .child(
             div()
                 .flex()
@@ -118,28 +120,23 @@ pub fn render_handler_details_modal(
         );
 
     // Markdown description scroll container
-    let body_content = div()
-        .flex()
-        .flex_col()
-        .gap_3()
-        .child(header_meta)
-        .child(
-            div()
-                .id("handler-modal-desc-scroll")
-                .h(px(320.0))
-                .w_full()
-                .min_w_0()
-                .overflow_y_scroll()
-                .p_4()
-                .bg(theme::bg_subtle())
-                .rounded_xl()
-                .border_1()
-                .border_color(theme::border_subtle())
-                .child(crate::markdown::render_markdown_with_id(
-                    "library-details-notes",
-                    &desc_md,
-                )),
-        );
+    let body_content = div().flex().flex_col().gap_3().child(header_meta).child(
+        div()
+            .id("handler-modal-desc-scroll")
+            .h(px(320.0))
+            .w_full()
+            .min_w_0()
+            .overflow_y_scroll()
+            .p_4()
+            .bg(theme::bg_subtle())
+            .rounded_xl()
+            .border_1()
+            .border_color(theme::border_subtle())
+            .child(crate::markdown::render_markdown_with_id(
+                "library-details-notes",
+                &desc_md,
+            )),
+    );
 
     let copy_text = desc_md.clone();
     let config_h_name = h_name.clone();

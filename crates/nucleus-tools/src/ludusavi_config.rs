@@ -1,9 +1,9 @@
 //! Generator for isolated, ephemeral Ludusavi `config.yaml` files.
 
+use nucleus_common::error::NucleusResult;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::NucleusResult;
 
 /// A path redirection mapping for Ludusavi backup/restore cycles.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,20 +89,29 @@ pub fn write_isolated_config(
     if !target.custom_files.is_empty() || !target.custom_registry.is_empty() {
         custom_games_yaml.push(CustomGameYaml {
             name: target.game_title.clone(),
-            files: target.custom_files.iter().map(|f| f.replace('\\', "/")).collect(),
+            files: target
+                .custom_files
+                .iter()
+                .map(|f| f.replace('\\', "/"))
+                .collect(),
             registry: target.custom_registry.clone(),
         });
     }
 
     let config = LudusaviConfigYaml {
-        backup: Some(PathConfig { path: repo_path.clone() }),
+        backup: Some(PathConfig {
+            path: repo_path.clone(),
+        }),
         restore: Some(PathConfig { path: repo_path }),
         redirects: redirects_yaml,
         custom_games: custom_games_yaml,
     };
 
     let yaml_str = serde_yaml::to_string(&config).map_err(|e| {
-        nucleus_common::error::NucleusError::Other(format!("Failed to serialize Ludusavi config: {}", e))
+        nucleus_common::error::NucleusError::Other(format!(
+            "Failed to serialize Ludusavi config: {}",
+            e
+        ))
     })?;
 
     fs::write(&config_file, yaml_str)?;
@@ -115,7 +124,8 @@ mod tests {
 
     #[test]
     fn test_write_isolated_config_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_lud_cfg_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_lud_cfg_test_{}", std::process::id()));
         let _ = fs::create_dir_all(&temp_dir);
 
         let target = LudusaviInstanceTarget {
@@ -123,7 +133,9 @@ mod tests {
             backup_repo_dir: PathBuf::from("C:\\Saves\\Halo"),
             redirects: vec![LudusaviRedirect {
                 source: PathBuf::from("C:\\Users\\Main\\AppData\\Roaming\\Game"),
-                target: PathBuf::from("C:\\Users\\Main\\NucleusCoop\\Player1\\AppData\\Roaming\\Game"),
+                target: PathBuf::from(
+                    "C:\\Users\\Main\\NucleusCoop\\Player1\\AppData\\Roaming\\Game",
+                ),
             }],
             custom_files: vec!["C:/Games/Halo/Instance1/save.bin".to_string()],
             custom_registry: vec!["HKEY_CURRENT_USER\\Software\\Game".to_string()],

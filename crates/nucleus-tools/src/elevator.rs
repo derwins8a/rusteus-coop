@@ -3,8 +3,8 @@
 //! Provides facilities to check elevation status, run commands elevated with UAC prompts,
 //! and coordinate operations requiring administrative privileges.
 
-use std::path::Path;
 use nucleus_common::error::{NucleusError, NucleusResult};
+use std::path::Path;
 
 /// Elevator tool for requesting and coordinating administrator elevation.
 #[derive(Debug, Default, Clone)]
@@ -44,14 +44,17 @@ impl ElevatorTool {
         #[cfg(not(windows))]
         {
             let _ = (executable, arguments, working_dir, wait);
-            Err(NucleusError::Unsupported("run_elevated is not supported on this platform".to_string()))
+            Err(NucleusError::Unsupported(
+                "run_elevated is not supported on this platform".to_string(),
+            ))
         }
     }
 
     /// Re-launches the current executable with elevated administrator privileges.
     pub fn restart_elevated(arguments: &[&str]) -> NucleusResult<()> {
-        let current_exe = std::env::current_exe()
-            .map_err(|e| NucleusError::Platform(format!("Failed to determine current exe: {}", e)))?;
+        let current_exe = std::env::current_exe().map_err(|e| {
+            NucleusError::Platform(format!("Failed to determine current exe: {}", e))
+        })?;
         Self::run_elevated(&current_exe, arguments, None, false)?;
         Ok(())
     }

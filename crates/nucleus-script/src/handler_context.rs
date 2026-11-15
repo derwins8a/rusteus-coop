@@ -113,7 +113,13 @@ pub struct AhkScriptDirective {
 
 impl HandlerContext {
     /// Records an AHK file to be executed for this instance.
-    pub fn import_ahk_file(&mut self, rel_path: impl Into<String>, version: Option<String>, timing: Option<String>, args: Vec<String>) {
+    pub fn import_ahk_file(
+        &mut self,
+        rel_path: impl Into<String>,
+        version: Option<String>,
+        timing: Option<String>,
+        args: Vec<String>,
+    ) {
         let p = rel_path.into();
         let id = format!("file_{}_{}", self.player_index, self.ahk_directives.len());
         self.ahk_directives.push(AhkScriptDirective {
@@ -127,7 +133,13 @@ impl HandlerContext {
     }
 
     /// Records inline AHK code to be executed for this instance.
-    pub fn run_ahk_code(&mut self, code: impl Into<String>, version: Option<String>, timing: Option<String>, args: Vec<String>) {
+    pub fn run_ahk_code(
+        &mut self,
+        code: impl Into<String>,
+        version: Option<String>,
+        timing: Option<String>,
+        args: Vec<String>,
+    ) {
         let c = code.into();
         let id = format!("inline_{}_{}", self.player_index, self.ahk_directives.len());
         self.ahk_directives.push(AhkScriptDirective {
@@ -157,11 +169,7 @@ impl HandlerContext {
 
     /// Calculates greatest common divisor for aspect ratio formatting.
     fn gcd(a: i32, b: i32) -> i32 {
-        if b == 0 {
-            a.abs()
-        } else {
-            Self::gcd(b, a % b)
-        }
+        if b == 0 { a.abs() } else { Self::gcd(b, a % b) }
     }
 
     /// Returns string representation of aspect ratio (e.g. "16:9").
@@ -200,4 +208,3 @@ mod tests {
         assert!(!parsed_inactive.is_active);
     }
 }
-

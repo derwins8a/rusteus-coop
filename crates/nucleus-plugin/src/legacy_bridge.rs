@@ -1,9 +1,9 @@
 //! Compatibility bridge and parser for legacy C# Nucleus Co-op `pluginsInfo.txt`.
 
+use nucleus_common::error::NucleusResult;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::NucleusResult;
 
 /// Represents an entry parsed from legacy `pluginsInfo.txt`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -108,8 +108,14 @@ CustomTool#Community#2.0.0#Some standalone tool#custom.exe#standalone
         let parsed = parse_legacy_plugins_txt(sample);
         assert_eq!(parsed.len(), 3);
         assert_eq!(parsed[0].name, "DevReorder");
-        assert_eq!(parsed[0].builtin_rust_equivalent(), Some(BuiltinToolEquivalent::DevReorder));
-        assert_eq!(parsed[1].builtin_rust_equivalent(), Some(BuiltinToolEquivalent::GoldbergEmulator));
+        assert_eq!(
+            parsed[0].builtin_rust_equivalent(),
+            Some(BuiltinToolEquivalent::DevReorder)
+        );
+        assert_eq!(
+            parsed[1].builtin_rust_equivalent(),
+            Some(BuiltinToolEquivalent::GoldbergEmulator)
+        );
         assert_eq!(parsed[2].builtin_rust_equivalent(), None);
     }
 }

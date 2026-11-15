@@ -27,9 +27,9 @@ impl JsInstrumentor {
         let mut parser = Parser::new(source);
         let scope = boa_ast::scope::Scope::new_global();
 
-        parser
-            .parse_script(&scope, &mut interner)
-            .map_err(|e| NucleusError::Script(format!("JavaScript syntax validation error: {e}")))?;
+        parser.parse_script(&scope, &mut interner).map_err(|e| {
+            NucleusError::Script(format!("JavaScript syntax validation error: {e}"))
+        })?;
 
         Ok(())
     }
@@ -128,7 +128,14 @@ impl JsInstrumentor {
         }
 
         // Structural blocks, continuation lines, or lone punctuation
-        if trimmed == "{" || trimmed == "}" || trimmed == "};" || trimmed == "]" || trimmed == "];" || trimmed == ")" || trimmed == ");" {
+        if trimmed == "{"
+            || trimmed == "}"
+            || trimmed == "};"
+            || trimmed == "]"
+            || trimmed == "];"
+            || trimmed == ")"
+            || trimmed == ");"
+        {
             return false;
         }
 

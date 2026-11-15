@@ -1,16 +1,15 @@
 //! Asynchronous HTTP client for communicating with the SplitScreen.Me Hub API.
 
-use std::io::Cursor;
-use std::path::{Path, PathBuf};
 use crate::types::{
-    HubComment, HubHandler, HubHandlerDetail, HubHandlerSummary, HubHandlersResponse,
-    HubPackage, HubPackageResponse, HubPackagesResponse, HubScreenshot, HubScreenshotsResponse,
-    HubVersionInfo,
+    HubComment, HubHandler, HubHandlerDetail, HubHandlerSummary, HubHandlersResponse, HubPackage,
+    HubPackageResponse, HubPackagesResponse, HubScreenshot, HubScreenshotsResponse, HubVersionInfo,
 };
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::file_util;
-use serde::{Deserialize, Serialize};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::io::Cursor;
+use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 /// Metadata sidecar persisted next to a Hub-installed handler script.
@@ -98,29 +97,28 @@ impl HubClient {
             )));
         }
 
-        let container = resp
-            .json::<HubHandlersResponse>()
-            .await
-            .map_err(|e| NucleusError::Network(format!("Failed to parse allhandlers response: {}", e)))?;
+        let container = resp.json::<HubHandlersResponse>().await.map_err(|e| {
+            NucleusError::Network(format!("Failed to parse allhandlers response: {}", e))
+        })?;
 
         Ok(container.handlers)
     }
 
-fn percent_encode(s: &str) -> String {
-    let mut encoded = String::new();
-    for b in s.as_bytes() {
-        match *b {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                encoded.push(*b as char);
-            }
-            b' ' => encoded.push_str("%20"),
-            _ => {
-                encoded.push_str(&format!("%{:02X}", b));
+    fn percent_encode(s: &str) -> String {
+        let mut encoded = String::new();
+        for b in s.as_bytes() {
+            match *b {
+                b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                    encoded.push(*b as char);
+                }
+                b' ' => encoded.push_str("%20"),
+                _ => {
+                    encoded.push_str(&format!("%{:02X}", b));
+                }
             }
         }
+        encoded
     }
-    encoded
-}
 
     /// Searches for community game handlers matching the specified query string.
     /// If query is empty, fetches all available handlers.
@@ -148,10 +146,9 @@ fn percent_encode(s: &str) -> String {
             )));
         }
 
-        let container = resp
-            .json::<HubHandlersResponse>()
-            .await
-            .map_err(|e| NucleusError::Network(format!("Failed to decode search response: {}", e)))?;
+        let container = resp.json::<HubHandlersResponse>().await.map_err(|e| {
+            NucleusError::Network(format!("Failed to decode search response: {}", e))
+        })?;
 
         Ok(container.handlers)
     }
@@ -167,12 +164,9 @@ fn percent_encode(s: &str) -> String {
     /// Endpoint: `GET /api/v1/handler/:handler_id`
     pub async fn get_handler(&self, handler_id: &str) -> NucleusResult<Option<HubHandler>> {
         let url = format!("{}/handler/{}", self.base_url, handler_id.trim());
-        let resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| NucleusError::Network(format!("Failed to get handler {}: {}", handler_id, e)))?;
+        let resp = self.client.get(&url).send().await.map_err(|e| {
+            NucleusError::Network(format!("Failed to get handler {}: {}", handler_id, e))
+        })?;
 
         if !resp.status().is_success() {
             return Err(NucleusError::Network(format!(
@@ -238,12 +232,10 @@ fn percent_encode(s: &str) -> String {
     /// Endpoint: `GET /api/v1/package/:package_id`
     pub async fn package_details(&self, package_id: &str) -> NucleusResult<HubPackage> {
         let url = format!("{}/package/{}", self.base_url, package_id.trim());
-        let resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| NucleusError::Network(format!("Failed to get package details: {}", e)))?;
+        let resp =
+            self.client.get(&url).send().await.map_err(|e| {
+                NucleusError::Network(format!("Failed to get package details: {}", e))
+            })?;
 
         if !resp.status().is_success() {
             return Err(NucleusError::Network(format!(
@@ -346,7 +338,10 @@ fn percent_encode(s: &str) -> String {
     /// Retrieves detailed metadata, version history, and download URLs for a specific handler.
     pub async fn get_handler_details(&self, handler_id: &str) -> NucleusResult<HubHandlerDetail> {
         let handler = self.get_handler(handler_id).await?.ok_or_else(|| {
-            NucleusError::Network(format!("Handler '{}' not found on community Hub", handler_id))
+            NucleusError::Network(format!(
+                "Handler '{}' not found on community Hub",
+                handler_id
+            ))
         })?;
 
         let packages = self.get_packages(handler_id).await.unwrap_or_default();
@@ -371,7 +366,10 @@ fn percent_encode(s: &str) -> String {
         }
 
         let download_url = handler.cdn_download_url().unwrap_or_else(|| {
-            versions.first().map(|v| v.download_url.clone()).unwrap_or_default()
+            versions
+                .first()
+                .map(|v| v.download_url.clone())
+                .unwrap_or_default()
         });
 
         let game_cover_url = handler.cover_image_url("cover_big");
@@ -379,7 +377,10 @@ fn percent_encode(s: &str) -> String {
         Ok(HubHandlerDetail {
             id: handler.id.clone(),
             game: crate::types::HubGameInfo {
-                name: handler.game_name.clone().unwrap_or_else(|| handler.display_title().to_string()),
+                name: handler
+                    .game_name
+                    .clone()
+                    .unwrap_or_else(|| handler.display_title().to_string()),
                 steam_id: None,
                 publisher: None,
                 banner_url: game_cover_url.clone(),
@@ -404,7 +405,8 @@ fn percent_encode(s: &str) -> String {
         handler_id: &str,
         version: i32,
     ) -> NucleusResult<Vec<u8>> {
-        self.download_package_with_progress(package_id, handler_id, version, |_| {}).await
+        self.download_package_with_progress(package_id, handler_id, version, |_| {})
+            .await
     }
 
     /// Downloads a package archive with continuous progress updates (0.0 to 1.0).
@@ -418,7 +420,14 @@ fn percent_encode(s: &str) -> String {
     where
         F: FnMut(f32) + Send + 'static,
     {
-        self.download_package_with_progress_and_size(package_id, handler_id, version, None, on_progress).await
+        self.download_package_with_progress_and_size(
+            package_id,
+            handler_id,
+            version,
+            None,
+            on_progress,
+        )
+        .await
     }
 
     /// Downloads a package archive with continuous progress updates, optionally using known package size as fallback.
@@ -444,12 +453,9 @@ fn percent_encode(s: &str) -> String {
         // Immediate start feedback
         on_progress(0.08);
 
-        let mut resp = self
-            .client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| NucleusError::Network(format!("Failed to download handler package: {}", e)))?;
+        let mut resp = self.client.get(&url).send().await.map_err(|e| {
+            NucleusError::Network(format!("Failed to download handler package: {}", e))
+        })?;
 
         if !resp.status().is_success() {
             return Err(NucleusError::Network(format!(
@@ -489,7 +495,8 @@ fn percent_encode(s: &str) -> String {
 
     /// Downloads the archive package bytes for a handler by resolving its current package and version.
     pub async fn download_handler(&self, handler_id: &str) -> NucleusResult<Vec<u8>> {
-        self.download_handler_with_progress(handler_id, |_| {}).await
+        self.download_handler_with_progress(handler_id, |_| {})
+            .await
     }
 
     /// Resolves the latest package ID, version number, and optional byte size for a handler.
@@ -567,7 +574,10 @@ fn percent_encode(s: &str) -> String {
         for i in 0..archive.len() {
             if let Ok(mut entry) = archive.by_index(i) {
                 let name = entry.name().to_string();
-                if name.eq_ignore_ascii_case("handler.js") || name.ends_with("/handler.js") || name.ends_with("\\handler.js") {
+                if name.eq_ignore_ascii_case("handler.js")
+                    || name.ends_with("/handler.js")
+                    || name.ends_with("\\handler.js")
+                {
                     let mut script_content = String::new();
                     use std::io::Read;
                     if entry.read_to_string(&mut script_content).is_ok() {
@@ -605,7 +615,11 @@ fn percent_encode(s: &str) -> String {
             })
             .collect();
         let safe_title = safe_title.trim();
-        let safe_title = if safe_title.is_empty() { "handler" } else { safe_title };
+        let safe_title = if safe_title.is_empty() {
+            "handler"
+        } else {
+            safe_title
+        };
 
         let mut extracted = Vec::new();
 
@@ -633,7 +647,12 @@ fn percent_encode(s: &str) -> String {
                 let outpath = if name_str.eq_ignore_ascii_case("handler.js") {
                     // Main handler script saved directly as <GameName>.js in handlers dir!
                     destination_dir.join(format!("{}.js", safe_title))
-                } else if safe_title != "handler" && !enclosed_name.components().next().map_or(false, |c| c.as_os_str() == safe_title) {
+                } else if safe_title != "handler"
+                    && !enclosed_name
+                        .components()
+                        .next()
+                        .map_or(false, |c| c.as_os_str() == safe_title)
+                {
                     // Other auxiliary assets isolated into handlers/<GameName>/
                     destination_dir.join(safe_title).join(&enclosed_name)
                 } else {
@@ -653,7 +672,10 @@ fn percent_encode(s: &str) -> String {
                             if existing_bytes != new_bytes {
                                 let bak_path = outpath.with_extension("js.bak");
                                 let _ = std::fs::write(&bak_path, &existing_bytes);
-                                tracing::info!("Preserved backup of modified local handler: {:?}", bak_path);
+                                tracing::info!(
+                                    "Preserved backup of modified local handler: {:?}",
+                                    bak_path
+                                );
                             }
                             let mut outfile = std::fs::File::create(&outpath)?;
                             std::io::copy(&mut std::io::Cursor::new(new_bytes), &mut outfile)?;
@@ -709,7 +731,8 @@ fn percent_encode(s: &str) -> String {
         }
 
         if !wrote_js_sidecar {
-            let fallback_path = destination_dir.join(format!("{}.hubmeta.json", sidecar.handler_id));
+            let fallback_path =
+                destination_dir.join(format!("{}.hubmeta.json", sidecar.handler_id));
             std::fs::write(fallback_path, &json)?;
         }
 
@@ -754,7 +777,8 @@ fn percent_encode(s: &str) -> String {
         handler_id: &str,
         destination_dir: &Path,
     ) -> NucleusResult<Vec<PathBuf>> {
-        self.download_and_extract_handler_with_progress(handler_id, destination_dir, |_| {}).await
+        self.download_and_extract_handler_with_progress(handler_id, destination_dir, |_| {})
+            .await
     }
 
     /// Downloads and automatically extracts a handler archive with progress reporting.
@@ -836,8 +860,8 @@ mod tests {
         let mut buffer = Vec::new();
         {
             let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
-            let options = SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
             zip.start_file("handler.js", options).unwrap();
             zip.write_all(b"Game.ExecutableName = 'game.exe';").unwrap();
@@ -849,7 +873,8 @@ mod tests {
             zip.finish().unwrap();
         }
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_zip_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_zip_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
 
         let extracted = HubClient::extract_package(&buffer, &temp_dir).unwrap();
@@ -873,14 +898,21 @@ mod tests {
         let client = HubClient::default();
         let search_res = client.search_raw_handlers("halo").await;
         if let Ok(handlers) = search_res {
-            assert!(!handlers.is_empty(), "Expected at least one Halo handler from SplitScreen.Me Hub");
+            assert!(
+                !handlers.is_empty(),
+                "Expected at least one Halo handler from SplitScreen.Me Hub"
+            );
             let first = &handlers[0];
             assert!(!first.id.is_empty());
             assert!(first.display_title().to_lowercase().contains("halo"));
 
             // Test fetching handler details
             let detail = client.get_handler_details(&first.id).await;
-            assert!(detail.is_ok(), "Failed to get handler detail: {:?}", detail.err());
+            assert!(
+                detail.is_ok(),
+                "Failed to get handler detail: {:?}",
+                detail.err()
+            );
         }
     }
 
@@ -888,8 +920,8 @@ mod tests {
         let mut buffer = Vec::new();
         {
             let mut zip = zip::ZipWriter::new(Cursor::new(&mut buffer));
-            let options = SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
             for (name, contents) in entries {
                 zip.start_file(*name, options).unwrap();
                 zip.write_all(contents).unwrap();
@@ -998,7 +1030,11 @@ mod tests {
         );
 
         let js_path = dest_dir.join("Old Version Game.js");
-        assert!(js_path.exists(), "Expected extracted handler JS at {:?}", js_path);
+        assert!(
+            js_path.exists(),
+            "Expected extracted handler JS at {:?}",
+            js_path
+        );
         assert!(extracted.contains(&js_path));
 
         let sidecar_path = dest_dir.join("Old Version Game.hubmeta.json");
@@ -1038,10 +1074,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_download_and_extract_package_version_without_game_name_uses_handler_id() {
-        let zip_bytes = build_test_nc_archive(&[(
-            "handler.js",
-            b"Game.ExecutableName = 'legacy.exe';\n",
-        )]);
+        let zip_bytes =
+            build_test_nc_archive(&[("handler.js", b"Game.ExecutableName = 'legacy.exe';\n")]);
 
         let (addr, requested_paths, server_handle) = spawn_mock_cdn_server(zip_bytes).await;
         let client = HubClient::with_base_url(&format!("http://{}", addr));
@@ -1198,4 +1232,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dest_dir);
     }
 }
-

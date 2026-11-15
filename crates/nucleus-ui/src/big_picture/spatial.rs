@@ -271,30 +271,46 @@ pub fn resolve_spatial_move(
         let valid = match dir {
             SpatialDirection::Right => {
                 if origin.intersects_axis_y(c) {
-                    c.cx() > origin.cx() + 0.5 && c.x > origin.x + 1.0 && c.right() > origin.right().min(origin.cx() + 1.0)
+                    c.cx() > origin.cx() + 0.5
+                        && c.x > origin.x + 1.0
+                        && c.right() > origin.right().min(origin.cx() + 1.0)
                 } else {
-                    c.cx() > origin.cx() + 0.5 && c.x > origin.cx() - 1.0 && c.right() > origin.right() + 1.0
+                    c.cx() > origin.cx() + 0.5
+                        && c.x > origin.cx() - 1.0
+                        && c.right() > origin.right() + 1.0
                 }
             }
             SpatialDirection::Left => {
                 if origin.intersects_axis_y(c) {
-                    c.cx() < origin.cx() - 0.5 && c.right() < origin.right() - 1.0 && c.x < origin.x.max(origin.cx() - 1.0)
+                    c.cx() < origin.cx() - 0.5
+                        && c.right() < origin.right() - 1.0
+                        && c.x < origin.x.max(origin.cx() - 1.0)
                 } else {
-                    c.cx() < origin.cx() - 0.5 && c.right() < origin.cx() + 1.0 && c.x < origin.x - 1.0
+                    c.cx() < origin.cx() - 0.5
+                        && c.right() < origin.cx() + 1.0
+                        && c.x < origin.x - 1.0
                 }
             }
             SpatialDirection::Down => {
                 if origin.intersects_axis_x(c) {
-                    c.cy() > origin.cy() + 0.5 && c.y > origin.y + 1.0 && c.bottom() > origin.bottom().min(origin.cy() + 1.0)
+                    c.cy() > origin.cy() + 0.5
+                        && c.y > origin.y + 1.0
+                        && c.bottom() > origin.bottom().min(origin.cy() + 1.0)
                 } else {
-                    c.cy() > origin.cy() + 0.5 && c.y >= origin.bottom() - 1.0 && c.bottom() > origin.bottom() + 1.0
+                    c.cy() > origin.cy() + 0.5
+                        && c.y >= origin.bottom() - 1.0
+                        && c.bottom() > origin.bottom() + 1.0
                 }
             }
             SpatialDirection::Up => {
                 if origin.intersects_axis_x(c) {
-                    c.cy() < origin.cy() - 0.5 && c.bottom() < origin.bottom() - 1.0 && c.y < origin.y.max(origin.cy() - 1.0)
+                    c.cy() < origin.cy() - 0.5
+                        && c.bottom() < origin.bottom() - 1.0
+                        && c.y < origin.y.max(origin.cy() - 1.0)
                 } else {
-                    c.cy() < origin.cy() - 0.5 && c.bottom() <= origin.y + 1.0 && c.y < origin.y - 1.0
+                    c.cy() < origin.cy() - 0.5
+                        && c.bottom() <= origin.y + 1.0
+                        && c.y < origin.y - 1.0
                 }
             }
         };
@@ -384,10 +400,7 @@ pub fn resolve_spatial_move(
 }
 
 /// Passive non-leasing GPUI bounds observer anchored inside a `.relative()` parent element.
-pub fn track_spatial_bounds(
-    target: SpatialTarget,
-    registry: &SpatialBoundsRegistry,
-) -> AnyElement {
+pub fn track_spatial_bounds(target: SpatialTarget, registry: &SpatialBoundsRegistry) -> AnyElement {
     let map = Rc::clone(&registry.0);
     canvas(
         move |bounds, _win, _cx| {
@@ -396,7 +409,8 @@ pub fn track_spatial_bounds(
             let w: f32 = bounds.size.width.into();
             let h: f32 = bounds.size.height.into();
             if w > 0.0 && h > 0.0 {
-                map.borrow_mut().insert(target, SpatialRect::new(x, y, w, h));
+                map.borrow_mut()
+                    .insert(target, SpatialRect::new(x, y, w, h));
             }
         },
         |_, _, _, _| {},

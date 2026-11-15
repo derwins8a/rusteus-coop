@@ -1,9 +1,9 @@
 //! Instance process environment configuration and variables.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_tools::users::{PersonalFolderGuard, PlayerEnvironment, UsersTool};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Context managing the lifecycle of isolated player environments and Windows shell redirection for a game session.
 #[derive(Debug, Default)]
@@ -220,15 +220,28 @@ mod tests {
         let env = EnvironmentSetup::build_environment(0, Some("550"), Some(&p_env));
         assert_eq!(env.get("NUCLEUS_PLAYER_ID").unwrap(), "1");
         assert_eq!(env.get("SteamAppId").unwrap(), "550");
-        assert_eq!(env.get("USERPROFILE").unwrap(), "C:\\Users\\Test\\NucleusCoop\\Player1");
-        assert_eq!(env.get("APPDATA").unwrap(), "C:\\Users\\Test\\NucleusCoop\\Player1\\AppData\\Roaming");
-        assert_eq!(env.get("LOCALAPPDATA").unwrap(), "C:\\Users\\Test\\NucleusCoop\\Player1\\AppData\\Local");
-        assert_eq!(env.get("HOMEPATH").unwrap(), "\\Users\\Test\\NucleusCoop\\Player1");
+        assert_eq!(
+            env.get("USERPROFILE").unwrap(),
+            "C:\\Users\\Test\\NucleusCoop\\Player1"
+        );
+        assert_eq!(
+            env.get("APPDATA").unwrap(),
+            "C:\\Users\\Test\\NucleusCoop\\Player1\\AppData\\Roaming"
+        );
+        assert_eq!(
+            env.get("LOCALAPPDATA").unwrap(),
+            "C:\\Users\\Test\\NucleusCoop\\Player1\\AppData\\Local"
+        );
+        assert_eq!(
+            env.get("HOMEPATH").unwrap(),
+            "\\Users\\Test\\NucleusCoop\\Player1"
+        );
     }
 
     #[test]
     fn test_purge_player_files_helper() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_env_purge_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_env_purge_test_{}", std::process::id()));
         let root = temp_dir.join("NucleusCoop").join("Player1");
         let docs = root.join("Documents");
         let roaming = root.join("AppData").join("Roaming");
@@ -257,11 +270,9 @@ mod tests {
         let config_pats = vec!["*.cfg".to_string()];
         let save_pats = vec!["*.dat".to_string()];
 
-        let count = EnvironmentSetup::purge_player_files(
-            &p_env,
-            Some(&config_pats),
-            Some(&save_pats),
-        ).unwrap();
+        let count =
+            EnvironmentSetup::purge_player_files(&p_env, Some(&config_pats), Some(&save_pats))
+                .unwrap();
 
         assert_eq!(count, 2);
         assert!(!cfg.exists());
@@ -273,7 +284,8 @@ mod tests {
 
     #[test]
     fn test_session_environment_context_lifecycle() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_env_ctx_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_env_ctx_test_{}", std::process::id()));
         let backup_dir = temp_dir.join("backup");
         file_util::ensure_dir(&backup_dir).unwrap();
 

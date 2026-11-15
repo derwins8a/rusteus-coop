@@ -1,9 +1,9 @@
 //! Plugin manifest definition, permissions, and SemVer constraint matching.
 
-use std::collections::HashMap;
+use nucleus_common::error::{NucleusError, NucleusResult};
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
-use nucleus_common::error::{NucleusError, NucleusResult};
+use std::collections::HashMap;
 
 /// Type or runtime classification of an extension/plugin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -127,14 +127,22 @@ pub struct PluginManifest {
 impl PluginManifest {
     /// Parses and validates a `plugin.toml` string.
     pub fn parse_toml(toml_str: &str) -> NucleusResult<Self> {
-        let manifest: Self = toml::from_str(toml_str).map_err(|e| {
-            NucleusError::Config(format!("Failed to parse plugin.toml: {}", e))
-        })?;
+        let manifest: Self = toml::from_str(toml_str)
+            .map_err(|e| NucleusError::Config(format!("Failed to parse plugin.toml: {}", e)))?;
 
         // Validate js_namespace is a safe ECMAScript identifier
         if manifest.js_namespace.is_empty()
-            || !manifest.js_namespace.chars().next().unwrap_or('_').is_ascii_alphabetic() && manifest.js_namespace.chars().next().unwrap_or('_') != '_'
-            || !manifest.js_namespace.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+            || !manifest
+                .js_namespace
+                .chars()
+                .next()
+                .unwrap_or('_')
+                .is_ascii_alphabetic()
+                && manifest.js_namespace.chars().next().unwrap_or('_') != '_'
+            || !manifest
+                .js_namespace
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_')
         {
             return Err(NucleusError::Config(format!(
                 "Invalid JavaScript namespace '{}' in plugin manifest: must be a valid identifier",

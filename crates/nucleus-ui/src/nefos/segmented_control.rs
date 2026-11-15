@@ -6,8 +6,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, px, AnyElement, App, Context, ElementId, FontWeight, InteractiveElement,
-    IntoElement, ParentElement, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, Context, ElementId, FontWeight, InteractiveElement, IntoElement,
+    ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
 };
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
@@ -16,7 +16,8 @@ use crate::theme;
 use crate::window::MainWindow;
 
 /// Callback for segmented item selection when running inside `MainWindow`.
-pub type SegmentSelectHandler = Rc<dyn Fn(&mut MainWindow, usize, &mut Window, &mut Context<MainWindow>)>;
+pub type SegmentSelectHandler =
+    Rc<dyn Fn(&mut MainWindow, usize, &mut Window, &mut Context<MainWindow>)>;
 
 /// Callback for segmented item selection with general `App` context.
 pub type SegmentClickHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
@@ -47,7 +48,12 @@ impl NefosSegmentedControl {
     }
 
     /// Adds a segment item with a text label, optional icon, and active status flag.
-    pub fn item(mut self, label: impl Into<String>, icon: Option<IconName>, is_active: bool) -> Self {
+    pub fn item(
+        mut self,
+        label: impl Into<String>,
+        icon: Option<IconName>,
+        is_active: bool,
+    ) -> Self {
         self.items.push((label.into(), icon, is_active));
         self
     }

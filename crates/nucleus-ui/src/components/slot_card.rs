@@ -160,7 +160,9 @@ impl CouchSlotCard {
         }
 
         if let Some(h) = self.on_click {
-            card = card.cursor_pointer().on_click(move |ev, win, cx| h(ev, win, cx));
+            card = card
+                .cursor_pointer()
+                .on_click(move |ev, win, cx| h(ev, win, cx));
         }
 
         if self.is_grabbed {
@@ -183,7 +185,10 @@ impl CouchSlotCard {
             .flex()
             .items_center()
             .justify_between()
-            .child(CouchTag::player(player_idx, format!("PLAYER {}", player_idx + 1)).into_any_element())
+            .child(
+                CouchTag::player(player_idx, format!("PLAYER {}", player_idx + 1))
+                    .into_any_element(),
+            )
             .children(self.status_badge);
 
         // 2. Center: Device representation
@@ -229,7 +234,11 @@ impl CouchSlotCard {
                 .items_center()
                 .gap_2()
                 .py_4()
-                .child(Icon::new(IconName::Plus).size_6().text_color(theme::text_muted()))
+                .child(
+                    Icon::new(IconName::Plus)
+                        .size_6()
+                        .text_color(theme::text_muted()),
+                )
                 .child(
                     div()
                         .text_xs()
@@ -240,7 +249,10 @@ impl CouchSlotCard {
         };
 
         // 3. Footer: Action buttons (Remove, Split K&M, Ignore) or raw indicator
-        let has_bottom_actions = self.on_remove.is_some() || self.is_merged_kbm || self.on_ignore.is_some() || self.is_raw_device;
+        let has_bottom_actions = self.on_remove.is_some()
+            || self.is_merged_kbm
+            || self.on_ignore.is_some()
+            || self.is_raw_device;
         let footer: Option<AnyElement> = if has_bottom_actions {
             let mut bar = div()
                 .flex()

@@ -23,10 +23,10 @@ impl DllInjector {
             use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
             use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
             use windows::Win32::System::Memory::{
-                VirtualAllocEx, VirtualFreeEx, MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE,
+                MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE, VirtualAllocEx, VirtualFreeEx,
             };
             use windows::Win32::System::Threading::{
-                CreateRemoteThread, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS,
+                CreateRemoteThread, OpenProcess, PROCESS_ALL_ACCESS, WaitForSingleObject,
             };
 
             let wide_path: Vec<u16> = dll_path
@@ -53,18 +53,15 @@ impl DllInjector {
                     return Err(NucleusError::Platform("VirtualAllocEx failed".to_string()));
                 }
 
-                let write_res = WriteProcessMemory(
-                    process,
-                    mem,
-                    wide_path.as_ptr() as _,
-                    size,
-                    None,
-                );
+                let write_res =
+                    WriteProcessMemory(process, mem, wide_path.as_ptr() as _, size, None);
 
                 if write_res.is_err() {
                     let _ = VirtualFreeEx(process, mem, 0, MEM_RELEASE);
                     let _ = CloseHandle(process);
-                    return Err(NucleusError::Platform("WriteProcessMemory failed".to_string()));
+                    return Err(NucleusError::Platform(
+                        "WriteProcessMemory failed".to_string(),
+                    ));
                 }
 
                 let kernel32 = GetModuleHandleA(windows::core::s!("kernel32.dll"))

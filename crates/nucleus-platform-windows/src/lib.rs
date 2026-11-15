@@ -56,9 +56,9 @@ pub use window_manager::WindowsWindowManager;
 
 #[cfg(windows)]
 use nucleus_platform::{
-    DisplayManager, ElevationManager, FilesystemManager, InputHookManager, MutexManager, NetworkManager,
-    OsdManager, PlatformServices, ProcessManager, RegistryManager, TaskbarManager, UserAccountManager,
-    WindowManager,
+    DisplayManager, ElevationManager, FilesystemManager, InputHookManager, MutexManager,
+    NetworkManager, OsdManager, PlatformServices, ProcessManager, RegistryManager, TaskbarManager,
+    UserAccountManager, WindowManager,
 };
 
 /// Windows platform services provider implementing `PlatformServices`.
@@ -103,7 +103,6 @@ impl WindowsPlatform {
 
 #[cfg(windows)]
 impl Default for WindowsPlatform {
-
     fn default() -> Self {
         Self::new()
     }
@@ -184,7 +183,10 @@ mod tests {
     fn test_windows_platform_creation() {
         let platform = WindowsPlatform::new();
         let displays = platform.display_manager().get_displays().unwrap();
-        assert!(!displays.is_empty(), "At least one display must be detected");
+        assert!(
+            !displays.is_empty(),
+            "At least one display must be detected"
+        );
 
         let primary = platform.display_manager().get_primary_display().unwrap();
         assert!(primary.is_primary);
@@ -219,5 +221,3 @@ mod tests {
         assert!(reg_mgr.key_exists("HKEY_CURRENT_USER\\Software"));
     }
 }
-
-

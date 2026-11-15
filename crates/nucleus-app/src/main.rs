@@ -1,7 +1,5 @@
 //! NucleusCoop application entry point.
 
-use std::path::Path;
-use std::sync::{Arc, Mutex};
 use gpui::AppContext;
 use nucleus_common::logging;
 use nucleus_engine::GameManager;
@@ -9,8 +7,11 @@ use nucleus_input::InputManager;
 use nucleus_input::gamepad::GamepadDevice;
 use nucleus_profile::AppSettings;
 use nucleus_ui::{
-    DeviceItem, DevicePanelComponent, GameListView, HandlerItem, HubPackageItem, MainView, SetupScreenView,
+    DeviceItem, DevicePanelComponent, GameListView, HandlerItem, HubPackageItem, MainView,
+    SetupScreenView,
 };
+use std::path::Path;
+use std::sync::{Arc, Mutex};
 use tracing::info;
 
 mod platform;
@@ -162,7 +163,9 @@ fn build_handler_item(
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Determine install root early for persistent file logging
     let initial_settings = AppSettings::load();
-    let install_root = if let Some(parent) = Path::new(&initial_settings.handlers_directory).parent() {
+    let install_root = if let Some(parent) =
+        Path::new(&initial_settings.handlers_directory).parent()
+    {
         if parent.exists() && (parent.join("utils").exists() || parent.join("handlers").exists()) {
             parent.to_path_buf()
         } else {
@@ -185,14 +188,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Err(_) = logging::init_logging_with_file(&log_path) {
         logging::init_logging();
     }
-    info!("NucleusCoop starting (logging to {})...", log_path.display());
+    info!(
+        "NucleusCoop starting (logging to {})...",
+        log_path.display()
+    );
 
     let mut app_settings = initial_settings;
     info!("Loaded application settings: {:?}", app_settings);
 
     // Initialize Globals install root
     nucleus_common::Globals::init(install_root.clone());
-    info!("Initialized Globals with install root: {}", install_root.display());
+    info!(
+        "Initialized Globals with install root: {}",
+        install_root.display()
+    );
 
     // Initialize global visual theme based on saved settings
     nucleus_ui::theme::set_active_theme(&app_settings.theme);
@@ -206,10 +215,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli_args: Vec<String> = std::env::args().collect();
     let requires_admin = cli_args.iter().any(|a| a == "--elevated" || a == "--admin");
 
-    let preflight = match startup::run_preflight_checks(&install_root, &app_settings, platform.as_ref(), requires_admin) {
+    let preflight = match startup::run_preflight_checks(
+        &install_root,
+        &app_settings,
+        platform.as_ref(),
+        requires_admin,
+    ) {
         Ok(res) => res,
         Err(startup::SingleInstanceError::AlreadyRunning) => {
-            eprintln!("Nucleus Co-op is already running. If you don't see the Nucleus Co-op window it might be running in the background, close the process using Task Manager.");
+            eprintln!(
+                "Nucleus Co-op is already running. If you don't see the Nucleus Co-op window it might be running in the background, close the process using Task Manager."
+            );
             startup::activate_running_instance_window();
             std::process::exit(0);
         }
@@ -259,7 +275,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     game_manager.set_nucleus_data_dir(&app_settings.nucleus_data_dir);
     let _ = game_manager.initialize();
     let handler_count = game_manager.get_handlers().len();
-    info!("GameManager initialized (loaded {} handlers)", handler_count);
+    info!(
+        "GameManager initialized (loaded {} handlers)",
+        handler_count
+    );
 
     // Optional auto-scan if enabled in settings (will run in background during GUI mode)
     if app_settings.auto_scan_on_start {
@@ -289,19 +308,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Platform services ready.");
     println!("Discovered handlers: {}", handler_count);
     for (guid, handler) in game_manager.get_handlers() {
-        println!("  - [{}] {} (max {} players)", guid, handler.game_name, handler.max_players);
+        println!(
+            "  - [{}] {} (max {} players)",
+            guid, handler.game_name, handler.max_players
+        );
     }
-    println!("Detected gamepads: {} (device panel: {})", gamepads.len(), device_panel.detected_devices);
-    println!("Active UI View: {:?} (library filter: '{}', assigned players: {})", main_view.active_tab, game_list.search_query, setup_screen.player_count);
+    println!(
+        "Detected gamepads: {} (device panel: {})",
+        gamepads.len(),
+        device_panel.detected_devices
+    );
+    println!(
+        "Active UI View: {:?} (library filter: '{}', assigned players: {})",
+        main_view.active_tab, game_list.search_query, setup_screen.player_count
+    );
     println!("System ready for splitscreen sessions.");
     println!("==================================================");
 
     // Process CLI arguments if provided
     let args: Vec<String> = std::env::args().collect();
-    let is_cli_command = args.len() > 1 && matches!(
-        args[1].as_str(),
-        "--scan" | "--list-handlers" | "--hub-search" | "--hub-detail" | "--hub-install" | "--set-handlers-dir" | "--set-theme" | "--play"
-    );
+    let is_cli_command = args.len() > 1
+        && matches!(
+            args[1].as_str(),
+            "--scan"
+                | "--list-handlers"
+                | "--hub-search"
+                | "--hub-detail"
+                | "--hub-install"
+                | "--set-handlers-dir"
+                | "--set-theme"
+                | "--play"
+        );
 
     if is_cli_command {
         match args[1].as_str() {
@@ -316,7 +353,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "--list-handlers" => {
                 println!("Available handlers ({} total):", handler_count);
                 for (guid, h) in game_manager.get_handlers() {
-                    println!("  GUID: {}, Name: {}, Exe: {}", guid, h.game_name, h.executable_name);
+                    println!(
+                        "  GUID: {}, Name: {}, Exe: {}",
+                        guid, h.game_name, h.executable_name
+                    );
                 }
             }
             "--hub-search" => {
@@ -403,7 +443,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "GameManager reloaded (now {} handlers available)",
                     updated_count
                 );
-                println!("GameManager reloaded. Available handlers count: {}", updated_count);
+                println!(
+                    "GameManager reloaded. Available handlers count: {}",
+                    updated_count
+                );
                 println!(
                     "Confirmation: Handler '{}' installed successfully and is immediately available.",
                     handler_id
@@ -453,7 +496,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 game_manager.start_game(guid, profile)?;
                 println!("Game session started! Press Ctrl+C or kill instances to end session.");
                 if let Some(session) = game_manager.active_session() {
-                    println!("Active session ID: {}, status: {:?}", session.profile.id, session.status());
+                    println!(
+                        "Active session ID: {}, status: {:?}",
+                        session.profile.id,
+                        session.status()
+                    );
                 }
                 let mut hotkeys = nucleus_input::HotkeyListener::new();
                 let lock_key = app_settings.lock_key_code();
@@ -468,7 +515,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     tick_counter += 1;
                     if tick_counter >= 5 {
                         tick_counter = 0;
-                        let is_running = game_manager.active_session().map_or(false, |s| s.is_running);
+                        let is_running = game_manager
+                            .active_session()
+                            .map_or(false, |s| s.is_running);
                         if !is_running {
                             let _ = game_manager.stop_game();
                             break;
@@ -484,13 +533,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             // Cutscenes mode passes through input lock state (C# HotkeyListener.cs:107)
                             let _ = game_manager.toggle_cutscenes_mode();
                         } else if hk == nucleus_input::HOTKEY_ID_COUCH_OSD {
-                            platform.osd_manager().show(2000, "Couch In-Game Menu (OSD) Toggled");
+                            platform
+                                .osd_manager()
+                                .show(2000, "Couch In-Game Menu (OSD) Toggled");
                         } else if input_lock.is_locked() {
                             // Parity with C# HotkeyListener.cs:161:
                             // Suppress action and prompt user to unlock inputs first
                             platform.osd_manager().show(
                                 1600,
-                                &format!("Unlock Inputs First (Press {} Key)", app_settings.lock_inputs_key),
+                                &format!(
+                                    "Unlock Inputs First (Press {} Key)",
+                                    app_settings.lock_inputs_key
+                                ),
                             );
                         } else {
                             match hk {
@@ -500,8 +554,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     break;
                                 }
                                 nucleus_input::HOTKEY_ID_RESET_WINDOWS => {
-                                    info!("Reset windows hotkey triggered, repositioning windows...");
-                                    platform.osd_manager().show(1000, "Resetting game windows. Please wait...");
+                                    info!(
+                                        "Reset windows hotkey triggered, repositioning windows..."
+                                    );
+                                    platform
+                                        .osd_manager()
+                                        .show(1000, "Resetting game windows. Please wait...");
                                     let _ = game_manager.tick();
                                     platform.osd_manager().show(2000, "Game Windows Resetted");
                                 }
@@ -519,13 +577,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let _ = game_manager.toggle_minimize_windows();
                                 }
                                 nucleus_input::HOTKEY_ID_REMINDER => {
-                                    platform.osd_manager().show(1000, "Shortcuts Reminder Toggled");
+                                    platform
+                                        .osd_manager()
+                                        .show(1000, "Shortcuts Reminder Toggled");
                                 }
                                 nucleus_input::HOTKEY_ID_MERGER_SWITCH => {
                                     platform.osd_manager().show(800, "Merger Focus Switched");
                                 }
                                 nucleus_input::HOTKEY_ID_COUCH_OSD => {
-                                    platform.osd_manager().show(2000, "Couch In-Game Menu (OSD) Toggled");
+                                    platform
+                                        .osd_manager()
+                                        .show(2000, "Couch In-Game Menu (OSD) Toggled");
                                 }
                                 _ => {}
                             }
@@ -536,16 +598,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => unreachable!(),
         }
     } else {
-        let initial_tab = args.iter().position(|a| a == "--tab").and_then(|i| args.get(i + 1)).cloned();
-        let target_game = args.iter().position(|a| a == "--game").and_then(|i| args.get(i + 1)).cloned();
-        let initial_players = args.iter().position(|a| a == "--players" || a == "-p").and_then(|i| args.get(i + 1)).and_then(|s| s.parse().ok());
-        let initial_layout = args.iter().position(|a| a == "--layout" || a == "-l").and_then(|i| args.get(i + 1)).cloned();
-        let search_query = args.iter().position(|a| a == "--search" || a == "-s").and_then(|i| args.get(i + 1)).cloned();
+        let initial_tab = args
+            .iter()
+            .position(|a| a == "--tab")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
+        let target_game = args
+            .iter()
+            .position(|a| a == "--game")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
+        let initial_players = args
+            .iter()
+            .position(|a| a == "--players" || a == "-p")
+            .and_then(|i| args.get(i + 1))
+            .and_then(|s| s.parse().ok());
+        let initial_layout = args
+            .iter()
+            .position(|a| a == "--layout" || a == "-l")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
+        let search_query = args
+            .iter()
+            .position(|a| a == "--search" || a == "-s")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
         let controller_shortcuts = args.iter().any(|a| a == "--controller-shortcuts");
-        let hub_details = args.iter().position(|a| a == "--hub-details").and_then(|i| args.get(i + 1)).cloned();
-        let hub_tab = args.iter().position(|a| a == "--hub-tab").and_then(|i| args.get(i + 1)).cloned();
+        let hub_details = args
+            .iter()
+            .position(|a| a == "--hub-details")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
+        let hub_tab = args
+            .iter()
+            .position(|a| a == "--hub-tab")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
         let big_picture = args.iter().any(|a| a == "--big-picture");
-        let big_picture_screen = args.iter().position(|a| a == "--big-picture-screen").and_then(|i| args.get(i + 1)).cloned();
+        let big_picture_screen = args
+            .iter()
+            .position(|a| a == "--big-picture-screen")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
 
         let gui_opts = LaunchGuiOptions {
             initial_tab,
@@ -562,7 +656,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             preflight_danger: preflight_danger.clone(),
         };
 
-        println!("Launching Native GPUI Desktop Window (opts: {:?})...", gui_opts);
+        println!(
+            "Launching Native GPUI Desktop Window (opts: {:?})...",
+            gui_opts
+        );
         launch_gui(gamepads, app_settings, game_manager, gui_opts);
     }
 
@@ -622,11 +719,17 @@ fn launch_gui(
             !guid.eq_ignore_ascii_case("My Game")
                 && !h.game_name.eq_ignore_ascii_case("My Game")
                 && !guid.eq_ignore_ascii_case("MasterHandler")
-                && h.handler_path.as_deref().map_or(true, |p| !p.ends_with("MasterHandler.js"))
+                && h.handler_path
+                    .as_deref()
+                    .map_or(true, |p| !p.ends_with("MasterHandler.js"))
         })
         .map(|(guid, h)| {
             let profile = game_manager.get_profile(guid);
-            let meta_info = game_manager.meta_info().find_entry(guid).or_else(|| game_manager.meta_info().find_entry(&h.game_name)).map(|(_, e)| e);
+            let meta_info = game_manager
+                .meta_info()
+                .find_entry(guid)
+                .or_else(|| game_manager.meta_info().find_entry(&h.game_name))
+                .map(|(_, e)| e);
             build_handler_item(guid, h, profile, meta_info)
         })
         .collect();
@@ -645,7 +748,10 @@ fn launch_gui(
             info!("Background auto-scan started...");
             if let Ok(mut mgr) = gm_scan.lock() {
                 if let Ok(found) = mgr.scan_disks() {
-                    info!("Background auto-scan complete. Found {} games.", found.len());
+                    info!(
+                        "Background auto-scan complete. Found {} games.",
+                        found.len()
+                    );
                 }
             }
         });
@@ -659,7 +765,8 @@ fn launch_gui(
         platform::create_platform_services()
     };
     let app_settings_launch = app_settings_shared.clone();
-    let (osd_signal_tx, osd_signal_rx) = tokio::sync::mpsc::unbounded_channel::<nucleus_ui::EngineToGui>();
+    let (osd_signal_tx, osd_signal_rx) =
+        tokio::sync::mpsc::unbounded_channel::<nucleus_ui::EngineToGui>();
     let osd_signal_tx_launch = osd_signal_tx.clone();
 
     // Attach interactive launch prompt bridge to GameManager
@@ -684,7 +791,13 @@ fn launch_gui(
     // Launch callback (asynchronous non-blocking execution)
     let gm_launch = gm.clone();
     let platform_cb = platform_launch.clone();
-    let launcher_cb = move |game_name: &str, players: usize, layout: &str, options: &std::collections::HashMap<String, String>, assignments: &[String], monitors: &[usize], audio_devices: &[String]| {
+    let launcher_cb = move |game_name: &str,
+                            players: usize,
+                            layout: &str,
+                            options: &std::collections::HashMap<String, String>,
+                            assignments: &[String],
+                            monitors: &[usize],
+                            audio_devices: &[String]| {
         let game_name_str = game_name.to_string();
         let layout_str = layout.to_string();
         let options_map = options.clone();
@@ -698,13 +811,21 @@ fn launch_gui(
         std::thread::spawn(move || {
             println!(
                 "[Game Engine] Launch request: '{}', {} players, layout: {}, options: {:?}, assignments: {:?}, monitors: {:?}, audio: {:?}",
-                game_name_str, players, layout_str, options_map, assignments_vec, monitors_vec, audio_devices_vec
+                game_name_str,
+                players,
+                layout_str,
+                options_map,
+                assignments_vec,
+                monitors_vec,
+                audio_devices_vec
             );
             let started = if let Ok(mut mgr) = gm_thread.lock() {
                 let mut matched_guid = None;
                 let mut default_exe = "game.exe".to_string();
                 for (guid, h) in mgr.get_handlers() {
-                    if h.game_name.eq_ignore_ascii_case(&game_name_str) || guid.eq_ignore_ascii_case(&game_name_str) {
+                    if h.game_name.eq_ignore_ascii_case(&game_name_str)
+                        || guid.eq_ignore_ascii_case(&game_name_str)
+                    {
                         matched_guid = Some(guid.clone());
                         if !h.executable_name.is_empty() {
                             default_exe = h.executable_name.clone();
@@ -714,12 +835,9 @@ fn launch_gui(
                 }
 
                 let guid = matched_guid.unwrap_or_else(|| game_name_str.clone());
-                let mut profile = mgr
-                    .get_profile(&guid)
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        nucleus_profile::GameProfile::new(&guid, &guid, &default_exe)
-                    });
+                let mut profile = mgr.get_profile(&guid).cloned().unwrap_or_else(|| {
+                    nucleus_profile::GameProfile::new(&guid, &guid, &default_exe)
+                });
                 profile.player_count = players;
                 profile.layout = layout_str.clone();
                 profile.options = options_map.clone();
@@ -730,11 +848,17 @@ fn launch_gui(
 
                 let started = match mgr.start_game(&guid, profile) {
                     Ok(_) => {
-                        println!("[Game Engine] Splitscreen session started successfully for '{}'!", guid);
+                        println!(
+                            "[Game Engine] Splitscreen session started successfully for '{}'!",
+                            guid
+                        );
                         true
                     }
                     Err(e) => {
-                        eprintln!("[Game Engine] Error launching session for '{}': {}", guid, e);
+                        eprintln!(
+                            "[Game Engine] Error launching session for '{}': {}",
+                            guid, e
+                        );
                         false
                     }
                 };
@@ -785,14 +909,22 @@ fn launch_gui(
                                 let _ = mgr.toggle_cutscenes_mode();
                             }
                         } else if hk == nucleus_input::HOTKEY_ID_COUCH_OSD {
-                            platform_thread.osd_manager().show(2000, "Couch In-Game Menu (OSD) Toggled");
-                            let _ = osd_signal_thread.send(nucleus_ui::EngineToGui::ToggleInGameOsd { summoner_slot: None });
+                            platform_thread
+                                .osd_manager()
+                                .show(2000, "Couch In-Game Menu (OSD) Toggled");
+                            let _ =
+                                osd_signal_thread.send(nucleus_ui::EngineToGui::ToggleInGameOsd {
+                                    summoner_slot: None,
+                                });
                         } else if input_lock.is_locked() {
                             // Parity with C# HotkeyListener.cs:161:
                             // Suppress action and prompt user to unlock inputs first
                             platform_thread.osd_manager().show(
                                 1600,
-                                &format!("Unlock Inputs First (Press {} Key)", current_settings.lock_inputs_key),
+                                &format!(
+                                    "Unlock Inputs First (Press {} Key)",
+                                    current_settings.lock_inputs_key
+                                ),
                             );
                         } else {
                             match hk {
@@ -805,14 +937,20 @@ fn launch_gui(
                                 }
                                 nucleus_input::HOTKEY_ID_RESET_WINDOWS => {
                                     println!("[Hotkey] Reset windows triggered by hotkey");
-                                    platform_thread.osd_manager().show(1000, "Resetting game windows. Please wait...");
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(1000, "Resetting game windows. Please wait...");
                                     if let Ok(mut mgr) = gm_thread.lock() {
                                         let _ = mgr.tick();
                                     }
-                                    platform_thread.osd_manager().show(2000, "Game Windows Resetted");
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(2000, "Game Windows Resetted");
                                 }
                                 nucleus_input::HOTKEY_ID_SET_FOCUS => {
-                                    platform_thread.osd_manager().show(2000, "Game Windows Unfocused");
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(2000, "Game Windows Unfocused");
                                 }
                                 nucleus_input::HOTKEY_ID_SWITCH => {
                                     let mode_desc = if let Ok(mut mgr) = gm_thread.lock() {
@@ -831,14 +969,24 @@ fn launch_gui(
                                     }
                                 }
                                 nucleus_input::HOTKEY_ID_REMINDER => {
-                                    platform_thread.osd_manager().show(1000, "Shortcuts Reminder Toggled");
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(1000, "Shortcuts Reminder Toggled");
                                 }
                                 nucleus_input::HOTKEY_ID_MERGER_SWITCH => {
-                                    platform_thread.osd_manager().show(800, "Merger Focus Switched");
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(800, "Merger Focus Switched");
                                 }
                                 nucleus_input::HOTKEY_ID_COUCH_OSD => {
-                                    platform_thread.osd_manager().show(2000, "Couch In-Game Menu (OSD) Toggled");
-                                    let _ = osd_signal_thread.send(nucleus_ui::EngineToGui::ToggleInGameOsd { summoner_slot: None });
+                                    platform_thread
+                                        .osd_manager()
+                                        .show(2000, "Couch In-Game Menu (OSD) Toggled");
+                                    let _ = osd_signal_thread.send(
+                                        nucleus_ui::EngineToGui::ToggleInGameOsd {
+                                            summoner_slot: None,
+                                        },
+                                    );
                                 }
                                 _ => {}
                             }
@@ -857,15 +1005,31 @@ fn launch_gui(
             let p = Path::new(exe_path);
             match mgr.add_game(p) {
                 Ok(Some(guid)) => {
-                    println!("[Game Engine] Game successfully associated with handler '{}'!", guid);
+                    println!(
+                        "[Game Engine] Game successfully associated with handler '{}'!",
+                        guid
+                    );
                     if let Some(h) = mgr.get_handlers().get(&guid).cloned() {
                         let profile = mgr.get_profile(&guid).cloned();
-                        let meta_info = mgr.meta_info().find_entry(&guid).or_else(|| mgr.meta_info().find_entry(&h.game_name)).map(|(_, e)| e).cloned();
-                        return Some(build_handler_item(&guid, &h, profile.as_ref(), meta_info.as_ref()));
+                        let meta_info = mgr
+                            .meta_info()
+                            .find_entry(&guid)
+                            .or_else(|| mgr.meta_info().find_entry(&h.game_name))
+                            .map(|(_, e)| e)
+                            .cloned();
+                        return Some(build_handler_item(
+                            &guid,
+                            &h,
+                            profile.as_ref(),
+                            meta_info.as_ref(),
+                        ));
                     }
                 }
                 Ok(None) => {
-                    println!("[Game Engine] Executable '{}' registered (no existing handler matched).", exe_path);
+                    println!(
+                        "[Game Engine] Executable '{}' registered (no existing handler matched).",
+                        exe_path
+                    );
                 }
                 Err(e) => {
                     eprintln!("[Game Engine] Error adding game: {}", e);
@@ -893,21 +1057,22 @@ fn launch_gui(
             nucleus_hub::HubClient::default()
         };
 
-        let installed_handlers: Vec<(String, String, Option<String>, Option<i32>)> = if let Ok(mgr) = gm_search.lock() {
-            mgr.get_handlers()
-                .iter()
-                .map(|(guid, h)| {
-                    (
-                        guid.to_lowercase(),
-                        h.game_name.to_lowercase(),
-                        h.hub_handler_id.as_ref().map(|s| s.to_lowercase()),
-                        h.hub_handler_version,
-                    )
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
+        let installed_handlers: Vec<(String, String, Option<String>, Option<i32>)> =
+            if let Ok(mgr) = gm_search.lock() {
+                mgr.get_handlers()
+                    .iter()
+                    .map(|(guid, h)| {
+                        (
+                            guid.to_lowercase(),
+                            h.game_name.to_lowercase(),
+                            h.hub_handler_id.as_ref().map(|s| s.to_lowercase()),
+                            h.hub_handler_version,
+                        )
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
 
         match rt.block_on(hub_client.search_raw_handlers(query)) {
             Ok(handlers) => handlers
@@ -924,9 +1089,10 @@ fn launch_gui(
                     let norm_game_name = normalize_title_for_hub(&game_name);
 
                     // Check if matching local handler is found via exact Hub ID or normalized title
-                    let matched_local = installed_handlers.iter().find(|(guid, name, hub_id, _)| {
-                        // 1. Direct Hub ID match (e.g. Hub.Handler.Id in script)
-                        hub_id.as_deref() == Some(&h_id_lower)
+                    let matched_local =
+                        installed_handlers.iter().find(|(guid, name, hub_id, _)| {
+                            // 1. Direct Hub ID match (e.g. Hub.Handler.Id in script)
+                            hub_id.as_deref() == Some(&h_id_lower)
                             || guid == &h_id_lower
                             // 2. Direct string equality
                             || name == &game_name_lower
@@ -942,9 +1108,10 @@ fn launch_gui(
                                     || norm_guid == norm_title
                                     || norm_guid == norm_game_name
                             }
-                    });
+                        });
 
-                    let installed_version: Option<i32> = matched_local.map(|(_, _, _, ver)| ver.unwrap_or(1));
+                    let installed_version: Option<i32> =
+                        matched_local.map(|(_, _, _, ver)| ver.unwrap_or(1));
                     let is_installed = installed_version.is_some();
                     let cover_url = h.cover_url();
                     let likes = h.rating();
@@ -963,21 +1130,23 @@ fn launch_gui(
                         title,
                         format!("v{}", remote_ver),
                         h.author().to_string(),
-                        h.description.as_deref().or(h.game_description.as_deref()).unwrap_or("").to_string(),
+                        h.description
+                            .as_deref()
+                            .or(h.game_description.as_deref())
+                            .unwrap_or("")
+                            .to_string(),
                         format!("{} Players", h.max_players_count()),
                         is_installed,
                     )
                     .with_version_info(remote_ver, installed_version)
                     .with_verification(is_verified)
-                    .with_inputs(playable_controllers, playable_mouse_kb, playable_multi_mouse_kb)
+                    .with_inputs(
+                        playable_controllers,
+                        playable_mouse_kb,
+                        playable_multi_mouse_kb,
+                    )
                     .with_meta(
-                        game_name,
-                        cover_url,
-                        likes,
-                        downloads,
-                        comments,
-                        tags,
-                        created_at,
+                        game_name, cover_url, likes, downloads, comments, tags, created_at,
                         updated_at,
                     )
                 })
@@ -992,8 +1161,13 @@ fn launch_gui(
     // Hub install callback
     let gm_install = gm.clone();
     let handlers_dir_install = handlers_dir.clone();
-    let hub_install_cb = move |handler_id: &str, progress_cb: Box<dyn Fn(f32) + Send + Sync>| -> Option<HandlerItem> {
-        println!("[Game Engine] Downloading handler '{}' from Hub...", handler_id);
+    let hub_install_cb = move |handler_id: &str,
+                               progress_cb: Box<dyn Fn(f32) + Send + Sync>|
+          -> Option<HandlerItem> {
+        println!(
+            "[Game Engine] Downloading handler '{}' from Hub...",
+            handler_id
+        );
         let rt = match tokio::runtime::Runtime::new() {
             Ok(r) => r,
             Err(e) => {
@@ -1005,7 +1179,10 @@ fn launch_gui(
         let (hub_client, dest_dir) = if let Ok(mgr) = gm_install.lock() {
             (mgr.hub().clone(), mgr.handlers_dir().to_path_buf())
         } else {
-            (nucleus_hub::HubClient::default(), Path::new(&handlers_dir_install).to_path_buf())
+            (
+                nucleus_hub::HubClient::default(),
+                Path::new(&handlers_dir_install).to_path_buf(),
+            )
         };
 
         let existing_guids: std::collections::HashSet<String> = if let Ok(mgr) = gm_install.lock() {
@@ -1021,9 +1198,15 @@ fn launch_gui(
             }
         };
 
-        match rt.block_on(hub_client.download_and_extract_handler_with_progress(handler_id, &dest_dir, on_prog)) {
+        match rt.block_on(
+            hub_client.download_and_extract_handler_with_progress(handler_id, &dest_dir, on_prog),
+        ) {
             Ok(files) => {
-                println!("[Game Engine] Extracted {} files for handler '{}'!", files.len(), handler_id);
+                println!(
+                    "[Game Engine] Extracted {} files for handler '{}'!",
+                    files.len(),
+                    handler_id
+                );
                 if let Ok(mut mgr) = gm_install.lock() {
                     let _ = mgr.reload_handlers();
 
@@ -1056,15 +1239,31 @@ fn launch_gui(
                     }
 
                     if let Some((guid, h)) = matched_entry {
-                        println!("[Game Engine] Successfully associated Hub handler '{}' with local GUID '{}' ('{}')", handler_id, guid, h.game_name);
+                        println!(
+                            "[Game Engine] Successfully associated Hub handler '{}' with local GUID '{}' ('{}')",
+                            handler_id, guid, h.game_name
+                        );
                         let profile = mgr.get_profile(&guid).cloned();
-                        let meta_info = mgr.meta_info().find_entry(&guid).or_else(|| mgr.meta_info().find_entry(&h.game_name)).map(|(_, e)| e).cloned();
-                        return Some(build_handler_item(&guid, &h, profile.as_ref(), meta_info.as_ref()));
+                        let meta_info = mgr
+                            .meta_info()
+                            .find_entry(&guid)
+                            .or_else(|| mgr.meta_info().find_entry(&h.game_name))
+                            .map(|(_, e)| e)
+                            .cloned();
+                        return Some(build_handler_item(
+                            &guid,
+                            &h,
+                            profile.as_ref(),
+                            meta_info.as_ref(),
+                        ));
                     }
                 }
             }
             Err(e) => {
-                eprintln!("[Game Engine] Hub download failed for '{}': {}", handler_id, e);
+                eprintln!(
+                    "[Game Engine] Hub download failed for '{}': {}",
+                    handler_id, e
+                );
             }
         }
         None
@@ -1089,11 +1288,17 @@ fn launch_gui(
                     !guid.eq_ignore_ascii_case("My Game")
                         && !h.game_name.eq_ignore_ascii_case("My Game")
                         && !guid.eq_ignore_ascii_case("MasterHandler")
-                        && h.handler_path.as_deref().map_or(true, |p| !p.ends_with("MasterHandler.js"))
+                        && h.handler_path
+                            .as_deref()
+                            .map_or(true, |p| !p.ends_with("MasterHandler.js"))
                 })
                 .map(|(guid, h)| {
                     let profile = mgr.get_profile(guid);
-                    let meta_info = mgr.meta_info().find_entry(guid).or_else(|| mgr.meta_info().find_entry(&h.game_name)).map(|(_, e)| e);
+                    let meta_info = mgr
+                        .meta_info()
+                        .find_entry(guid)
+                        .or_else(|| mgr.meta_info().find_entry(&h.game_name))
+                        .map(|(_, e)| e);
                     build_handler_item(guid, h, profile, meta_info)
                 })
                 .collect();
@@ -1124,10 +1329,16 @@ fn launch_gui(
     // Favorite toggle callback
     let gm_fav = gm.clone();
     let toggle_fav_cb = move |guid: &str, is_fav: bool| {
-        println!("[Game Engine] Toggling favorite for '{}' -> {}", guid, is_fav);
+        println!(
+            "[Game Engine] Toggling favorite for '{}' -> {}",
+            guid, is_fav
+        );
         if let Ok(mut mgr) = gm_fav.lock() {
             let mut p = mgr.get_profile(guid).cloned().unwrap_or_else(|| {
-                let exe = mgr.get_handler(guid).map(|h| h.executable_name.clone()).unwrap_or_default();
+                let exe = mgr
+                    .get_handler(guid)
+                    .map(|h| h.executable_name.clone())
+                    .unwrap_or_default();
                 nucleus_profile::GameProfile::new(guid, guid, exe)
             });
             p.favorite = is_fav;
@@ -1158,7 +1369,10 @@ fn launch_gui(
     // Delete UserProfile save directory callback
     let gm_del = gm.clone();
     let delete_save_cb = move |guid: &str| {
-        println!("[Game Engine] Deleting UserProfile save path for '{}'", guid);
+        println!(
+            "[Game Engine] Deleting UserProfile save path for '{}'",
+            guid
+        );
         if let Ok(mgr) = gm_del.lock() {
             let _ = mgr.delete_user_save_path(guid);
         }
@@ -1196,7 +1410,10 @@ fn launch_gui(
     };
 
     let gm_save_num_prof = gm.clone();
-    let save_numbered_profile_cb = move |guid: &str, num: Option<usize>, prof: &nucleus_profile::GameProfile| -> Option<usize> {
+    let save_numbered_profile_cb = move |guid: &str,
+                                         num: Option<usize>,
+                                         prof: &nucleus_profile::GameProfile|
+          -> Option<usize> {
         if let Ok(mut mgr) = gm_save_num_prof.lock() {
             mgr.save_numbered_profile(guid, num, prof).ok()
         } else {
@@ -1283,15 +1500,15 @@ fn launch_gui(
                     if let Some(session) = mgr.active_session() {
                         if let Some(handler) = &session.handler {
                             let ctx_opt = match summoner_slot {
-                                Some(slot) => handler.contexts.get(slot).or_else(|| handler.contexts.first()),
+                                Some(slot) => handler
+                                    .contexts
+                                    .get(slot)
+                                    .or_else(|| handler.contexts.first()),
                                 None => handler.contexts.first(),
                             };
                             if let Some(ctx) = ctx_opt {
                                 let rect = nucleus_common::types::Rect::new(
-                                    ctx.pos_x,
-                                    ctx.pos_y,
-                                    ctx.width,
-                                    ctx.height,
+                                    ctx.pos_x, ctx.pos_y, ctx.width, ctx.height,
                                 );
                                 wm.get_monitor_bounds_for_rect(&rect).unwrap_or(rect)
                             } else {
@@ -1316,7 +1533,10 @@ fn launch_gui(
                     if let Some(session) = mgr.active_session() {
                         if let Some(handler) = &session.handler {
                             let pid_opt = match summoner_slot {
-                                Some(slot) => handler.launched_pids.get(slot).or_else(|| handler.launched_pids.first()),
+                                Some(slot) => handler
+                                    .launched_pids
+                                    .get(slot)
+                                    .or_else(|| handler.launched_pids.first()),
                                 None => handler.launched_pids.first(),
                             };
                             if let Some(pid) = pid_opt {
@@ -1336,7 +1556,10 @@ fn launch_gui(
     // Hub Account login/logout callbacks
     let gm_hub_login = gm.clone();
     let hub_login_cb = move |username: &str, _password: &str, remember: bool| {
-        println!("[Game Engine] Hub login requested for '{}' (remember={})", username, remember);
+        println!(
+            "[Game Engine] Hub login requested for '{}' (remember={})",
+            username, remember
+        );
         if let Ok(mgr) = gm_hub_login.lock() {
             let token = nucleus_hub::auth::HubSessionToken {
                 user_id: format!("usr_{}", username.to_lowercase()),
@@ -1375,7 +1598,11 @@ fn launch_gui(
     };
 
     let gm_create_slot = gm.clone();
-    let create_save_slot_cb = move |guid: &str, name: &str, title: &str, hint: &str| -> Option<nucleus_profile::save_slots::SaveSlot> {
+    let create_save_slot_cb = move |guid: &str,
+                                    name: &str,
+                                    title: &str,
+                                    hint: &str|
+          -> Option<nucleus_profile::save_slots::SaveSlot> {
         if let Ok(mut mgr) = gm_create_slot.lock() {
             mgr.create_save_slot(guid, name, title, hint).ok()
         } else {
@@ -1384,7 +1611,10 @@ fn launch_gui(
     };
 
     let gm_clone_slot = gm.clone();
-    let clone_save_slot_cb = move |guid: &str, src_id: &str, new_name: &str| -> Option<nucleus_profile::save_slots::SaveSlot> {
+    let clone_save_slot_cb = move |guid: &str,
+                                   src_id: &str,
+                                   new_name: &str|
+          -> Option<nucleus_profile::save_slots::SaveSlot> {
         if let Ok(mut mgr) = gm_clone_slot.lock() {
             mgr.clone_save_slot(guid, src_id, new_name).ok()
         } else {
@@ -1423,7 +1653,8 @@ fn launch_gui(
     let install_ext_cb = move |path: &str| -> Result<String, String> {
         println!("[Game Engine] Installing extension from: {}", path);
         if let Ok(mut mgr) = gm_install_ext.lock() {
-            mgr.install_extension(Path::new(path)).map_err(|e| e.to_string())
+            mgr.install_extension(Path::new(path))
+                .map_err(|e| e.to_string())
         } else {
             Err("Engine busy".to_string())
         }
@@ -1431,15 +1662,24 @@ fn launch_gui(
 
     let gm_grant_perm = gm.clone();
     let grant_perm_cb = move |ext_id: &str, perm_name: &str| {
-        println!("[Game Engine] Granting permission '{}' to extension '{}'", perm_name, ext_id);
+        println!(
+            "[Game Engine] Granting permission '{}' to extension '{}'",
+            perm_name, ext_id
+        );
         if let Ok(mgr) = gm_grant_perm.lock() {
             if let Some(ext_mgr) = mgr.extension_manager() {
                 let perm = match perm_name.to_lowercase().as_str() {
-                    "instancefsread" | "fsread" | "read" => nucleus_plugin::PluginPermission::InstanceFsRead,
-                    "instancefswrite" | "fswrite" | "write" => nucleus_plugin::PluginPermission::InstanceFsWrite,
+                    "instancefsread" | "fsread" | "read" => {
+                        nucleus_plugin::PluginPermission::InstanceFsRead
+                    }
+                    "instancefswrite" | "fswrite" | "write" => {
+                        nucleus_plugin::PluginPermission::InstanceFsWrite
+                    }
                     "environmentfs" | "env" => nucleus_plugin::PluginPermission::EnvironmentFs,
                     "registryops" | "registry" => nucleus_plugin::PluginPermission::RegistryOps,
-                    "processspawn" | "process" => nucleus_plugin::PluginPermission::ProcessSpawnScoped,
+                    "processspawn" | "process" => {
+                        nucleus_plugin::PluginPermission::ProcessSpawnScoped
+                    }
                     "windowcontrol" | "window" => nucleus_plugin::PluginPermission::WindowControl,
                     "scriptapi" | "script" => nucleus_plugin::PluginPermission::ScriptApiExport,
                     "lifecycle" | "hook" => nucleus_plugin::PluginPermission::LifecycleHooks,
@@ -1452,7 +1692,10 @@ fn launch_gui(
     };
 
     // Handler Debugger callbacks
-    let debug_ctrl = Arc::new(nucleus_debug::DebugController::new(nucleus_debug::protocol::DebugLaunchMode::Normal, None));
+    let debug_ctrl = Arc::new(nucleus_debug::DebugController::new(
+        nucleus_debug::protocol::DebugLaunchMode::Normal,
+        None,
+    ));
     let dbg_resume = debug_ctrl.clone();
     let debug_resume_cb = move || {
         dbg_resume.resume();
@@ -1478,15 +1721,17 @@ fn launch_gui(
         dbg_stop.abort();
     };
     let dbg_eval = debug_ctrl.clone();
-    let debug_eval_cb = move |expr: &str| -> Result<String, String> {
-        dbg_eval.evaluate_expression(expr)
-    };
+    let debug_eval_cb =
+        move |expr: &str| -> Result<String, String> { dbg_eval.evaluate_expression(expr) };
     let dbg_bp = debug_ctrl.clone();
     let debug_toggle_bp_cb = move |file_id: &str, line: u32| {
         dbg_bp.set_breakpoint(nucleus_debug::protocol::Breakpoint::new(file_id, line));
     };
 
-    let connected_displays = platform_launch.display_manager().get_displays().unwrap_or_default();
+    let connected_displays = platform_launch
+        .display_manager()
+        .get_displays()
+        .unwrap_or_default();
     let audio_devices = nucleus_tools::audio::AudioRouter::get_audio_devices();
     let preflight_warn_win = gui_opts.preflight_warn.clone();
     let preflight_danger_win = gui_opts.preflight_danger.clone();
@@ -1782,28 +2027,52 @@ mod tests {
         let local_mc = "Minecraft Java Edition";
         assert_eq!(normalize_title_for_hub(hub_mc), "minecraft java edition");
         assert_eq!(normalize_title_for_hub(local_mc), "minecraft java edition");
-        assert_eq!(normalize_title_for_hub(hub_mc), normalize_title_for_hub(local_mc));
+        assert_eq!(
+            normalize_title_for_hub(hub_mc),
+            normalize_title_for_hub(local_mc)
+        );
 
         // Call of Duty Black Ops 2 Multiplayer matching
         let hub_bo2_mp = "Call of Duty: Black Ops II Multiplayer";
         let local_bo2_mp = "Call of Duty Black Ops 2 Multiplayer";
-        assert_eq!(normalize_title_for_hub(hub_bo2_mp), "call of duty black ops 2 multiplayer");
-        assert_eq!(normalize_title_for_hub(local_bo2_mp), "call of duty black ops 2 multiplayer");
-        assert_eq!(normalize_title_for_hub(hub_bo2_mp), normalize_title_for_hub(local_bo2_mp));
+        assert_eq!(
+            normalize_title_for_hub(hub_bo2_mp),
+            "call of duty black ops 2 multiplayer"
+        );
+        assert_eq!(
+            normalize_title_for_hub(local_bo2_mp),
+            "call of duty black ops 2 multiplayer"
+        );
+        assert_eq!(
+            normalize_title_for_hub(hub_bo2_mp),
+            normalize_title_for_hub(local_bo2_mp)
+        );
 
         // Call of Duty Black Ops 2 Zombies matching
         let hub_bo2_zm = "Call of Duty: Black Ops II Zombies";
         let local_bo2_zm = "Call of Duty Black Ops 2 Zombies";
-        assert_eq!(normalize_title_for_hub(hub_bo2_zm), "call of duty black ops 2 zombies");
-        assert_eq!(normalize_title_for_hub(local_bo2_zm), "call of duty black ops 2 zombies");
-        assert_eq!(normalize_title_for_hub(hub_bo2_zm), normalize_title_for_hub(local_bo2_zm));
+        assert_eq!(
+            normalize_title_for_hub(hub_bo2_zm),
+            "call of duty black ops 2 zombies"
+        );
+        assert_eq!(
+            normalize_title_for_hub(local_bo2_zm),
+            "call of duty black ops 2 zombies"
+        );
+        assert_eq!(
+            normalize_title_for_hub(hub_bo2_zm),
+            normalize_title_for_hub(local_bo2_zm)
+        );
 
         // Dark Souls 3 matching
         let hub_ds3 = "DARK SOULS III";
         let local_ds3 = "Dark Souls 3";
         assert_eq!(normalize_title_for_hub(hub_ds3), "dark souls 3");
         assert_eq!(normalize_title_for_hub(local_ds3), "dark souls 3");
-        assert_eq!(normalize_title_for_hub(hub_ds3), normalize_title_for_hub(local_ds3));
+        assert_eq!(
+            normalize_title_for_hub(hub_ds3),
+            normalize_title_for_hub(local_ds3)
+        );
     }
 
     #[test]
@@ -1821,7 +2090,8 @@ mod tests {
             hidden: false,
         });
 
-        let mut prof = nucleus_profile::GameProfile::new("l4d2_guid", "l4d2_guid", "left4dead2.exe");
+        let mut prof =
+            nucleus_profile::GameProfile::new("l4d2_guid", "l4d2_guid", "left4dead2.exe");
         prof.favorite = true;
         prof.assign_gamepads_by_index = true;
         prof.steam_language = Some("english".to_string());
@@ -1834,7 +2104,10 @@ mod tests {
         assert!(item.supports_multiple_keyboards_and_mice);
         assert!(item.assign_gamepads_by_index);
         assert_eq!(item.steam_language.as_deref(), Some("english"));
-        assert_eq!(item.handler_path.as_deref(), Some("C:/Games/NucleusCoop/handlers/l4d2.js"));
+        assert_eq!(
+            item.handler_path.as_deref(),
+            Some("C:/Games/NucleusCoop/handlers/l4d2.js")
+        );
         assert_eq!(item.options.len(), 1);
         assert_eq!(item.options[0].key, "fov");
     }
@@ -1856,7 +2129,11 @@ mod tests {
             "osd".to_string(),
         ];
         let big_picture = args.iter().any(|a| a == "--big-picture");
-        let big_picture_screen = args.iter().position(|a| a == "--big-picture-screen").and_then(|i| args.get(i + 1)).cloned();
+        let big_picture_screen = args
+            .iter()
+            .position(|a| a == "--big-picture-screen")
+            .and_then(|i| args.get(i + 1))
+            .cloned();
         assert!(big_picture);
         assert_eq!(big_picture_screen.as_deref(), Some("osd"));
     }

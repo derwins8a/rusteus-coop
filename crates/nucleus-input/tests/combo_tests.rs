@@ -1,7 +1,7 @@
-use std::time::{Duration, Instant};
+use nucleus_common::types::DeviceType;
 use nucleus_input::combo::{ComboDetector, HoldComboConfig};
 use nucleus_input::gamepad::GamepadDevice;
-use nucleus_common::types::DeviceType;
+use std::time::{Duration, Instant};
 
 #[test]
 fn test_combo_requires_full_hold_duration() {
@@ -79,7 +79,7 @@ fn test_disconnect_clears_hold_state() {
 
 #[test]
 fn test_couch_osd_hotkey_registration_and_simulation() {
-    use nucleus_input::hotkeys::{HotkeyListener, HOTKEY_ID_COUCH_OSD};
+    use nucleus_input::hotkeys::{HOTKEY_ID_COUCH_OSD, HotkeyListener};
     use nucleus_profile::AppSettings;
 
     // 1. Default settings with "F10"

@@ -1,8 +1,8 @@
 //! Linux implementation of the OSD (On-Screen Display) manager.
 
+use nucleus_platform::OsdManager;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use nucleus_platform::OsdManager;
 use tracing::info;
 
 /// Linux implementation of the `OsdManager` trait.

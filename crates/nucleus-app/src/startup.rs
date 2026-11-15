@@ -19,21 +19,21 @@ use nucleus_platform::PlatformServices;
 use nucleus_profile::AppSettings;
 
 #[cfg(windows)]
-use windows::core::PCWSTR;
-#[cfg(windows)]
 use windows::Win32::Foundation::{
-    CloseHandle, GetLastError, SetLastError, ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, HANDLE,
+    CloseHandle, ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, SetLastError,
     WIN32_ERROR,
 };
 #[cfg(windows)]
 use windows::Win32::Security::{
-    InitializeSecurityDescriptor, SetSecurityDescriptorDacl, PSECURITY_DESCRIPTOR,
-    SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
+    InitializeSecurityDescriptor, PSECURITY_DESCRIPTOR, SECURITY_ATTRIBUTES, SECURITY_DESCRIPTOR,
+    SetSecurityDescriptorDacl,
 };
 #[cfg(windows)]
 use windows::Win32::Storage::FileSystem::GetVolumeInformationW;
 #[cfg(windows)]
 use windows::Win32::System::Threading::CreateMutexW;
+#[cfg(windows)]
+use windows::core::PCWSTR;
 
 /// Default mutex name for single-instance exclusivity.
 pub const SINGLE_INSTANCE_MUTEX_NAME: &str = "Global\\NucleusCoop_SingleInstance_Mutex";
@@ -79,7 +79,10 @@ impl SingleInstanceGuard {
     pub fn acquire(mutex_name: &str) -> Result<Self, SingleInstanceError> {
         #[cfg(windows)]
         {
-            let wide_name: Vec<u16> = mutex_name.encode_utf16().chain(std::iter::once(0)).collect();
+            let wide_name: Vec<u16> = mutex_name
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
             unsafe {
                 let mut sd = SECURITY_DESCRIPTOR::default();
                 let _ = InitializeSecurityDescriptor(
@@ -110,8 +113,10 @@ impl SingleInstanceGuard {
                             && mutex_name.starts_with("Global\\")
                         {
                             let local_name = format!("Local\\{}", &mutex_name["Global\\".len()..]);
-                            let local_wide: Vec<u16> =
-                                local_name.encode_utf16().chain(std::iter::once(0)).collect();
+                            let local_wide: Vec<u16> = local_name
+                                .encode_utf16()
+                                .chain(std::iter::once(0))
+                                .collect();
                             SetLastError(WIN32_ERROR(0));
                             match CreateMutexW(Some(&sa), true, PCWSTR(local_wide.as_ptr())) {
                                 Ok(lh) => lh,
@@ -167,12 +172,12 @@ impl SingleInstanceGuard {
 /// Brings an already running instance of Nucleus Co-op to the foreground.
 #[cfg(windows)]
 pub fn activate_running_instance_window() {
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        EnumWindows, FindWindowW, GetWindowTextW, IsWindowVisible, SetForegroundWindow, ShowWindow,
-        SW_RESTORE,
+        EnumWindows, FindWindowW, GetWindowTextW, IsWindowVisible, SW_RESTORE, SetForegroundWindow,
+        ShowWindow,
     };
+    use windows::core::PCWSTR;
 
     let title1: Vec<u16> = "Nucleus Co-op\0".encode_utf16().collect();
     let title2: Vec<u16> = "NucleusCoop\0".encode_utf16().collect();
@@ -266,7 +271,8 @@ pub fn extract_volume_root(path: &Path) -> String {
     }
     if let Ok(canonical) = path.canonicalize() {
         let canon_str = canonical.to_string_lossy();
-        if canon_str.starts_with(r"\\?\") && canon_str.len() >= 6 && canon_str.as_bytes()[5] == b':' {
+        if canon_str.starts_with(r"\\?\") && canon_str.len() >= 6 && canon_str.as_bytes()[5] == b':'
+        {
             let drive = (canon_str.as_bytes()[4] as char).to_ascii_uppercase();
             return format!("{}:\\", drive);
         }
@@ -292,7 +298,10 @@ pub fn get_volume_filesystem(path: &Path) -> Result<String, String> {
             )
             .map_err(|e| format!("GetVolumeInformationW failed for {}: {}", root, e))?;
         }
-        let len = fs_name_buf.iter().position(|&c| c == 0).unwrap_or(fs_name_buf.len());
+        let len = fs_name_buf
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(fs_name_buf.len());
         let fs_name = String::from_utf16_lossy(&fs_name_buf[..len]);
         Ok(fs_name)
     }
@@ -373,7 +382,11 @@ pub fn check_files_integrity(install_root: &Path) -> IntegrityReport {
     for dir in &required_dirs {
         if !dir.exists() {
             if let Err(e) = std::fs::create_dir_all(dir) {
-                warnings.push(format!("Failed to create directory {}: {}", dir.display(), e));
+                warnings.push(format!(
+                    "Failed to create directory {}: {}",
+                    dir.display(),
+                    e
+                ));
             } else {
                 created.push(dir.clone());
                 info!("Created missing directory: {}", dir.display());
@@ -385,8 +398,12 @@ pub fn check_files_integrity(install_root: &Path) -> IntegrityReport {
     // We check both the direct install root and ./utils/ subdirectories
     let critical_rel_paths = [
         // ProtoInput hooking binaries
-        PathBuf::from("utils").join("ProtoInput").join("ProtoInputLoader32.dll"),
-        PathBuf::from("utils").join("ProtoInput").join("ProtoInputLoader64.dll"),
+        PathBuf::from("utils")
+            .join("ProtoInput")
+            .join("ProtoInputLoader32.dll"),
+        PathBuf::from("utils")
+            .join("ProtoInput")
+            .join("ProtoInputLoader64.dll"),
         // Goldberg Steam Emulator
         PathBuf::from("utils").join("GoldbergEmu"),
     ];
@@ -481,8 +498,8 @@ pub fn check_user_environment(
     } else {
         #[cfg(windows)]
         {
-            use winreg::enums::*;
             use winreg::RegKey;
+            use winreg::enums::*;
             RegKey::predef(HKEY_CURRENT_USER)
                 .open_subkey(USER_SHELL_FOLDERS_KEY)
                 .and_then(|k| k.get_value::<String, _>("Personal"))
@@ -504,7 +521,8 @@ pub fn check_user_environment(
     };
 
     let Some(current_personal) = personal_val else {
-        report.details = "User Shell Folders registry key not available on this platform".to_string();
+        report.details =
+            "User Shell Folders registry key not available on this platform".to_string();
         return report;
     };
 
@@ -517,7 +535,10 @@ pub fn check_user_environment(
         );
 
         if backup_file.exists() {
-            info!("Restoring User Shell Folders registry from backup: {}", backup_file.display());
+            info!(
+                "Restoring User Shell Folders registry from backup: {}",
+                backup_file.display()
+            );
             let restore_result = if let Some(reg) = registry_opt {
                 reg.import_from_file(&backup_file)
             } else {
@@ -545,7 +566,8 @@ pub fn check_user_environment(
                 Ok(_) => {
                     info!("Successfully restored User Shell Folders registry from backup");
                     report.restored_from_backup = true;
-                    report.details = "Restored user registry from backup after abnormal termination".to_string();
+                    report.details =
+                        "Restored user registry from backup after abnormal termination".to_string();
                 }
                 Err(e) => {
                     let err_msg = format!("Failed to restore user registry from backup: {}", e);
@@ -564,7 +586,10 @@ pub fn check_user_environment(
     } else {
         // Personal is normal. Ensure baseline backup exists
         if !backup_file.exists() {
-            info!("Creating baseline backup of User Shell Folders to: {}", backup_file.display());
+            info!(
+                "Creating baseline backup of User Shell Folders to: {}",
+                backup_file.display()
+            );
             let _ = std::fs::create_dir_all(&backup_dir);
 
             let export_result = if let Some(reg) = registry_opt {
@@ -573,7 +598,12 @@ pub fn check_user_environment(
                 #[cfg(windows)]
                 {
                     let status = std::process::Command::new("reg.exe")
-                        .args(["export", USER_SHELL_FOLDERS_FULL_KEY, &backup_file.to_string_lossy(), "/y"])
+                        .args([
+                            "export",
+                            USER_SHELL_FOLDERS_FULL_KEY,
+                            &backup_file.to_string_lossy(),
+                            "/y",
+                        ])
                         .output();
                     match status {
                         Ok(o) if o.status.success() => Ok(()),
@@ -594,10 +624,12 @@ pub fn check_user_environment(
                 Ok(_) => {
                     info!("Successfully created baseline User Shell Folders backup");
                     report.baseline_backup_created = true;
-                    report.details = "Created initial baseline User Shell Folders backup".to_string();
+                    report.details =
+                        "Created initial baseline User Shell Folders backup".to_string();
                 }
                 Err(e) => {
-                    let err_msg = format!("Failed to create baseline User Shell Folders backup: {}", e);
+                    let err_msg =
+                        format!("Failed to create baseline User Shell Folders backup: {}", e);
                     warn!("{}", err_msg);
                     report.error = Some(err_msg);
                 }
@@ -807,7 +839,8 @@ pub fn run_preflight_checks(
     }
 
     // 5. Installation Path Safety Check
-    let current_exe = std::env::current_exe().unwrap_or_else(|_| install_root.join("nucleus-coop.exe"));
+    let current_exe =
+        std::env::current_exe().unwrap_or_else(|_| install_root.join("nucleus-coop.exe"));
     let path_safety = check_installation_path(&current_exe, None);
     if path_safety.is_problematic_path || path_safety.is_onedrive_active {
         warn!(
@@ -846,7 +879,10 @@ mod tests {
 
         // First acquisition must succeed
         let guard1 = SingleInstanceGuard::acquire(&test_mutex_name);
-        assert!(guard1.is_ok(), "First acquire of unique test mutex should succeed");
+        assert!(
+            guard1.is_ok(),
+            "First acquire of unique test mutex should succeed"
+        );
         let guard1 = guard1.unwrap();
         assert_eq!(guard1.mutex_name(), test_mutex_name);
 
@@ -893,7 +929,10 @@ mod tests {
 
     #[test]
     fn test_extract_volume_root() {
-        assert_eq!(extract_volume_root(Path::new(r"C:\Games\NucleusCoop")), "C:\\");
+        assert_eq!(
+            extract_volume_root(Path::new(r"C:\Games\NucleusCoop")),
+            "C:\\"
+        );
         assert_eq!(extract_volume_root(Path::new(r"d:\nucleus")), "D:\\");
         assert_eq!(extract_volume_root(Path::new(r"\\?\E:\Folder\Sub")), "E:\\");
     }
@@ -913,7 +952,8 @@ mod tests {
 
     #[test]
     fn test_check_files_integrity_in_temp_dir() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_integrity_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_integrity_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let _ = std::fs::create_dir_all(&temp_dir);
 
@@ -921,8 +961,18 @@ mod tests {
         let report = check_files_integrity(&temp_dir);
         assert!(!report.is_intact);
         assert!(!report.missing_critical_files.is_empty());
-        assert!(report.created_directories.iter().any(|d| d.ends_with("covers")));
-        assert!(report.created_directories.iter().any(|d| d.ends_with("screenshots")));
+        assert!(
+            report
+                .created_directories
+                .iter()
+                .any(|d| d.ends_with("covers"))
+        );
+        assert!(
+            report
+                .created_directories
+                .iter()
+                .any(|d| d.ends_with("screenshots"))
+        );
         assert!(temp_dir.join("gui").join("covers").exists());
         assert!(temp_dir.join("gui").join("screenshots").exists());
 
@@ -935,7 +985,10 @@ mod tests {
 
         // 3. Second check: should now be intact with 0 missing files
         let report2 = check_files_integrity(&temp_dir);
-        assert!(report2.is_intact, "Should be intact after creating required files");
+        assert!(
+            report2.is_intact,
+            "Should be intact after creating required files"
+        );
         assert_eq!(report2.missing_critical_files.len(), 0);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -975,7 +1028,8 @@ mod tests {
 
     #[test]
     fn test_user_environment_contamination_detection() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_env_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_env_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let backup_dir = temp_dir.join("utils").join("backup");

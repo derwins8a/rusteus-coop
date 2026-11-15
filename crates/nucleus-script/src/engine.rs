@@ -1,10 +1,10 @@
 //! Boa JavaScript engine wrapper for executing game handler scripts.
 
-use std::path::Path;
+use crate::handler_config::HandlerConfig;
 use boa_engine::property::Attribute;
 use boa_engine::{Context, JsString, JsValue, Source};
 use nucleus_common::error::{NucleusError, NucleusResult};
-use crate::handler_config::HandlerConfig;
+use std::path::Path;
 
 /// Wrapper around the Boa JavaScript execution engine for running game handlers.
 pub struct ScriptEngine {
@@ -23,12 +23,18 @@ impl ScriptEngine {
     }
 
     /// Injects a per-instance `Context` object into the JS runtime scope.
-    pub fn inject_context(&mut self, ctx: &crate::handler_context::HandlerContext) -> NucleusResult<()> {
+    pub fn inject_context(
+        &mut self,
+        ctx: &crate::handler_context::HandlerContext,
+    ) -> NucleusResult<()> {
         crate::bridge::JsBridge::inject_context(&mut self.context, ctx)
     }
 
     /// Executes the `Game.Play()` lifecycle function for a player instance and reflects mutations back.
-    pub fn execute_play(&mut self, ctx: &mut crate::handler_context::HandlerContext) -> NucleusResult<()> {
+    pub fn execute_play(
+        &mut self,
+        ctx: &mut crate::handler_context::HandlerContext,
+    ) -> NucleusResult<()> {
         self.inject_context(ctx)?;
 
         let global = self.context.global_object();
@@ -92,7 +98,8 @@ impl ScriptEngine {
                 }
                 if let Ok(v) = ctx_obj.get(JsString::from("_ahkDirectives"), &mut self.context) {
                     if let Some(arr) = v.as_object() {
-                        let len = arr.get(JsString::from("length"), &mut self.context)
+                        let len = arr
+                            .get(JsString::from("length"), &mut self.context)
                             .ok()
                             .and_then(|n| n.as_number())
                             .unwrap_or(0.0) as usize;
@@ -100,25 +107,51 @@ impl ScriptEngine {
                         for i in 0..len {
                             if let Ok(item) = arr.get(i, &mut self.context) {
                                 if let Some(item_obj) = item.as_object() {
-                                    let id = item_obj.get(JsString::from("id"), &mut self.context)
-                                        .ok().and_then(|x| x.as_string().map(|s| s.to_std_string_escaped()))
+                                    let id = item_obj
+                                        .get(JsString::from("id"), &mut self.context)
+                                        .ok()
+                                        .and_then(|x| {
+                                            x.as_string().map(|s| s.to_std_string_escaped())
+                                        })
                                         .unwrap_or_else(|| format!("dir_{i}"));
-                                    let is_inline = item_obj.get(JsString::from("is_inline"), &mut self.context)
-                                        .ok().and_then(|x| x.as_boolean()).unwrap_or(false);
-                                    let content = item_obj.get(JsString::from("content"), &mut self.context)
-                                        .ok().and_then(|x| x.as_string().map(|s| s.to_std_string_escaped()))
+                                    let is_inline = item_obj
+                                        .get(JsString::from("is_inline"), &mut self.context)
+                                        .ok()
+                                        .and_then(|x| x.as_boolean())
+                                        .unwrap_or(false);
+                                    let content = item_obj
+                                        .get(JsString::from("content"), &mut self.context)
+                                        .ok()
+                                        .and_then(|x| {
+                                            x.as_string().map(|s| s.to_std_string_escaped())
+                                        })
                                         .unwrap_or_default();
-                                    let version = item_obj.get(JsString::from("version"), &mut self.context)
-                                        .ok().and_then(|x| x.as_string().map(|s| s.to_std_string_escaped()));
-                                    let timing = item_obj.get(JsString::from("timing"), &mut self.context)
-                                        .ok().and_then(|x| x.as_string().map(|s| s.to_std_string_escaped()));
+                                    let version = item_obj
+                                        .get(JsString::from("version"), &mut self.context)
+                                        .ok()
+                                        .and_then(|x| {
+                                            x.as_string().map(|s| s.to_std_string_escaped())
+                                        });
+                                    let timing = item_obj
+                                        .get(JsString::from("timing"), &mut self.context)
+                                        .ok()
+                                        .and_then(|x| {
+                                            x.as_string().map(|s| s.to_std_string_escaped())
+                                        });
                                     let mut args = Vec::new();
-                                    if let Ok(args_val) = item_obj.get(JsString::from("args"), &mut self.context) {
+                                    if let Ok(args_val) =
+                                        item_obj.get(JsString::from("args"), &mut self.context)
+                                    {
                                         if let Some(args_arr) = args_val.as_object() {
-                                            let a_len = args_arr.get(JsString::from("length"), &mut self.context)
-                                                .ok().and_then(|n| n.as_number()).unwrap_or(0.0) as usize;
+                                            let a_len = args_arr
+                                                .get(JsString::from("length"), &mut self.context)
+                                                .ok()
+                                                .and_then(|n| n.as_number())
+                                                .unwrap_or(0.0)
+                                                as usize;
                                             for j in 0..a_len {
-                                                if let Ok(elem) = args_arr.get(j, &mut self.context) {
+                                                if let Ok(elem) = args_arr.get(j, &mut self.context)
+                                                {
                                                     if let Some(s) = elem.as_string() {
                                                         args.push(s.to_std_string_escaped());
                                                     }
@@ -164,7 +197,6 @@ impl ScriptEngine {
         self.execute_play(ctx)
     }
 
-
     /// Registers the Nucleus namespace and enums in global JS scope.
     fn register_nucleus_namespace(&mut self) -> NucleusResult<()> {
         let nucleus_obj = boa_engine::object::JsObject::default();
@@ -172,92 +204,204 @@ impl ScriptEngine {
         // Register Folder enum
         let folder_obj = boa_engine::object::JsObject::default();
         folder_obj
-            .set(JsString::from("Documents"), JsValue::from(0), false, &mut self.context)
+            .set(
+                JsString::from("Documents"),
+                JsValue::from(0),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         folder_obj
-            .set(JsString::from("MainGameFolder"), JsValue::from(1), false, &mut self.context)
+            .set(
+                JsString::from("MainGameFolder"),
+                JsValue::from(1),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         folder_obj
-            .set(JsString::from("InstancedGameFolder"), JsValue::from(2), false, &mut self.context)
+            .set(
+                JsString::from("InstancedGameFolder"),
+                JsValue::from(2),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         nucleus_obj
-            .set(JsString::from("Folder"), JsValue::from(folder_obj), false, &mut self.context)
+            .set(
+                JsString::from("Folder"),
+                JsValue::from(folder_obj),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register SaveType enum (matching C# SaveType: None=0, INI=1, CFG=2, SCR=3, RegKey=4)
         let save_type_obj = boa_engine::object::JsObject::default();
         save_type_obj
-            .set(JsString::from("None"), JsValue::from(0), false, &mut self.context)
+            .set(
+                JsString::from("None"),
+                JsValue::from(0),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         save_type_obj
-            .set(JsString::from("INI"), JsValue::from(1), false, &mut self.context)
+            .set(
+                JsString::from("INI"),
+                JsValue::from(1),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         save_type_obj
-            .set(JsString::from("CFG"), JsValue::from(2), false, &mut self.context)
+            .set(
+                JsString::from("CFG"),
+                JsValue::from(2),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         save_type_obj
-            .set(JsString::from("SCR"), JsValue::from(3), false, &mut self.context)
+            .set(
+                JsString::from("SCR"),
+                JsValue::from(3),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         save_type_obj
-            .set(JsString::from("RegKey"), JsValue::from(4), false, &mut self.context)
+            .set(
+                JsString::from("RegKey"),
+                JsValue::from(4),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         nucleus_obj
-            .set(JsString::from("SaveType"), JsValue::from(save_type_obj), false, &mut self.context)
+            .set(
+                JsString::from("SaveType"),
+                JsValue::from(save_type_obj),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register DPIHandling enum (matching C# DPIHandling: True=0, Scaled=1, InvScaled=2)
         let dpi_obj = boa_engine::object::JsObject::default();
         dpi_obj
-            .set(JsString::from("True"), JsValue::from(0), false, &mut self.context)
+            .set(
+                JsString::from("True"),
+                JsValue::from(0),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         dpi_obj
-            .set(JsString::from("None"), JsValue::from(0), false, &mut self.context) // backwards-compatible alias
+            .set(
+                JsString::from("None"),
+                JsValue::from(0),
+                false,
+                &mut self.context,
+            ) // backwards-compatible alias
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         dpi_obj
-            .set(JsString::from("Scaled"), JsValue::from(1), false, &mut self.context)
+            .set(
+                JsString::from("Scaled"),
+                JsValue::from(1),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         dpi_obj
-            .set(JsString::from("InvScaled"), JsValue::from(2), false, &mut self.context)
+            .set(
+                JsString::from("InvScaled"),
+                JsValue::from(2),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         nucleus_obj
-            .set(JsString::from("DPIHandling"), JsValue::from(dpi_obj), false, &mut self.context)
+            .set(
+                JsString::from("DPIHandling"),
+                JsValue::from(dpi_obj),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register SearchType enum (matching C# SearchType: Contains=0, Full=1, StartsWith=2, EndsWith=3)
         let search_type_obj = boa_engine::object::JsObject::default();
         search_type_obj
-            .set(JsString::from("Contains"), JsValue::from(0), false, &mut self.context)
+            .set(
+                JsString::from("Contains"),
+                JsValue::from(0),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         search_type_obj
-            .set(JsString::from("Full"), JsValue::from(1), false, &mut self.context)
+            .set(
+                JsString::from("Full"),
+                JsValue::from(1),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         search_type_obj
-            .set(JsString::from("Exact"), JsValue::from(1), false, &mut self.context) // alias
+            .set(
+                JsString::from("Exact"),
+                JsValue::from(1),
+                false,
+                &mut self.context,
+            ) // alias
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         search_type_obj
-            .set(JsString::from("StartsWith"), JsValue::from(2), false, &mut self.context)
+            .set(
+                JsString::from("StartsWith"),
+                JsValue::from(2),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         search_type_obj
-            .set(JsString::from("EndsWith"), JsValue::from(3), false, &mut self.context)
+            .set(
+                JsString::from("EndsWith"),
+                JsValue::from(3),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
         nucleus_obj
-            .set(JsString::from("SearchType"), JsValue::from(search_type_obj), false, &mut self.context)
+            .set(
+                JsString::from("SearchType"),
+                JsValue::from(search_type_obj),
+                false,
+                &mut self.context,
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Expose Nucleus object globally
         self.context
-            .register_global_property(JsString::from("Nucleus"), JsValue::from(nucleus_obj), Attribute::all())
+            .register_global_property(
+                JsString::from("Nucleus"),
+                JsValue::from(nucleus_obj),
+                Attribute::all(),
+            )
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register importNamespace global function (returns Nucleus)
-        let import_ns = crate::bridge::JsBridge::create_native_function(&mut self.context, |_this, _args, ctx| {
-            let global = ctx.global_object();
-            if let Ok(n_val) = global.get(JsString::from("Nucleus"), ctx) {
-                Ok(n_val)
-            } else {
-                Ok(JsValue::undefined())
-            }
-        });
+        let import_ns = crate::bridge::JsBridge::create_native_function(
+            &mut self.context,
+            |_this, _args, ctx| {
+                let global = ctx.global_object();
+                if let Ok(n_val) = global.get(JsString::from("Nucleus"), ctx) {
+                    Ok(n_val)
+                } else {
+                    Ok(JsValue::undefined())
+                }
+            },
+        );
         self.set_global("importNamespace", import_ns)?;
 
         Ok(())
@@ -291,7 +435,10 @@ impl ScriptEngine {
                 .call(&JsValue::undefined(), &[], &mut self.context)
                 .map_err(|e| NucleusError::Script(e.to_string()))
         } else {
-            Err(NucleusError::Script(format!("'{}' is not a callable function", name)))
+            Err(NucleusError::Script(format!(
+                "'{}' is not a callable function",
+                name
+            )))
         }
     }
 
@@ -310,181 +457,543 @@ impl ScriptEngine {
         // Register global Hub object expected by Community Hub scripts
         let hub_obj = boa_engine::object::JsObject::default();
         let hub_handler = boa_engine::object::JsObject::default();
-        let _ = hub_handler.set(JsString::from("Version"), JsValue::from(-1), false, &mut self.context);
-        let _ = hub_handler.set(JsString::from("Id"), JsValue::from(JsString::from("")), false, &mut self.context);
-        let _ = hub_obj.set(JsString::from("Handler"), JsValue::from(hub_handler.clone()), false, &mut self.context);
+        let _ = hub_handler.set(
+            JsString::from("Version"),
+            JsValue::from(-1),
+            false,
+            &mut self.context,
+        );
+        let _ = hub_handler.set(
+            JsString::from("Id"),
+            JsValue::from(JsString::from("")),
+            false,
+            &mut self.context,
+        );
+        let _ = hub_obj.set(
+            JsString::from("Handler"),
+            JsValue::from(hub_handler.clone()),
+            false,
+            &mut self.context,
+        );
 
         let hub_maintainer = boa_engine::object::JsObject::default();
-        let _ = hub_maintainer.set(JsString::from("Name"), JsValue::from(JsString::from("")), false, &mut self.context);
-        let _ = hub_maintainer.set(JsString::from("Id"), JsValue::from(JsString::from("")), false, &mut self.context);
-        let _ = hub_obj.set(JsString::from("Maintainer"), JsValue::from(hub_maintainer.clone()), false, &mut self.context);
+        let _ = hub_maintainer.set(
+            JsString::from("Name"),
+            JsValue::from(JsString::from("")),
+            false,
+            &mut self.context,
+        );
+        let _ = hub_maintainer.set(
+            JsString::from("Id"),
+            JsValue::from(JsString::from("")),
+            false,
+            &mut self.context,
+        );
+        let _ = hub_obj.set(
+            JsString::from("Maintainer"),
+            JsValue::from(hub_maintainer.clone()),
+            false,
+            &mut self.context,
+        );
 
-        let _ = hub_obj.set(JsString::from("Connected"), JsValue::from(true), false, &mut self.context);
+        let _ = hub_obj.set(
+            JsString::from("Connected"),
+            JsValue::from(true),
+            false,
+            &mut self.context,
+        );
 
-        let is_update_avail = crate::bridge::JsBridge::create_native_function(&mut self.context, |_this, _args, _ctx| {
-            Ok(JsValue::from(false))
-        });
-        let _ = hub_obj.set(JsString::from("IsUpdateAvailable"), is_update_avail, false, &mut self.context);
+        let is_update_avail = crate::bridge::JsBridge::create_native_function(
+            &mut self.context,
+            |_this, _args, _ctx| Ok(JsValue::from(false)),
+        );
+        let _ = hub_obj.set(
+            JsString::from("IsUpdateAvailable"),
+            is_update_avail,
+            false,
+            &mut self.context,
+        );
         self.set_global("Hub", JsValue::from(hub_obj.clone()))?;
 
         let game_obj = boa_engine::object::JsObject::default();
 
         // Pre-initialize sub-objects expected by standard handlers
         let hook_obj = boa_engine::object::JsObject::default();
-        let _ = hook_obj.set(JsString::from("ForceFocus"), JsValue::from(true), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("ForceFocusWindowName"), JsValue::from(JsString::from("")), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("DInputEnabled"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("DInputForceDisable"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("XInputEnabled"), JsValue::from(true), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("XInputReroute"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("BlockKeyboardEvents"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("BlockMouseEvents"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("BlockInputEvents"), JsValue::from(false), false, &mut self.context);
-        let _ = hook_obj.set(JsString::from("CustomDllEnabled"), JsValue::from(false), false, &mut self.context);
+        let _ = hook_obj.set(
+            JsString::from("ForceFocus"),
+            JsValue::from(true),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("ForceFocusWindowName"),
+            JsValue::from(JsString::from("")),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("DInputEnabled"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("DInputForceDisable"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("XInputEnabled"),
+            JsValue::from(true),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("XInputReroute"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("BlockKeyboardEvents"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("BlockMouseEvents"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("BlockInputEvents"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
+        let _ = hook_obj.set(
+            JsString::from("CustomDllEnabled"),
+            JsValue::from(false),
+            false,
+            &mut self.context,
+        );
 
-        let _ = game_obj.set(JsString::from("Hook"), JsValue::from(hook_obj.clone()), false, &mut self.context);
+        let _ = game_obj.set(
+            JsString::from("Hook"),
+            JsValue::from(hook_obj.clone()),
+            false,
+            &mut self.context,
+        );
         let proto_input_obj = boa_engine::object::JsObject::default();
-        let _ = game_obj.set(JsString::from("ProtoInput"), JsValue::from(proto_input_obj), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("Options"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("ExecutableContext"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("DirSymlinkExclusions"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("DirExclusions"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("DirSymlinkCopyInstead"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("CopyFiles"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("FileSymlinkExclusions"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("FileSymlinkCopyInstead"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("KillMutex"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("XInputPlusDll"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("XInputNames"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("BackupFiles"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("BackupFolders"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("ExecutableNames"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("KillProcessesOnClose"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("CMDBatchClose"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("DeleteOnClose"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("DevReorderDlls"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("SDLPaths"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("X360ceDll"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("HexEditExe"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("HexEditDllFiles"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("CustomSteps"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("AutoHotkeyFiles"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("LudusaviPaths"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("LudusaviRegistry"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("RequiredPlugins"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
-        let _ = game_obj.set(JsString::from("RequiredAddons"), JsValue::from(boa_engine::object::builtins::JsArray::new(&mut self.context)), false, &mut self.context);
+        let _ = game_obj.set(
+            JsString::from("ProtoInput"),
+            JsValue::from(proto_input_obj),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("Options"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("ExecutableContext"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("DirSymlinkExclusions"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("DirExclusions"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("DirSymlinkCopyInstead"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("CopyFiles"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("FileSymlinkExclusions"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("FileSymlinkCopyInstead"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("KillMutex"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("XInputPlusDll"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("XInputNames"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("BackupFiles"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("BackupFolders"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("ExecutableNames"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("KillProcessesOnClose"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("CMDBatchClose"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("DeleteOnClose"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("DevReorderDlls"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("SDLPaths"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("X360ceDll"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("HexEditExe"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("HexEditDllFiles"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("CustomSteps"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("AutoHotkeyFiles"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("LudusaviPaths"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("LudusaviRegistry"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("RequiredPlugins"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
+        let _ = game_obj.set(
+            JsString::from("RequiredAddons"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
 
         let folder_str = handler_folder
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_default();
-        let _ = game_obj.set(JsString::from("Folder"), JsValue::from(JsString::from(folder_str.as_str())), false, &mut self.context);
+        let _ = game_obj.set(
+            JsString::from("Folder"),
+            JsValue::from(JsString::from(folder_str.as_str())),
+            false,
+            &mut self.context,
+        );
 
         // Native methods on Game object
-        let add_option_fn = crate::bridge::JsBridge::create_native_function(&mut self.context, |this, args, ctx| {
-            if let Some(this_obj) = this.as_object() {
-                if let Ok(opts_val) = this_obj.get(JsString::from("Options"), ctx) {
-                    if let Some(opts_arr) = opts_val.as_object() {
-                        let opt_obj = boa_engine::object::JsObject::default();
-                        if let Some(name) = args.get(0).cloned() {
-                            let _ = opt_obj.set(JsString::from("Name"), name, false, ctx);
-                        }
-                        if let Some(desc) = args.get(1).cloned() {
-                            let _ = opt_obj.set(JsString::from("Description"), desc, false, ctx);
-                        }
-                        if let Some(key) = args.get(2).cloned() {
-                            let _ = opt_obj.set(JsString::from("Key"), key, false, ctx);
-                        }
-                        if let Some(choices) = args.get(3).cloned() {
-                            let _ = opt_obj.set(JsString::from("Values"), choices, false, ctx);
-                        }
-                        let _ = opt_obj.set(JsString::from("Hidden"), JsValue::from(false), false, ctx);
-                        if let Ok(len_val) = opts_arr.get(JsString::from("length"), ctx) {
-                            let len = len_val.as_number().unwrap_or(0.0) as u32;
-                            let _ = opts_arr.set(len, JsValue::from(opt_obj), false, ctx);
+        let add_option_fn = crate::bridge::JsBridge::create_native_function(
+            &mut self.context,
+            |this, args, ctx| {
+                if let Some(this_obj) = this.as_object() {
+                    if let Ok(opts_val) = this_obj.get(JsString::from("Options"), ctx) {
+                        if let Some(opts_arr) = opts_val.as_object() {
+                            let opt_obj = boa_engine::object::JsObject::default();
+                            if let Some(name) = args.get(0).cloned() {
+                                let _ = opt_obj.set(JsString::from("Name"), name, false, ctx);
+                            }
+                            if let Some(desc) = args.get(1).cloned() {
+                                let _ =
+                                    opt_obj.set(JsString::from("Description"), desc, false, ctx);
+                            }
+                            if let Some(key) = args.get(2).cloned() {
+                                let _ = opt_obj.set(JsString::from("Key"), key, false, ctx);
+                            }
+                            if let Some(choices) = args.get(3).cloned() {
+                                let _ = opt_obj.set(JsString::from("Values"), choices, false, ctx);
+                            }
+                            let _ = opt_obj.set(
+                                JsString::from("Hidden"),
+                                JsValue::from(false),
+                                false,
+                                ctx,
+                            );
+                            if let Ok(len_val) = opts_arr.get(JsString::from("length"), ctx) {
+                                let len = len_val.as_number().unwrap_or(0.0) as u32;
+                                let _ = opts_arr.set(len, JsValue::from(opt_obj), false, ctx);
+                            }
                         }
                     }
                 }
-            }
-            Ok(JsValue::undefined())
-        });
-        let _ = game_obj.set(JsString::from("AddOption"), add_option_fn, false, &mut self.context);
+                Ok(JsValue::undefined())
+            },
+        );
+        let _ = game_obj.set(
+            JsString::from("AddOption"),
+            add_option_fn,
+            false,
+            &mut self.context,
+        );
 
-        let show_option_fn = crate::bridge::JsBridge::create_native_function(&mut self.context, |this, args, ctx| {
-            let opt_name_or_key = args.get(0).and_then(|v| v.as_string()).map(|s| s.to_std_string_escaped()).unwrap_or_default();
-            let required = args.get(1).and_then(|v| v.as_boolean()).unwrap_or(false);
-            let update_player_info = args.get(2).and_then(|v| v.as_boolean()).unwrap_or(false);
+        let show_option_fn = crate::bridge::JsBridge::create_native_function(
+            &mut self.context,
+            |this, args, ctx| {
+                let opt_name_or_key = args
+                    .get(0)
+                    .and_then(|v| v.as_string())
+                    .map(|s| s.to_std_string_escaped())
+                    .unwrap_or_default();
+                let required = args.get(1).and_then(|v| v.as_boolean()).unwrap_or(false);
+                let update_player_info = args.get(2).and_then(|v| v.as_boolean()).unwrap_or(false);
 
-            let mut matched_option = JsValue::undefined();
-            let mut resolved_key = opt_name_or_key.clone();
-            let mut resolved_title = opt_name_or_key.clone();
+                let mut matched_option = JsValue::undefined();
+                let mut resolved_key = opt_name_or_key.clone();
+                let mut resolved_title = opt_name_or_key.clone();
 
-            if let Some(game) = this.as_object() {
-                if let Ok(opts_val) = game.get(JsString::from("Options"), ctx) {
-                    if let Some(opts_arr) = opts_val.as_object() {
-                        if let Ok(len_val) = opts_arr.get(JsString::from("length"), ctx) {
-                            let len = len_val.as_number().unwrap_or(0.0) as u32;
-                            for i in 0..len {
-                                if let Ok(opt_val) = opts_arr.get(i, ctx) {
-                                    if let Some(opt_obj) = opt_val.as_object() {
-                                        let name_match = opt_obj
-                                            .get(JsString::from("Name"), ctx)
-                                            .ok()
-                                            .as_ref()
-                                            .and_then(|v| v.as_string())
-                                            .map(|s| s.to_std_string_escaped() == opt_name_or_key)
-                                            .unwrap_or(false);
-                                        let key_match = opt_obj
-                                            .get(JsString::from("Key"), ctx)
-                                            .ok()
-                                            .as_ref()
-                                            .and_then(|v| v.as_string())
-                                            .map(|s| s.to_std_string_escaped() == opt_name_or_key)
-                                            .unwrap_or(false);
+                if let Some(game) = this.as_object() {
+                    if let Ok(opts_val) = game.get(JsString::from("Options"), ctx) {
+                        if let Some(opts_arr) = opts_val.as_object() {
+                            if let Ok(len_val) = opts_arr.get(JsString::from("length"), ctx) {
+                                let len = len_val.as_number().unwrap_or(0.0) as u32;
+                                for i in 0..len {
+                                    if let Ok(opt_val) = opts_arr.get(i, ctx) {
+                                        if let Some(opt_obj) = opt_val.as_object() {
+                                            let name_match = opt_obj
+                                                .get(JsString::from("Name"), ctx)
+                                                .ok()
+                                                .as_ref()
+                                                .and_then(|v| v.as_string())
+                                                .map(|s| {
+                                                    s.to_std_string_escaped() == opt_name_or_key
+                                                })
+                                                .unwrap_or(false);
+                                            let key_match = opt_obj
+                                                .get(JsString::from("Key"), ctx)
+                                                .ok()
+                                                .as_ref()
+                                                .and_then(|v| v.as_string())
+                                                .map(|s| {
+                                                    s.to_std_string_escaped() == opt_name_or_key
+                                                })
+                                                .unwrap_or(false);
 
-                                        if name_match || key_match {
-                                            let _ = opt_obj.set(JsString::from("Hidden"), JsValue::from(true), false, ctx);
-                                            matched_option = opt_val.clone();
-                                            if let Ok(k) = opt_obj.get(JsString::from("Key"), ctx) {
-                                                if let Some(ks) = k.as_string() {
-                                                    resolved_key = ks.to_std_string_escaped();
+                                            if name_match || key_match {
+                                                let _ = opt_obj.set(
+                                                    JsString::from("Hidden"),
+                                                    JsValue::from(true),
+                                                    false,
+                                                    ctx,
+                                                );
+                                                matched_option = opt_val.clone();
+                                                if let Ok(k) =
+                                                    opt_obj.get(JsString::from("Key"), ctx)
+                                                {
+                                                    if let Some(ks) = k.as_string() {
+                                                        resolved_key = ks.to_std_string_escaped();
+                                                    }
                                                 }
-                                            }
-                                            if let Ok(n) = opt_obj.get(JsString::from("Name"), ctx) {
-                                                if let Some(ns) = n.as_string() {
-                                                    resolved_title = ns.to_std_string_escaped();
+                                                if let Ok(n) =
+                                                    opt_obj.get(JsString::from("Name"), ctx)
+                                                {
+                                                    if let Some(ns) = n.as_string() {
+                                                        resolved_title = ns.to_std_string_escaped();
+                                                    }
                                                 }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                let step_obj = boa_engine::object::JsObject::default();
-                let _ = step_obj.set(JsString::from("Option"), matched_option, false, ctx);
-                let _ = step_obj.set(JsString::from("OptionKey"), JsValue::from(JsString::from(resolved_key.clone())), false, ctx);
-                let _ = step_obj.set(JsString::from("Required"), JsValue::from(required), false, ctx);
-                let _ = step_obj.set(JsString::from("Title"), JsValue::from(JsString::from(resolved_title.clone())), false, ctx);
-                let _ = step_obj.set(JsString::from("UpdatePlayerInfo"), JsValue::from(update_player_info), false, ctx);
+                    let step_obj = boa_engine::object::JsObject::default();
+                    let _ = step_obj.set(JsString::from("Option"), matched_option, false, ctx);
+                    let _ = step_obj.set(
+                        JsString::from("OptionKey"),
+                        JsValue::from(JsString::from(resolved_key.clone())),
+                        false,
+                        ctx,
+                    );
+                    let _ = step_obj.set(
+                        JsString::from("Required"),
+                        JsValue::from(required),
+                        false,
+                        ctx,
+                    );
+                    let _ = step_obj.set(
+                        JsString::from("Title"),
+                        JsValue::from(JsString::from(resolved_title.clone())),
+                        false,
+                        ctx,
+                    );
+                    let _ = step_obj.set(
+                        JsString::from("UpdatePlayerInfo"),
+                        JsValue::from(update_player_info),
+                        false,
+                        ctx,
+                    );
 
-                if let Ok(steps_val) = game.get(JsString::from("CustomSteps"), ctx) {
-                    if let Some(steps_arr) = steps_val.as_object() {
-                        if let Ok(len_val) = steps_arr.get(JsString::from("length"), ctx) {
-                            let len = len_val.as_number().unwrap_or(0.0) as u32;
-                            let _ = steps_arr.set(len, JsValue::from(step_obj.clone()), false, ctx);
+                    if let Ok(steps_val) = game.get(JsString::from("CustomSteps"), ctx) {
+                        if let Some(steps_arr) = steps_val.as_object() {
+                            if let Ok(len_val) = steps_arr.get(JsString::from("length"), ctx) {
+                                let len = len_val.as_number().unwrap_or(0.0) as u32;
+                                let _ =
+                                    steps_arr.set(len, JsValue::from(step_obj.clone()), false, ctx);
+                            }
                         }
                     }
-                }
 
-                Ok(JsValue::from(step_obj))
-            } else {
-                Ok(JsValue::undefined())
-            }
-        });
-        let _ = game_obj.set(JsString::from("ShowOptionAsStep"), show_option_fn, false, &mut self.context);
+                    Ok(JsValue::from(step_obj))
+                } else {
+                    Ok(JsValue::undefined())
+                }
+            },
+        );
+        let _ = game_obj.set(
+            JsString::from("ShowOptionAsStep"),
+            show_option_fn,
+            false,
+            &mut self.context,
+        );
 
         self.set_global("Game", JsValue::from(game_obj.clone()))?;
 
@@ -556,7 +1065,10 @@ impl ScriptEngine {
         extract_bool!(keep_symlink_on_exit, "KeepSymLinkOnExit");
         extract_bool!(supports_keyboard, "SupportsKeyboard");
         extract_bool!(keyboard_player_first, "KeyboardPlayerFirst");
-        extract_bool!(supports_multiple_keyboards_and_mice, "SupportsMultipleKeyboardsAndMice");
+        extract_bool!(
+            supports_multiple_keyboards_and_mice,
+            "SupportsMultipleKeyboardsAndMice"
+        );
         extract_bool!(hook_focus, "HookFocus");
         extract_bool!(fake_focus, "FakeFocus");
         extract_bool!(hide_taskbar, "HideTaskbar");
@@ -582,7 +1094,10 @@ impl ScriptEngine {
         extract_bool!(use_x360ce_on_steam, "UseX360ceOnSteam");
         extract_bool!(xbox_one_controller_fix, "XboxOneControllerFix");
         extract_bool!(goldberg_need_steam_interface, "GoldbergNeedSteamInterface");
-        extract_bool!(goldberg_write_account_name, "GoldbergWriteSteamIDAndAccount");
+        extract_bool!(
+            goldberg_write_account_name,
+            "GoldbergWriteSteamIDAndAccount"
+        );
         if !config.goldberg_write_account_name {
             extract_bool!(goldberg_write_account_name, "GoldbergWriteAccountName");
         }
@@ -621,9 +1136,15 @@ impl ScriptEngine {
         extract_bool!(ignore_window_border_check, "IgnoreWindowBorderCheck");
         extract_bool!(refresh_window_after_start, "RefreshWindowAfterStart");
         extract_bool!(reset_windows, "ResetWindows");
-        extract_bool!(set_foreground_window_elsewhere, "SetForegroundWindowElsewhere");
+        extract_bool!(
+            set_foreground_window_elsewhere,
+            "SetForegroundWindowElsewhere"
+        );
         extract_bool!(prevent_window_deactivation, "PreventWindowDeactivation");
-        extract_bool!(keyboard_player_skip_prevent_window_deactivate, "KeyboardPlayerSkipPreventWindowDeactivate");
+        extract_bool!(
+            keyboard_player_skip_prevent_window_deactivate,
+            "KeyboardPlayerSkipPreventWindowDeactivate"
+        );
         extract_bool!(force_window_title, "ForceWindowTitle");
         extract_bool!(has_dynamic_window_title, "HasDynamicWindowTitle");
         extract_bool!(id_in_window_title, "IdInWindowTitle");
@@ -633,20 +1154,29 @@ impl ScriptEngine {
         extract_bool!(use_nemirtingas_galaxy_emu, "UseNemirtingasGalaxyEmu");
         extract_bool!(epic_emu_args, "EpicEmuArgs");
         extract_bool!(alt_epic_emu_args, "AltEpicEmuArgs");
-        extract_bool!(flawless_widescreen_override_display, "FlawlessWidescreenOverrideDisplay");
+        extract_bool!(
+            flawless_widescreen_override_display,
+            "FlawlessWidescreenOverrideDisplay"
+        );
         extract_bool!(use_steamless, "UseSteamless");
         extract_bool!(use_steam_stub_drm_patcher, "UseSteamStubDRMPatcher");
         extract_bool!(use_eac_bypass, "UseEACBypass");
         extract_bool!(use_directx9_wrapper, "UseDirectX9Wrapper");
         extract_bool!(goldberg_no_warning, "GoldbergNoWarning");
-        extract_bool!(goldberg_experimental_steam_client, "GoldbergExperimentalSteamClient");
+        extract_bool!(
+            goldberg_experimental_steam_client,
+            "GoldbergExperimentalSteamClient"
+        );
         extract_bool!(goldberg_experimental_rename, "GoldbergExperimentalRename");
         extract_bool!(goldberg_lobby_connect, "GoldbergLobbyConnect");
         extract_bool!(requires_admin, "RequiresAdmin");
 
         extract_bool!(cmd_start_args_inside, "CMDStartArgsInside");
         extract_bool!(launcher_exe_ignore_file_check, "LauncherExeIgnoreFileCheck");
-        extract_bool!(force_launcher_exe_ignore_file_check, "ForceLauncherExeIgnoreFileCheck");
+        extract_bool!(
+            force_launcher_exe_ignore_file_check,
+            "ForceLauncherExeIgnoreFileCheck"
+        );
         extract_bool!(run_launcher_and_exe, "RunLauncherAndExe");
         extract_bool!(third_party_launch, "ThirdPartyLaunch");
         extract_bool!(ignore_third_party_prompt, "IgnoreThirdPartyPrompt");
@@ -675,7 +1205,10 @@ impl ScriptEngine {
         extract_i32!(pause_cmd_batch_before, "PauseCMDBatchBefore");
         extract_i32!(pause_cmd_batch_after, "PauseCMDBatchAfter");
         extract_i32!(pause_between_process_grab, "PauseBetweenProcessGrab");
-        extract_i32!(pause_between_context_and_launch, "PauseBetweenContextAndLaunch");
+        extract_i32!(
+            pause_between_context_and_launch,
+            "PauseBetweenContextAndLaunch"
+        );
         extract_i32!(ideal_processor, "IdealProcessor");
 
         extract_f64!(handler_interval, "HandlerInterval");
@@ -706,7 +1239,10 @@ impl ScriptEngine {
         extract_string!(kill_mutex_type_process, "KillMutexTypeProcess");
         extract_opt_string!(mutex_process_exe, "MutexProcessExe");
         extract_opt_string!(flawless_widescreen, "FlawlessWidescreen");
-        extract_opt_string!(flawless_widescreen_plugin_path, "FlawlessWidescreenPluginPath");
+        extract_opt_string!(
+            flawless_widescreen_plugin_path,
+            "FlawlessWidescreenPluginPath"
+        );
         extract_opt_string!(steamless_args, "SteamlessArgs");
         extract_opt_string!(steam_stub_drm_patcher_arch, "SteamStubDRMPatcherArch");
         extract_opt_string!(executable_to_launch, "ExecutableToLaunch");
@@ -778,7 +1314,9 @@ impl ScriptEngine {
         }
 
         // Compute exact input support flags based on C# parity
-        config.supports_xinput = (config.hook_xinput_enabled && !config.hook_xinput_reroute && !config.proto_input_dinput_hook)
+        config.supports_xinput = (config.hook_xinput_enabled
+            && !config.hook_xinput_reroute
+            && !config.proto_input_dinput_hook)
             || config.proto_input_xinput_hook
             || config.hook_sdl2_enabled
             || config.use_x360ce
@@ -790,8 +1328,8 @@ impl ScriptEngine {
             || config.hook_sdl2_enabled
             || config.use_dev_reorder;
 
-        config.supports_raw_input = config.supports_multiple_keyboards_and_mice
-            || config.use_proto_input;
+        config.supports_raw_input =
+            config.supports_multiple_keyboards_and_mice || config.use_proto_input;
 
         // Helper macro for string arrays
         macro_rules! extract_string_array {
@@ -800,7 +1338,8 @@ impl ScriptEngine {
                     if let Some(obj) = val.as_object() {
                         if obj.is_array() {
                             let mut list = Vec::new();
-                            let len = obj.get(JsString::from("length"), &mut self.context)
+                            let len = obj
+                                .get(JsString::from("length"), &mut self.context)
                                 .ok()
                                 .and_then(|v| v.as_number())
                                 .unwrap_or(0.0) as usize;
@@ -840,7 +1379,10 @@ impl ScriptEngine {
         extract_string_array!(dir_symlink_exclusions, "DirSymlinkExclusions");
         extract_string_array!(dir_exclusions, "DirExclusions");
         extract_string_array!(dir_symlink_copy_instead, "DirSymlinkCopyInstead");
-        extract_bool!(dir_symlink_copy_instead_include_sub_folders, "DirSymlinkCopyInsteadIncludeSubFolders");
+        extract_bool!(
+            dir_symlink_copy_instead_include_sub_folders,
+            "DirSymlinkCopyInsteadIncludeSubFolders"
+        );
         extract_string_array!(copy_files, "CopyFiles");
         extract_string_array!(file_symlink_exclusions, "FileSymlinkExclusions");
         extract_string_array!(file_symlink_copy_instead, "FileSymlinkCopyInstead");
@@ -898,7 +1440,8 @@ impl ScriptEngine {
             if let Some(obj) = val.as_object() {
                 if obj.is_array() {
                     let mut list = Vec::new();
-                    let len = obj.get(JsString::from("length"), &mut self.context)
+                    let len = obj
+                        .get(JsString::from("length"), &mut self.context)
                         .ok()
                         .and_then(|v| v.as_number())
                         .unwrap_or(0.0) as usize;
@@ -976,7 +1519,9 @@ impl ScriptEngine {
                                     option.name = s.to_std_string_escaped();
                                 }
                             }
-                            if let Ok(v) = opt_obj.get(JsString::from("Description"), &mut self.context) {
+                            if let Ok(v) =
+                                opt_obj.get(JsString::from("Description"), &mut self.context)
+                            {
                                 if let Some(s) = v.as_string() {
                                     option.description = s.to_std_string_escaped();
                                 }
@@ -986,13 +1531,15 @@ impl ScriptEngine {
                                     option.key = s.to_std_string_escaped();
                                 }
                             }
-                            if let Ok(v) = opt_obj.get(JsString::from("Values"), &mut self.context) {
+                            if let Ok(v) = opt_obj.get(JsString::from("Values"), &mut self.context)
+                            {
                                 if let Some(arr) = v.as_object() {
                                     let v_len = arr
                                         .get(JsString::from("length"), &mut self.context)
                                         .ok()
                                         .and_then(|n| n.as_number())
-                                        .unwrap_or(0.0) as u32;
+                                        .unwrap_or(0.0)
+                                        as u32;
                                     for j in 0..v_len {
                                         if let Ok(item) = arr.get(j, &mut self.context) {
                                             if let Some(s) = item.as_string() {
@@ -1002,7 +1549,8 @@ impl ScriptEngine {
                                     }
                                 }
                             }
-                            if let Ok(v) = opt_obj.get(JsString::from("Hidden"), &mut self.context) {
+                            if let Ok(v) = opt_obj.get(JsString::from("Hidden"), &mut self.context)
+                            {
                                 if let Some(b) = v.as_boolean() {
                                     option.hidden = b;
                                 }
@@ -1026,17 +1574,22 @@ impl ScriptEngine {
                     if let Ok(step_val) = steps_arr.get(i, &mut self.context) {
                         if let Some(step_obj) = step_val.as_object() {
                             let mut step = crate::handler_config::CustomStep::default();
-                            if let Ok(v) = step_obj.get(JsString::from("OptionKey"), &mut self.context) {
+                            if let Ok(v) =
+                                step_obj.get(JsString::from("OptionKey"), &mut self.context)
+                            {
                                 if let Some(s) = v.as_string() {
                                     step.option_key = s.to_std_string_escaped();
                                 }
                             }
-                            if let Ok(v) = step_obj.get(JsString::from("Title"), &mut self.context) {
+                            if let Ok(v) = step_obj.get(JsString::from("Title"), &mut self.context)
+                            {
                                 if let Some(s) = v.as_string() {
                                     step.title = s.to_std_string_escaped();
                                 }
                             }
-                            if let Ok(v) = step_obj.get(JsString::from("Required"), &mut self.context) {
+                            if let Ok(v) =
+                                step_obj.get(JsString::from("Required"), &mut self.context)
+                            {
                                 if let Some(b) = v.as_boolean() {
                                     step.required = b;
                                 }
@@ -1086,7 +1639,9 @@ mod tests {
             Game.KillMutex = ["hl2_singleton_mutex", "SteamClientMutex"];
         "#;
 
-        let config = engine.load_handler_script(handler_src).expect("Failed to load handler");
+        let config = engine
+            .load_handler_script(handler_src)
+            .expect("Failed to load handler");
         assert_eq!(config.game_name, "Portal 2");
         assert_eq!(config.guid, "portal-2-split");
         assert_eq!(config.steam_id, "620");
@@ -1096,23 +1651,31 @@ mod tests {
         assert!(config.use_goldberg);
         assert_eq!(
             config.kill_mutex,
-            Some(vec!["hl2_singleton_mutex".to_string(), "SteamClientMutex".to_string()])
+            Some(vec![
+                "hl2_singleton_mutex".to_string(),
+                "SteamClientMutex".to_string()
+            ])
         );
     }
 
     #[test]
     fn test_script_engine_nucleus_namespace() {
         let mut engine = ScriptEngine::new().expect("Failed to create ScriptEngine");
-        let result = engine.execute("Nucleus.Folder.Documents").expect("Failed to access Folder");
+        let result = engine
+            .execute("Nucleus.Folder.Documents")
+            .expect("Failed to access Folder");
         assert_eq!(result.as_number(), Some(0.0));
 
-        let save_type = engine.execute("Nucleus.SaveType.INI").expect("Failed to access SaveType");
+        let save_type = engine
+            .execute("Nucleus.SaveType.INI")
+            .expect("Failed to access SaveType");
         assert_eq!(save_type.as_number(), Some(1.0));
     }
 
     #[test]
     fn test_script_engine_game_play_execution() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_play_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_play_test_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let cfg_path = temp_dir.join("game.cfg");
         let ini_path = temp_dir.join("config.ini");
@@ -1124,7 +1687,8 @@ mod tests {
         let ini_str = ini_path.to_str().unwrap().replace('\\', "/");
 
         let mut engine = ScriptEngine::new().expect("Failed to create ScriptEngine");
-        let handler_src = format!(r#"
+        let handler_src = format!(
+            r#"
             Game.GameName = "TestGame";
             Game.Play = function() {{
                 var cfg = "{cfg_str}";
@@ -1140,15 +1704,20 @@ mod tests {
                     new Nucleus.IniSaveInfo("DISPLAY", "Resolution", Context.Width + "x" + Context.Height)
                 ]);
             }};
-        "#);
+        "#
+        );
 
-        let _ = engine.load_handler_script(&handler_src).expect("Failed to load script");
+        let _ = engine
+            .load_handler_script(&handler_src)
+            .expect("Failed to load script");
 
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
         ctx.width = 1920;
         ctx.height = 1080;
 
-        engine.execute_play(&mut ctx).expect("Failed to execute Game.Play");
+        engine
+            .execute_play(&mut ctx)
+            .expect("Failed to execute Game.Play");
 
         let updated_cfg = std::fs::read_to_string(&cfg_path).unwrap();
         assert!(updated_cfg.contains("ScreenWidth = 1920"));
@@ -1162,31 +1731,42 @@ mod tests {
 
     #[test]
     fn test_script_engine_xml_and_file_ops() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_script_xml_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_script_xml_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let xml_path = temp_dir.join("settings.xml");
-        std::fs::write(&xml_path, r#"<config><resolution width="800" height="600" /></config>"#).unwrap();
+        std::fs::write(
+            &xml_path,
+            r#"<config><resolution width="800" height="600" /></config>"#,
+        )
+        .unwrap();
 
         let xml_str = xml_path.to_str().unwrap().replace('\\', "/");
 
         let mut engine = ScriptEngine::new().expect("Failed to create ScriptEngine");
-        let handler_src = format!(r#"
+        let handler_src = format!(
+            r#"
             Game.GameName = "XmlGame";
             Game.Play = function() {{
                 var xml = "{xml_str}";
                 Context.ChangeXmlAttributeValue(xml, "//resolution", "width", Context.Width);
                 Context.ChangeXmlAttributeValue(xml, "//resolution", "height", Context.Height);
             }};
-        "#);
+        "#
+        );
 
-        let _ = engine.load_handler_script(&handler_src).expect("Failed to load script");
+        let _ = engine
+            .load_handler_script(&handler_src)
+            .expect("Failed to load script");
 
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
         ctx.width = 2560;
         ctx.height = 1440;
 
-        engine.execute_play(&mut ctx).expect("Failed to execute Game.Play");
+        engine
+            .execute_play(&mut ctx)
+            .expect("Failed to execute Game.Play");
 
         let updated_xml = std::fs::read_to_string(&xml_path).unwrap();
         assert!(updated_xml.contains("width=\"2560\""));
@@ -1199,9 +1779,12 @@ mod tests {
     fn test_script_engine_load_master_handler() {
         let master_handler_path = std::path::Path::new("../../handlers/MasterHandler.js");
         if master_handler_path.exists() {
-            let script = std::fs::read_to_string(master_handler_path).expect("Failed to read MasterHandler.js");
+            let script = std::fs::read_to_string(master_handler_path)
+                .expect("Failed to read MasterHandler.js");
             let mut engine = ScriptEngine::new().expect("Failed to create ScriptEngine");
-            let config = engine.load_handler_script(&script).expect("Failed to evaluate MasterHandler.js");
+            let config = engine
+                .load_handler_script(&script)
+                .expect("Failed to evaluate MasterHandler.js");
 
             assert_eq!(config.game_name, "Game Name");
             assert_eq!(config.executable_name, "Game1.exe");
@@ -1212,7 +1795,10 @@ mod tests {
             assert_eq!(config.dir_symlink_exclusions, Some(vec!["bin".to_string()]));
             assert_eq!(
                 config.file_symlink_exclusions,
-                Some(vec!["steam_api.dll".to_string(), "steam_interfaces.txt".to_string()])
+                Some(vec![
+                    "steam_api.dll".to_string(),
+                    "steam_interfaces.txt".to_string()
+                ])
             );
             assert_eq!(
                 config.file_symlink_copy_instead,
@@ -1244,7 +1830,9 @@ mod tests {
         "#;
 
         let mut engine = ScriptEngine::new().expect("Failed to create ScriptEngine");
-        let config = engine.load_handler_script(script).expect("Failed to parse community handler");
+        let config = engine
+            .load_handler_script(script)
+            .expect("Failed to parse community handler");
 
         assert_eq!(config.game_name, "Left 4 Dead 2");
         assert_eq!(config.guid, "Left 4 Dead 2");
@@ -1255,7 +1843,10 @@ mod tests {
         assert_eq!(config.hub_maintainer_name.as_deref(), Some("Talos91"));
         assert_eq!(config.options.len(), 1);
         assert_eq!(config.options[0].name, "Native Splitscreen");
-        assert_eq!(config.options[0].values, vec!["No".to_string(), "Yes".to_string()]);
+        assert_eq!(
+            config.options[0].values,
+            vec!["No".to_string(), "Yes".to_string()]
+        );
     }
 
     #[test]
@@ -1285,16 +1876,21 @@ mod tests {
             };
         "#;
 
-        engine.load_handler_script(script).expect("Failed to load script");
+        engine
+            .load_handler_script(script)
+            .expect("Failed to load script");
 
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
         ctx.number_of_players = 2;
         ctx.layout = "1x2 (Stacked)".to_string();
         ctx.options.insert("Native".to_string(), "No".to_string());
-        ctx.options.insert("Scale".to_string(), "InvScaled".to_string());
+        ctx.options
+            .insert("Scale".to_string(), "InvScaled".to_string());
         ctx.options.insert("Hooks".to_string(), "No".to_string());
 
-        engine.execute_play(&mut ctx).expect("execute_play should succeed without TypeError");
+        engine
+            .execute_play(&mut ctx)
+            .expect("execute_play should succeed without TypeError");
     }
 
     #[test]
@@ -1315,7 +1911,11 @@ mod tests {
 
             // Run Game.Play
             let res = engine.execute_play(&mut ctx);
-            assert!(res.is_ok(), "Real Left 4 Dead 2 execute_play failed: {:?}", res.err());
+            assert!(
+                res.is_ok(),
+                "Real Left 4 Dead 2 execute_play failed: {:?}",
+                res.err()
+            );
         }
     }
 
@@ -1336,18 +1936,44 @@ mod tests {
         "#;
 
         let folder = std::path::Path::new("C:/Games/Handlers/ParityGame");
-        let config = engine.load_handler_script_with_folder(script, Some(folder)).expect("Failed to load script");
+        let config = engine
+            .load_handler_script_with_folder(script, Some(folder))
+            .expect("Failed to load script");
 
         assert!(config.symlink_folders);
-        assert_eq!(config.copy_files, Some(vec!["copy1.dll".to_string(), "copy2.bin".to_string()]));
-        assert_eq!(config.dir_exclusions, Some(vec!["exclude_dir1".to_string(), "exclude_dir2".to_string()]));
-        assert_eq!(config.dir_symlink_copy_instead, Some(vec!["dir_copy1".to_string()]));
-        assert_eq!(config.user_profile_config_path.as_deref(), Some("AppData\\Local\\ParityGame"));
-        assert_eq!(config.user_profile_save_path.as_deref(), Some("Saved Games\\ParityGame"));
+        assert_eq!(
+            config.copy_files,
+            Some(vec!["copy1.dll".to_string(), "copy2.bin".to_string()])
+        );
+        assert_eq!(
+            config.dir_exclusions,
+            Some(vec!["exclude_dir1".to_string(), "exclude_dir2".to_string()])
+        );
+        assert_eq!(
+            config.dir_symlink_copy_instead,
+            Some(vec!["dir_copy1".to_string()])
+        );
+        assert_eq!(
+            config.user_profile_config_path.as_deref(),
+            Some("AppData\\Local\\ParityGame")
+        );
+        assert_eq!(
+            config.user_profile_save_path.as_deref(),
+            Some("Saved Games\\ParityGame")
+        );
         assert!(config.user_profile_save_path_no_copy);
-        assert_eq!(config.documents_config_path.as_deref(), Some("My Games\\ParityGame\\Config"));
-        assert_eq!(config.documents_save_path.as_deref(), Some("My Games\\ParityGame\\Saves"));
-        assert_eq!(config.handler_folder.as_deref(), Some("C:/Games/Handlers/ParityGame"));
+        assert_eq!(
+            config.documents_config_path.as_deref(),
+            Some("My Games\\ParityGame\\Config")
+        );
+        assert_eq!(
+            config.documents_save_path.as_deref(),
+            Some("My Games\\ParityGame\\Saves")
+        );
+        assert_eq!(
+            config.handler_folder.as_deref(),
+            Some("C:/Games/Handlers/ParityGame")
+        );
     }
 
     #[test]
@@ -1369,12 +1995,15 @@ mod tests {
 
         assert_eq!(ctx.start_arguments, "-novid -windowed -noborder");
         assert_eq!(ctx.save_path.as_deref(), Some("CustomSaveDir"));
-        assert_eq!(ctx.dpi_handling, crate::handler_context::DPIHandling::InvScaled);
+        assert_eq!(
+            ctx.dpi_handling,
+            crate::handler_context::DPIHandling::InvScaled
+        );
     }
 
     #[test]
     fn test_enum_inversions_and_js_namespaces() {
-        use crate::enums::{SearchType, DPIHandling, SaveType, Folder, CustomStepType, RegType};
+        use crate::enums::{CustomStepType, DPIHandling, Folder, RegType, SaveType, SearchType};
 
         // Test Rust enum discriminant parity matching legacy C# NucleusCoop
         assert_eq!(SearchType::Contains as i32, 0);
@@ -1424,7 +2053,9 @@ mod tests {
 
             Game.GameName = ok ? "EnumParityPassed" : "EnumParityFailed";
         "#;
-        let config = engine.load_handler_script(script).expect("Failed to load script");
+        let config = engine
+            .load_handler_script(script)
+            .expect("Failed to load script");
         assert_eq!(config.game_name, "EnumParityPassed");
     }
 
@@ -1455,26 +2086,52 @@ mod tests {
             Game.UseNemirtingasEpicEmu = true;
             Game.UseNemirtingasGalaxyEmu = true;
         "#;
-        let config = engine.load_handler_script(script).expect("Failed to load script");
+        let config = engine
+            .load_handler_script(script)
+            .expect("Failed to load script");
 
-        assert_eq!(config.executable_names, Some(vec!["game1.exe".to_string(), "game2.exe".to_string()]));
-        assert_eq!(config.cmd_options, Some(vec!["-option1".to_string(), "-option2".to_string()]));
+        assert_eq!(
+            config.executable_names,
+            Some(vec!["game1.exe".to_string(), "game2.exe".to_string()])
+        );
+        assert_eq!(
+            config.cmd_options,
+            Some(vec!["-option1".to_string(), "-option2".to_string()])
+        );
         assert_eq!(config.fake_focus_interval, 250);
         assert!(config.hide_cursor);
-        assert_eq!(config.kill_processes_on_close, Some(vec!["launcher.exe".to_string(), "crashhandler.exe".to_string()]));
+        assert_eq!(
+            config.kill_processes_on_close,
+            Some(vec![
+                "launcher.exe".to_string(),
+                "crashhandler.exe".to_string()
+            ])
+        );
         assert_eq!(config.backup_files, Some(vec!["config.ini".to_string()]));
         assert_eq!(config.backup_folders, Some(vec!["save_data".to_string()]));
         assert!(config.dont_resize);
         assert!(config.dont_reposition);
         assert_eq!(config.players_per_instance, 2);
         assert!(config.goldberg_write_account_name);
-        assert_eq!(config.kill_mutex_launcher, Some(vec!["LauncherMutex".to_string()]));
-        assert_eq!(config.kill_mutex_process, Some(vec!["ProcessMutex".to_string()]));
+        assert_eq!(
+            config.kill_mutex_launcher,
+            Some(vec!["LauncherMutex".to_string()])
+        );
+        assert_eq!(
+            config.kill_mutex_process,
+            Some(vec!["ProcessMutex".to_string()])
+        );
         assert_eq!(config.kill_mutex_delay, 1500);
         assert_eq!(config.kill_mutex_type_launcher, "MutantLauncher");
         assert_eq!(config.kill_mutex_type_process, "MutantProcess");
-        assert_eq!(config.window_style_values, Some(vec!["0x10000000".to_string(), "0x00080000".to_string()]));
-        assert_eq!(config.ext_window_style_values, Some(vec!["0x00000008".to_string()]));
+        assert_eq!(
+            config.window_style_values,
+            Some(vec!["0x10000000".to_string(), "0x00080000".to_string()])
+        );
+        assert_eq!(
+            config.ext_window_style_values,
+            Some(vec!["0x00000008".to_string()])
+        );
         assert_eq!(config.lock_input_toggle_key, 0x23);
         assert!(config.requires_admin);
         assert!(config.use_nemirtingas_epic_emu);
@@ -1488,7 +2145,9 @@ mod tests {
             Game.AddOption("Select Team", "Choose your team", "team", ["Red", "Blue"]);
             var step = Game.ShowOptionAsStep("Select Team", false, false);
         "#;
-        let config = engine.load_handler_script(script).expect("Failed to load script");
+        let config = engine
+            .load_handler_script(script)
+            .expect("Failed to load script");
 
         assert_eq!(config.options.len(), 1);
         assert_eq!(config.options[0].name, "Select Team");
@@ -1503,7 +2162,14 @@ mod tests {
 
     #[test]
     fn test_context_runtime_parity_all_methods() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_script_parity_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()));
+        let temp_dir = std::env::temp_dir().join(format!(
+            "nucleus_script_parity_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+        ));
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         // 1. Context.ProcessID
@@ -1525,7 +2191,8 @@ mod tests {
         std::fs::write(&lines_file, initial_lines).unwrap();
         let lines_file_str = lines_file.to_str().unwrap().replace('\\', "/");
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             Game.Play = function() {{
                 var f = "{lines_file_str}";
                 Context.RemoveLineInTextFile(f, "ContainsFoo", Nucleus.SearchType.Contains);
@@ -1533,7 +2200,8 @@ mod tests {
                 Context.RemoveLineInTextFile(f, "StartsWithPrefix", Nucleus.SearchType.StartsWith);
                 Context.RemoveLineInTextFile(f, "EndsWithSuffix", Nucleus.SearchType.EndsWith);
             }};
-        "#);
+        "#
+        );
         let mut engine = ScriptEngine::new().unwrap();
         engine.load_handler_script(&script).unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
@@ -1555,7 +2223,8 @@ mod tests {
         let src_cfg_str = src_cfg.to_str().unwrap().replace('\\', "/");
         let dest_cfg_str = dest_cfg.to_str().unwrap().replace('\\', "/");
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             Game.Play = function() {{
                 var src = "{src_cfg_str}";
                 var dst = "{dest_cfg_str}";
@@ -1565,7 +2234,8 @@ mod tests {
                     {{ Key: "new_setting", Value: "1" }}
                 ]);
             }};
-        "#);
+        "#
+        );
         let mut engine = ScriptEngine::new().unwrap();
         engine.load_handler_script(&script).unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
@@ -1582,12 +2252,14 @@ mod tests {
         let write_arr_str = write_arr_file.to_str().unwrap().replace('\\', "/");
         let write_var_str = write_var_file.to_str().unwrap().replace('\\', "/");
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             Game.Play = function() {{
                 Context.WriteTextFile("{write_arr_str}", ["line1", "line2", 42]);
                 Context.WriteTextFile("{write_var_str}", "first", "second", 99);
             }};
-        "#);
+        "#
+        );
         let mut engine = ScriptEngine::new().unwrap();
         engine.load_handler_script(&script).unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
@@ -1610,11 +2282,13 @@ mod tests {
         let patch_src_str = patch_src.to_str().unwrap().replace('\\', "/");
         let patch_dst_str = patch_dst.to_str().unwrap().replace('\\', "/");
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             Game.Play = function() {{
                 Context.PatchFile("{patch_src_str}", "{patch_dst_str}", "World", "Earth");
             }};
-        "#);
+        "#
+        );
         let mut engine = ScriptEngine::new().unwrap();
         engine.load_handler_script(&script).unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
@@ -1630,11 +2304,13 @@ mod tests {
         let pattern_src_str = pattern_src.to_str().unwrap().replace('\\', "/");
         let pattern_dst_str = pattern_dst.to_str().unwrap().replace('\\', "/");
 
-        let script = format!(r#"
+        let script = format!(
+            r#"
             Game.Play = function() {{
                 Context.PatchFileFindPattern("{pattern_src_str}", "{pattern_dst_str}", "BB CC", 0x2211, 1, false);
             }};
-        "#);
+        "#
+        );
         let mut engine = ScriptEngine::new().unwrap();
         engine.load_handler_script(&script).unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
@@ -1673,11 +2349,23 @@ mod tests {
         let config = engine.load_handler_script(script).unwrap();
 
         assert!(config.use_autohotkey);
-        assert_eq!(config.autohotkey_version, nucleus_tools::autohotkey::AhkVersion::V2);
+        assert_eq!(
+            config.autohotkey_version,
+            nucleus_tools::autohotkey::AhkVersion::V2
+        );
         assert_eq!(config.autohotkey_files.as_ref().unwrap().len(), 2);
-        assert_eq!(config.autohotkey_files.as_ref().unwrap()[0], "scripts/key_remap.ahk");
-        assert_eq!(config.autohotkey_code.as_deref(), Some("WinSetTitle, A,, CustomTitle"));
-        assert_eq!(config.autohotkey_timing, nucleus_tools::autohotkey::AhkTiming::Immediate);
+        assert_eq!(
+            config.autohotkey_files.as_ref().unwrap()[0],
+            "scripts/key_remap.ahk"
+        );
+        assert_eq!(
+            config.autohotkey_code.as_deref(),
+            Some("WinSetTitle, A,, CustomTitle")
+        );
+        assert_eq!(
+            config.autohotkey_timing,
+            nucleus_tools::autohotkey::AhkTiming::Immediate
+        );
 
         assert_eq!(config.ludusavi_title.as_deref(), Some("Portal 2"));
         assert_eq!(config.ludusavi_paths.as_ref().unwrap().len(), 2);
@@ -1698,7 +2386,10 @@ mod tests {
         assert_eq!(ctx.ahk_directives[0].args, vec!["--pin", "1"]);
 
         assert!(ctx.ahk_directives[1].is_inline);
-        assert_eq!(ctx.ahk_directives[1].content, "ToolTip, Player Launched, 10, 10");
+        assert_eq!(
+            ctx.ahk_directives[1].content,
+            "ToolTip, Player Launched, 10, 10"
+        );
         assert_eq!(ctx.ahk_directives[1].timing.as_deref(), Some("PostWindow"));
     }
 
@@ -1719,11 +2410,10 @@ mod tests {
 
         let mut engine = ScriptEngine::new().unwrap();
         let mut ctx = crate::handler_context::HandlerContext::new(0, "Player1".to_string());
-        engine.execute_play_with_debugger("test_handler.js", script, None, &mut ctx, &controller).unwrap();
+        engine
+            .execute_play_with_debugger("test_handler.js", script, None, &mut ctx, &controller)
+            .unwrap();
 
         assert_eq!(ctx.start_arguments, "-test -w 30");
     }
 }
-
-
-

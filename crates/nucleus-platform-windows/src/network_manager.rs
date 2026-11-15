@@ -38,4 +38,3 @@ impl NetworkManager for WindowsNetworkManager {
         Ok(())
     }
 }
-

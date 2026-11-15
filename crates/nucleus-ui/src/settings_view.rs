@@ -5,16 +5,16 @@
 //! and windows merger layout options matching C# Nucleus Co-op parity,
 //! rethemed and modernized to Adobe Spectrum 2 design principles.
 
-use gpui::prelude::*;
-use gpui::*;
-use gpui_component::Icon;
-use gpui_kit_assets::IconName;
 use crate::components::button::{CouchButton, CouchButtonSize};
 use crate::components::option_row::CouchOptionRow;
 use crate::components::search_bar::CouchSearchBar;
 use crate::nefos::*;
 use crate::theme;
 use crate::window::{ActiveTab, MainWindow};
+use gpui::prelude::*;
+use gpui::*;
+use gpui_component::Icon;
+use gpui_kit_assets::IconName;
 
 thread_local! {
     static SETTINGS_SEARCH_FOCUS: std::cell::RefCell<Option<FocusHandle>> = std::cell::RefCell::new(None);
@@ -315,7 +315,6 @@ pub fn format_shortcut_combo(modifiers: &gpui::Modifiers, key_str: &str) -> Stri
     }
 }
 
-
 /// Helper function to render an Apple-style sidebar navigation item.
 fn render_sidebar_nav_item(
     id: &'static str,
@@ -369,9 +368,7 @@ fn render_sidebar_nav_item(
                     this.text_color(theme::text_primary())
                         .font_weight(FontWeight::SEMIBOLD)
                 })
-                .when(!is_active, |this| {
-                    this.text_color(theme::text_muted())
-                })
+                .when(!is_active, |this| this.text_color(theme::text_muted()))
                 .child(label),
         )
         .into_any_element()
@@ -564,49 +561,41 @@ pub fn render_settings_empty_state() -> AnyElement {
         .id("settings-search-empty-container")
         .w_full()
         .child(
-            NefosCard::surface("card-settings-search-empty")
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .items_center()
-                        .justify_center()
-                        .py_12()
-                        .gap_3()
-                        .child(
-                            div()
-                                .p_3()
-                                .rounded_full()
-                                .bg(theme::bg_subtle())
-                                .child(
-                                    Icon::new(IconName::Search)
-                                        .size_8()
-                                        .text_color(theme::text_muted()),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .text_base()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(theme::text_primary())
-                                .child("No settings found"),
-                        )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child("Try searching for a different keyword"),
+            NefosCard::surface("card-settings-search-empty").child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .items_center()
+                    .justify_center()
+                    .py_12()
+                    .gap_3()
+                    .child(
+                        div().p_3().rounded_full().bg(theme::bg_subtle()).child(
+                            Icon::new(IconName::Search)
+                                .size_8()
+                                .text_color(theme::text_muted()),
                         ),
-                ),
+                    )
+                    .child(
+                        div()
+                            .text_base()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::text_primary())
+                            .child("No settings found"),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child("Try searching for a different keyword"),
+                    ),
+            ),
         )
         .into_any_element()
 }
 
 /// Renders the complete settings view with all configuration categories.
-pub fn render_settings_view(
-    win: &MainWindow,
-    cx: &mut Context<MainWindow>,
-) -> AnyElement {
+pub fn render_settings_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
     let active_cat = win.settings_view.active_category;
     let search_query = win.settings_view.search_query.clone();
 
@@ -629,7 +618,11 @@ pub fn render_settings_view(
                 .flex()
                 .items_center()
                 .gap_2()
-                .child(Icon::new(IconName::Settings).size_5().text_color(theme::accent()))
+                .child(
+                    Icon::new(IconName::Settings)
+                        .size_5()
+                        .text_color(theme::accent()),
+                )
                 .child(
                     div()
                         .text_base()
@@ -643,28 +636,33 @@ pub fn render_settings_view(
                 .placeholder("Search settings...")
                 .query(search_query.clone())
                 .focus_handle(&search_focus)
-                .on_key_down(cx.listener(|this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
-                    if event.keystroke.modifiers.control || event.keystroke.modifiers.alt || event.keystroke.modifiers.platform {
-                        return;
-                    }
-                    let key = event.keystroke.key.as_str();
-                    if key.eq_ignore_ascii_case("backspace") {
-                        this.settings_view.search_query.pop();
-                        cx.notify();
-                    } else if key.eq_ignore_ascii_case("escape") {
-                        this.settings_view.search_query.clear();
-                        cx.notify();
-                    } else if key.eq_ignore_ascii_case("space") {
-                        this.settings_view.search_query.push(' ');
-                        cx.notify();
-                    } else if let Some(ref s) = event.keystroke.key_char {
-                        this.settings_view.search_query.push_str(s);
-                        cx.notify();
-                    } else if key.chars().count() == 1 {
-                        this.settings_view.search_query.push_str(key);
-                        cx.notify();
-                    }
-                }))
+                .on_key_down(cx.listener(
+                    |this: &mut MainWindow, event: &gpui::KeyDownEvent, _window, cx| {
+                        if event.keystroke.modifiers.control
+                            || event.keystroke.modifiers.alt
+                            || event.keystroke.modifiers.platform
+                        {
+                            return;
+                        }
+                        let key = event.keystroke.key.as_str();
+                        if key.eq_ignore_ascii_case("backspace") {
+                            this.settings_view.search_query.pop();
+                            cx.notify();
+                        } else if key.eq_ignore_ascii_case("escape") {
+                            this.settings_view.search_query.clear();
+                            cx.notify();
+                        } else if key.eq_ignore_ascii_case("space") {
+                            this.settings_view.search_query.push(' ');
+                            cx.notify();
+                        } else if let Some(ref s) = event.keystroke.key_char {
+                            this.settings_view.search_query.push_str(s);
+                            cx.notify();
+                        } else if key.chars().count() == 1 {
+                            this.settings_view.search_query.push_str(key);
+                            cx.notify();
+                        }
+                    },
+                ))
                 .on_clear(cx.listener(|this, _, _, cx| {
                     this.settings_view.search_query.clear();
                     cx.notify();
@@ -842,7 +840,8 @@ pub fn render_settings_view(
         match active_cat {
             SettingsCategory::General => (
                 "General & Isolation".into(),
-                "Application preferences, language, network adapter, and instance isolation flags".into(),
+                "Application preferences, language, network adapter, and instance isolation flags"
+                    .into(),
             ),
             SettingsCategory::Hotkeys => (
                 "Hotkeys & Shortcuts".into(),
@@ -858,7 +857,8 @@ pub fn render_settings_view(
             ),
             SettingsCategory::Layout => (
                 "Layout & Windows Merger".into(),
-                "Custom splitscreen partitions, Windows Merger settings, and viewport scaling".into(),
+                "Custom splitscreen partitions, Windows Merger settings, and viewport scaling"
+                    .into(),
             ),
             SettingsCategory::Appearance => (
                 "Appearance & Paths".into(),
@@ -866,7 +866,8 @@ pub fn render_settings_view(
             ),
             SettingsCategory::Network => (
                 "Network & Emulation".into(),
-                "Loopback IP address isolation (127.0.0.X) and Goldberg Steam Emulator parameters".into(),
+                "Loopback IP address isolation (127.0.0.X) and Goldberg Steam Emulator parameters"
+                    .into(),
             ),
         }
     };
@@ -956,15 +957,11 @@ pub fn render_settings_view(
                                     .flex_col()
                                     .gap_2()
                                     .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(
-                                                NefosTag::new(card.category.label())
-                                                    .tone(NefosTagTone::Accent)
-                                                    .icon(card.category.icon()),
-                                            ),
+                                        div().flex().items_center().gap_2().child(
+                                            NefosTag::new(card.category.label())
+                                                .tone(NefosTagTone::Accent)
+                                                .icon(card.category.icon()),
+                                        ),
                                     )
                                     .child((card.render)(win, cx))
                             }))
@@ -997,7 +994,10 @@ pub fn render_settings_view(
 }
 
 /// Renders Card: Languages & Network Adapter.
-pub fn render_card_general_lang_network(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_general_lang_network(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let settings = &win.app_settings;
     NefosCard::surface("card-general-lang-network")
         .title_text("Languages & Network Adapter")
@@ -1190,7 +1190,14 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
             settings.debug_log,
             cx.listener(|this, _, _, cx| {
                 this.app_settings.debug_log = !this.app_settings.debug_log;
-                this.status_message = format!("Debug log {}", if this.app_settings.debug_log { "enabled" } else { "disabled" });
+                this.status_message = format!(
+                    "Debug log {}",
+                    if this.app_settings.debug_log {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                );
                 cx.notify();
             }),
         ))
@@ -1226,12 +1233,9 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
                                 .text_color(theme::text_primary())
                                 .child("Windows User Account Password"),
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child("Password for generated Windows player user accounts (C# Parity)"),
-                        ),
+                        .child(div().text_xs().text_color(theme::text_muted()).child(
+                            "Password for generated Windows player user accounts (C# Parity)",
+                        )),
                 )
                 .child(
                     div()
@@ -1252,25 +1256,45 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
                                 .text_color(theme::text_primary())
                                 .child(settings.nucleus_account_password.clone()),
                         )
-                        .children(["12345", "nucleus2026", "splitscreen", "gamerpass"].iter().enumerate().map(|(p_idx, &preset)| {
-                            let is_act = settings.nucleus_account_password == preset;
-                            div()
-                                .id(("pass-preset", p_idx))
-                                .cursor_pointer()
-                                .px_2()
-                                .py_0p5()
-                                .rounded_md()
-                                .text_xs()
-                                .border_1()
-                                .when(is_act, |s| s.bg(theme::accent()).border_color(theme::accent()).text_color(theme::text_on_accent()).font_weight(FontWeight::BOLD))
-                                .when(!is_act, |s| s.bg(theme::bg_panel()).border_color(theme::border_subtle()).text_color(theme::text_muted()).hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary())))
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.app_settings.nucleus_account_password = preset.to_string();
-                                    this.status_message = format!("Account password set to: {}", preset);
-                                    cx.notify();
-                                }))
-                                .child(preset)
-                        })),
+                        .children(
+                            ["12345", "nucleus2026", "splitscreen", "gamerpass"]
+                                .iter()
+                                .enumerate()
+                                .map(|(p_idx, &preset)| {
+                                    let is_act = settings.nucleus_account_password == preset;
+                                    div()
+                                        .id(("pass-preset", p_idx))
+                                        .cursor_pointer()
+                                        .px_2()
+                                        .py_0p5()
+                                        .rounded_md()
+                                        .text_xs()
+                                        .border_1()
+                                        .when(is_act, |s| {
+                                            s.bg(theme::accent())
+                                                .border_color(theme::accent())
+                                                .text_color(theme::text_on_accent())
+                                                .font_weight(FontWeight::BOLD)
+                                        })
+                                        .when(!is_act, |s| {
+                                            s.bg(theme::bg_panel())
+                                                .border_color(theme::border_subtle())
+                                                .text_color(theme::text_muted())
+                                                .hover(|h| {
+                                                    h.bg(theme::bg_hover())
+                                                        .text_color(theme::text_primary())
+                                                })
+                                        })
+                                        .on_click(cx.listener(move |this, _, _, cx| {
+                                            this.app_settings.nucleus_account_password =
+                                                preset.to_string();
+                                            this.status_message =
+                                                format!("Account password set to: {}", preset);
+                                            cx.notify();
+                                        }))
+                                        .child(preset)
+                                }),
+                        ),
                 ),
         )
         .child(render_toggle(
@@ -1278,7 +1302,8 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
             "Allow running multiple concurrent Nucleus Co-op launcher windows",
             settings.nucleus_multi_instances,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.nucleus_multi_instances = !this.app_settings.nucleus_multi_instances;
+                this.app_settings.nucleus_multi_instances =
+                    !this.app_settings.nucleus_multi_instances;
                 cx.notify();
             }),
         ))
@@ -1289,7 +1314,18 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
             cx.listener(|this, _, _, cx| {
                 this.app_settings.disable_game_profiles = !this.app_settings.disable_game_profiles;
                 let _ = this.app_settings.save();
-                this.show_osd(&format!("Game Profiles {}", if this.app_settings.disable_game_profiles { "Disabled" } else { "Enabled" }), 600, cx);
+                this.show_osd(
+                    &format!(
+                        "Game Profiles {}",
+                        if this.app_settings.disable_game_profiles {
+                            "Disabled"
+                        } else {
+                            "Enabled"
+                        }
+                    ),
+                    600,
+                    cx,
+                );
                 cx.notify();
             }),
         ))
@@ -1298,7 +1334,8 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
             "Suppress the OSD reminder asking to lock inputs with the End key",
             settings.ignore_input_lock_reminder,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.ignore_input_lock_reminder = !this.app_settings.ignore_input_lock_reminder;
+                this.app_settings.ignore_input_lock_reminder =
+                    !this.app_settings.ignore_input_lock_reminder;
                 cx.notify();
             }),
         ))
@@ -1324,7 +1361,10 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
 }
 
 /// Renders Card: Community Hub Account & Ecosystem Integrations.
-pub fn render_card_general_integrations(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_general_integrations(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     NefosCard::surface("card-general-integrations")
         .title_text("Community Hub & Advanced Integrations")
         .description_text("Hub account credentials, AutoHotkey runtime, and extensions")
@@ -1345,16 +1385,13 @@ pub fn render_card_general_integrations(win: &MainWindow, cx: &mut Context<MainW
                                 .text_color(theme::text_primary())
                                 .child("Splitscreen.Me Hub Account"),
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child(if let Some(ref acct) = win.hub_account_summary {
-                                    format!("Signed in as: {}", acct.username)
-                                } else {
-                                    "Guest (Sign in to upload handlers, comment, and rate)".to_string()
-                                }),
-                        ),
+                        .child(div().text_xs().text_color(theme::text_muted()).child(
+                            if let Some(ref acct) = win.hub_account_summary {
+                                format!("Signed in as: {}", acct.username)
+                            } else {
+                                "Guest (Sign in to upload handlers, comment, and rate)".to_string()
+                            },
+                        )),
                 )
                 .child(
                     CouchButton::secondary("btn-settings-hub-account", "Manage Account")
@@ -1383,12 +1420,9 @@ pub fn render_card_general_integrations(win: &MainWindow, cx: &mut Context<MainW
                                 .text_color(theme::text_primary())
                                 .child("Extensions & Runtime Add-ons"),
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child("Manage sandboxed WASM extensions, AutoHotkey scripts, and JS add-ons"),
-                        ),
+                        .child(div().text_xs().text_color(theme::text_muted()).child(
+                            "Manage sandboxed WASM extensions, AutoHotkey scripts, and JS add-ons",
+                        )),
                 )
                 .child(
                     CouchButton::secondary("btn-settings-extensions", "Open Extensions")
@@ -1568,7 +1602,10 @@ pub fn render_card_hotkeys_lock_key(win: &MainWindow, cx: &mut Context<MainWindo
 }
 
 /// Renders Card: Controller Shortcuts & Gamepad UI Navigation.
-pub fn render_card_hotkeys_controller(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_hotkeys_controller(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let settings = &win.app_settings;
     NefosCard::surface("card-hotkeys-controller")
         .title_text("Controller Shortcuts & Gamepad UI Navigation")
@@ -1767,8 +1804,8 @@ fn render_hotkeys_tab(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElem
 /// Helper to render the quick dropdown picker for lock key.
 fn render_lock_key_dropdown(current_key: &str, cx: &mut Context<MainWindow>) -> AnyElement {
     let keys = [
-        "End", "Home", "Delete", "Multiply", "F1", "F2", "F3", "F4",
-        "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+        "End", "Home", "Delete", "Multiply", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9",
+        "F10", "F11", "F12",
     ];
     let key_items = keys.iter().enumerate().map(|(idx, &k)| {
         let is_current = current_key.eq_ignore_ascii_case(k);
@@ -1819,18 +1856,16 @@ fn render_lock_key_dropdown(current_key: &str, cx: &mut Context<MainWindow>) -> 
                 .text_color(theme::text_muted())
                 .child("Choose Lock Inputs Key:"),
         )
-        .child(
-            div()
-                .flex()
-                .flex_wrap()
-                .gap_1p5()
-                .children(key_items),
-        )
+        .child(div().flex().flex_wrap().gap_1p5().children(key_items))
         .into_any_element()
 }
 
 /// Helper to render the quick dropdown picker for a shortcut.
-fn render_shortcut_dropdown(sc_id: &'static str, cur_val: &str, cx: &mut Context<MainWindow>) -> AnyElement {
+fn render_shortcut_dropdown(
+    sc_id: &'static str,
+    cur_val: &str,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let combos = [
         "Ctrl+Q", "Ctrl+S", "Ctrl+T", "Ctrl+F", "Ctrl+R", "Ctrl+M", "Ctrl+W", "Ctrl+H", "Ctrl+Tab",
         "Alt+Q", "Alt+W", "Alt+F4", "Shift+F1", "Shift+F2", "Ctrl+1", "Ctrl+2", "Ctrl+3", "Ctrl+4",
@@ -1884,13 +1919,7 @@ fn render_shortcut_dropdown(sc_id: &'static str, cur_val: &str, cx: &mut Context
                 .text_color(theme::text_muted())
                 .child("Quick Select Hotkey Key:"),
         )
-        .child(
-            div()
-                .flex()
-                .flex_wrap()
-                .gap_1p5()
-                .children(items),
-        )
+        .child(div().flex().flex_wrap().gap_1p5().children(items))
         .into_any_element()
 }
 
@@ -1908,102 +1937,121 @@ fn render_shortcut_row(
     let description = meta.description;
     let cur_val_display = cur_val.clone();
 
-    let mut row = div()
-        .flex()
-        .flex_col()
-        .gap_1()
-        .child(
-            div()
-                .id(("shortcut-row", idx))
-                .flex()
-                .items_center()
-                .justify_between()
-                .px_3p5()
-                .py_2()
-                .bg(theme::bg_subtle())
-                .rounded_lg()
-                .border_1()
-                .border_color(if is_rec { theme::border_focus() } else { theme::border_subtle() })
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap_0p5()
-                        .child(
-                            div()
-                                .text_xs()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(theme::text_primary())
-                                .child(name),
+    let mut row = div().flex().flex_col().gap_1().child(
+        div()
+            .id(("shortcut-row", idx))
+            .flex()
+            .items_center()
+            .justify_between()
+            .px_3p5()
+            .py_2()
+            .bg(theme::bg_subtle())
+            .rounded_lg()
+            .border_1()
+            .border_color(if is_rec {
+                theme::border_focus()
+            } else {
+                theme::border_subtle()
+            })
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_0p5()
+                    .child(
+                        div()
+                            .text_xs()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(theme::text_primary())
+                            .child(name),
+                    )
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child(description),
+                    ),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap_2()
+                    .child(
+                        div()
+                            .px_3()
+                            .py_1()
+                            .rounded_md()
+                            .bg(if is_rec {
+                                theme::accent_subtle()
+                            } else {
+                                theme::bg_panel()
+                            })
+                            .border_1()
+                            .border_color(if is_rec {
+                                theme::border_focus()
+                            } else {
+                                theme::border_color()
+                            })
+                            .text_xs()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(if is_rec {
+                                theme::accent()
+                            } else {
+                                theme::text_primary()
+                            })
+                            .child(if is_rec {
+                                "Press keys...".to_string()
+                            } else {
+                                cur_val_display
+                            }),
+                    )
+                    .child(
+                        CouchButton::secondary(
+                            ("btn-record-sc", idx),
+                            if is_rec { "Listening..." } else { "Record" },
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::text_muted())
-                                .child(description),
-                        ),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap_2()
-                        .child(
-                            div()
-                                .px_3()
-                                .py_1()
-                                .rounded_md()
-                                .bg(if is_rec { theme::accent_subtle() } else { theme::bg_panel() })
-                                .border_1()
-                                .border_color(if is_rec { theme::border_focus() } else { theme::border_color() })
-                                .text_xs()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(if is_rec { theme::accent() } else { theme::text_primary() })
-                                .child(if is_rec {
-                                    "Press keys...".to_string()
-                                } else {
-                                    cur_val_display
-                                }),
-                        )
-                        .child(
-                            CouchButton::secondary(
-                                ("btn-record-sc", idx),
-                                if is_rec { "Listening..." } else { "Record" },
-                            )
-                            .size(CouchButtonSize::Sm)
-                            .on_click(cx.listener(move |this, _, window, cx| {
+                        .size(CouchButtonSize::Sm)
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| {
                                 this.settings_view.recording_hotkey = Some(sc_id.to_string());
                                 this.settings_view.dropdown_hotkey = None;
-                                this.status_message = format!("Press key or shortcut combination for {}...", name);
+                                this.status_message =
+                                    format!("Press key or shortcut combination for {}...", name);
                                 if let Some(ref f) = this.hotkey_record_focus {
                                     f.focus(window, cx);
                                 }
                                 cx.notify();
+                            },
+                        )),
+                    )
+                    .child(
+                        CouchButton::secondary(("btn-drop-sc", idx), "Select ▾")
+                            .size(CouchButtonSize::Sm)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let cur = this.settings_view.dropdown_hotkey.as_deref();
+                                this.settings_view.dropdown_hotkey = if cur == Some(sc_id) {
+                                    None
+                                } else {
+                                    Some(sc_id.to_string())
+                                };
+                                this.settings_view.recording_hotkey = None;
+                                cx.notify();
                             })),
-                        )
-                        .child(
-                            CouchButton::secondary(("btn-drop-sc", idx), "Select ▾")
-                                .size(CouchButtonSize::Sm)
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    let cur = this.settings_view.dropdown_hotkey.as_deref();
-                                    this.settings_view.dropdown_hotkey = if cur == Some(sc_id) { None } else { Some(sc_id.to_string()) };
-                                    this.settings_view.recording_hotkey = None;
-                                    cx.notify();
-                                })),
-                        )
-                        .child(
-                            CouchButton::secondary(("btn-reset-sc", idx), "↺")
-                                .size(CouchButtonSize::Sm)
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    let def = get_default_hotkey(sc_id).to_string();
-                                    set_hotkey_value(&mut this.app_settings, sc_id, def.clone());
-                                    this.status_message = format!("Shortcut reset to: {}", def);
-                                    this.show_osd(&format!("Shortcut: {}", def), 600, cx);
-                                    cx.notify();
-                                })),
-                        ),
-                ),
-        );
+                    )
+                    .child(
+                        CouchButton::secondary(("btn-reset-sc", idx), "↺")
+                            .size(CouchButtonSize::Sm)
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                let def = get_default_hotkey(sc_id).to_string();
+                                set_hotkey_value(&mut this.app_settings, sc_id, def.clone());
+                                this.status_message = format!("Shortcut reset to: {}", def);
+                                this.show_osd(&format!("Shortcut: {}", def), 600, cx);
+                                cx.notify();
+                            })),
+                    ),
+            ),
+    );
 
     if is_drop {
         row = row.child(render_shortcut_dropdown(sc_id, &cur_val, cx));
@@ -2019,7 +2067,9 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
 
     NefosCard::surface("card-players-controls")
         .title_text("Player Management & Options")
-        .description_text("Switch between player slots 1-16 and 17-32, toggle assignment rules, and batch reset")
+        .description_text(
+            "Switch between player slots 1-16 and 17-32, toggle assignment rules, and batch reset",
+        )
         .child(
             div()
                 .flex()
@@ -2042,7 +2092,12 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
                                     this.bg(theme::accent()).text_color(theme::text_on_accent())
                                 })
                                 .when(page != 0, |this| {
-                                    this.bg(theme::bg_subtle()).text_color(theme::text_muted()).hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                                    this.bg(theme::bg_subtle())
+                                        .text_color(theme::text_muted())
+                                        .hover(|s| {
+                                            s.bg(theme::bg_hover())
+                                                .text_color(theme::text_primary())
+                                        })
                                 })
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.settings_view.player_page = 0;
@@ -2063,7 +2118,12 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
                                     this.bg(theme::accent()).text_color(theme::text_on_accent())
                                 })
                                 .when(page != 1, |this| {
-                                    this.bg(theme::bg_subtle()).text_color(theme::text_muted()).hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                                    this.bg(theme::bg_subtle())
+                                        .text_color(theme::text_muted())
+                                        .hover(|s| {
+                                            s.bg(theme::bg_hover())
+                                                .text_color(theme::text_primary())
+                                        })
                                 })
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.settings_view.player_page = 1;
@@ -2072,18 +2132,26 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
                                 .child("Page 2 (Players 17 - 32)"),
                         )
                         .child(
-                            CouchButton::danger("btn-reset-players", "Reset All 32 Players to Defaults")
-                                .icon(IconName::RotateCcw)
-                                .size(CouchButtonSize::Sm)
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    for p in 0..32 {
-                                        this.app_settings.set_player_nickname(p, format!("Player{}", p + 1));
-                                        this.app_settings.set_player_steam_id(p, format!("765611980000000{:02}", p + 1));
-                                    }
-                                    this.status_message = "All 32 player profiles reset to defaults".to_string();
-                                    this.show_osd("Profiles Reset to Default", 800, cx);
-                                    cx.notify();
-                                })),
+                            CouchButton::danger(
+                                "btn-reset-players",
+                                "Reset All 32 Players to Defaults",
+                            )
+                            .icon(IconName::RotateCcw)
+                            .size(CouchButtonSize::Sm)
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                for p in 0..32 {
+                                    this.app_settings
+                                        .set_player_nickname(p, format!("Player{}", p + 1));
+                                    this.app_settings.set_player_steam_id(
+                                        p,
+                                        format!("765611980000000{:02}", p + 1),
+                                    );
+                                }
+                                this.status_message =
+                                    "All 32 player profiles reset to defaults".to_string();
+                                this.show_osd("Profiles Reset to Default", 800, cx);
+                                cx.notify();
+                            })),
                         ),
                 )
                 .child(
@@ -2095,7 +2163,8 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
                             "Assign by Button Press",
                             settings.profile_assign_gamepad_by_button_press,
                             cx.listener(|this, _, _, cx| {
-                                this.app_settings.profile_assign_gamepad_by_button_press = !this.app_settings.profile_assign_gamepad_by_button_press;
+                                this.app_settings.profile_assign_gamepad_by_button_press =
+                                    !this.app_settings.profile_assign_gamepad_by_button_press;
                                 cx.notify();
                             }),
                         ))
@@ -2103,7 +2172,8 @@ pub fn render_card_players_controls(win: &MainWindow, cx: &mut Context<MainWindo
                             "Use XInput Index",
                             settings.use_xinput_index,
                             cx.listener(|this, _, _, cx| {
-                                this.app_settings.use_xinput_index = !this.app_settings.use_xinput_index;
+                                this.app_settings.use_xinput_index =
+                                    !this.app_settings.use_xinput_index;
                                 cx.notify();
                             }),
                         )),
@@ -2119,7 +2189,11 @@ pub fn render_card_players_slots(win: &MainWindow, cx: &mut Context<MainWindow>)
     let (start_idx, end_idx) = if page == 0 { (0, 16) } else { (16, 32) };
 
     NefosCard::surface("card-players-slots")
-        .title_text(format!("Player Profiles (Slots {} - {})", start_idx + 1, end_idx))
+        .title_text(format!(
+            "Player Profiles (Slots {} - {})",
+            start_idx + 1,
+            end_idx
+        ))
         .description_text("Customize player nicknames and Steam IDs (1 - 32) passed into emulators")
         .child(
             // Table Header
@@ -2180,21 +2254,16 @@ fn render_player_row(
         .border_color(theme::border_subtle())
         .text_xs()
         .child(
-            div()
-                .w(px(80.0))
-                .flex()
-                .items_center()
-                .gap_1p5()
-                .child(
-                    div()
-                        .px_2()
-                        .py_0p5()
-                        .rounded_md()
-                        .bg(theme::accent())
-                        .text_color(theme::text_on_accent())
-                        .font_weight(FontWeight::BOLD)
-                        .child(format!("#{}", idx + 1)),
-                ),
+            div().w(px(80.0)).flex().items_center().gap_1p5().child(
+                div()
+                    .px_2()
+                    .py_0p5()
+                    .rounded_md()
+                    .bg(theme::accent())
+                    .text_color(theme::text_on_accent())
+                    .font_weight(FontWeight::BOLD)
+                    .child(format!("#{}", idx + 1)),
+            ),
         )
         .child({
             let is_editing_nick = editing_player == Some((idx, PlayerEditField::Nickname));
@@ -2324,7 +2393,11 @@ fn render_player_row(
                 })
                 .when(!is_editing_sid, |this| {
                     this.bg(theme::bg_active())
-                        .border_color(if is_valid { theme::border_color() } else { theme::danger() })
+                        .border_color(if is_valid {
+                            theme::border_color()
+                        } else {
+                            theme::danger()
+                        })
                         .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
                         .child(
                             div()
@@ -2333,7 +2406,11 @@ fn render_player_row(
                                 .gap_2()
                                 .child(
                                     div()
-                                        .text_color(if is_valid { theme::text_muted() } else { theme::danger() })
+                                        .text_color(if is_valid {
+                                            theme::text_muted()
+                                        } else {
+                                            theme::danger()
+                                        })
                                         .child(steam_id_val),
                                 )
                                 .when(!is_valid, |el| {
@@ -2378,7 +2455,9 @@ pub fn render_card_audio_mode(win: &MainWindow, cx: &mut Context<MainWindow>) ->
 
     NefosCard::surface("card-audio-mode")
         .title_text("Audio Output Device Mode")
-        .description_text("Select between system default audio or separate routing for each player instance")
+        .description_text(
+            "Select between system default audio or separate routing for each player instance",
+        )
         .child(
             div()
                 .flex()
@@ -2405,10 +2484,15 @@ pub fn render_card_audio_mode(win: &MainWindow, cx: &mut Context<MainWindow>) ->
                                 .text_xs()
                                 .border_1()
                                 .when(!settings.audio_custom, |this| {
-                                    this.bg(theme::accent()).border_color(theme::accent()).text_color(theme::text_on_accent()).font_weight(FontWeight::BOLD)
+                                    this.bg(theme::accent())
+                                        .border_color(theme::accent())
+                                        .text_color(theme::text_on_accent())
+                                        .font_weight(FontWeight::BOLD)
                                 })
                                 .when(settings.audio_custom, |this| {
-                                    this.bg(theme::bg_subtle()).border_color(theme::border_subtle()).text_color(theme::text_muted())
+                                    this.bg(theme::bg_subtle())
+                                        .border_color(theme::border_subtle())
+                                        .text_color(theme::text_muted())
                                 })
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.app_settings.audio_custom = false;
@@ -2426,10 +2510,15 @@ pub fn render_card_audio_mode(win: &MainWindow, cx: &mut Context<MainWindow>) ->
                                 .text_xs()
                                 .border_1()
                                 .when(settings.audio_custom, |this| {
-                                    this.bg(theme::accent()).border_color(theme::accent()).text_color(theme::text_on_accent()).font_weight(FontWeight::BOLD)
+                                    this.bg(theme::accent())
+                                        .border_color(theme::accent())
+                                        .text_color(theme::text_on_accent())
+                                        .font_weight(FontWeight::BOLD)
                                 })
                                 .when(!settings.audio_custom, |this| {
-                                    this.bg(theme::bg_subtle()).border_color(theme::border_subtle()).text_color(theme::text_muted())
+                                    this.bg(theme::bg_subtle())
+                                        .border_color(theme::border_subtle())
+                                        .text_color(theme::text_muted())
                                 })
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.app_settings.audio_custom = true;
@@ -2551,28 +2640,29 @@ fn render_audio_instance_row(
                         .rounded_md()
                         .bg(theme::bg_panel())
                         .border_1()
-                        .border_color(if is_dropdown_open { theme::accent() } else { theme::border_color() })
+                        .border_color(if is_dropdown_open {
+                            theme::accent()
+                        } else {
+                            theme::border_color()
+                        })
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::text_primary())
                         .hover(|s| s.bg(theme::bg_hover()))
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            this.settings_view.dropdown_audio_instance = if this.settings_view.dropdown_audio_instance == Some(idx) {
-                                None
-                            } else {
-                                Some(idx)
-                            };
+                            this.settings_view.dropdown_audio_instance =
+                                if this.settings_view.dropdown_audio_instance == Some(idx) {
+                                    None
+                                } else {
+                                    Some(idx)
+                                };
                             cx.notify();
                         }))
-                        .child(
-                            div()
-                                .max_w(px(240.0))
-                                .child(dev.clone())
-                        )
+                        .child(div().max_w(px(240.0)).child(dev.clone()))
                         .child(
                             div()
                                 .text_color(theme::accent())
-                                .child(if is_dropdown_open { "▲" } else { "▼" })
+                                .child(if is_dropdown_open { "▲" } else { "▼" }),
                         ),
                 ),
         )
@@ -2614,12 +2704,13 @@ fn render_audio_instance_row(
                             .on_click(cx.listener(move |this, _, _, cx| {
                                 this.app_settings.set_audio_instance(idx, &d_name);
                                 this.settings_view.dropdown_audio_instance = None;
-                                this.status_message = format!("Instance {} audio set to {}", idx + 1, d_name);
+                                this.status_message =
+                                    format!("Instance {} audio set to {}", idx + 1, d_name);
                                 cx.notify();
                             }))
                             .child(device_name)
                             .child(if is_selected { "✓" } else { "" })
-                    }))
+                    })),
             )
         })
         .into_any_element()
@@ -2662,14 +2753,20 @@ pub fn render_card_layout_merger(win: &MainWindow, cx: &mut Context<MainWindow>)
                         .child("Merger Target Window Resolution:"),
                 )
                 .child(
-                    div()
-                        .flex()
-                        .flex_wrap()
-                        .gap_1p5()
-                        .children([
-                            "Screen Native", "1920x1080", "2560x1440", "3840x2160", "1280x720",
-                        ].iter().enumerate().map(|(idx, &res)| {
-                            let is_active = settings.merger_resolution.eq_ignore_ascii_case(res) || (settings.merger_resolution.is_empty() && res.eq_ignore_ascii_case("Screen Native"));
+                    div().flex().flex_wrap().gap_1p5().children(
+                        [
+                            "Screen Native",
+                            "1920x1080",
+                            "2560x1440",
+                            "3840x2160",
+                            "1280x720",
+                        ]
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, &res)| {
+                            let is_active = settings.merger_resolution.eq_ignore_ascii_case(res)
+                                || (settings.merger_resolution.is_empty()
+                                    && res.eq_ignore_ascii_case("Screen Native"));
                             let res_val = res.to_string();
                             div()
                                 .id(("merger-res", idx))
@@ -2693,11 +2790,13 @@ pub fn render_card_layout_merger(win: &MainWindow, cx: &mut Context<MainWindow>)
                                 })
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.app_settings.merger_resolution = res_val.clone();
-                                    this.status_message = format!("Merger resolution set to {}", res_val);
+                                    this.status_message =
+                                        format!("Merger resolution set to {}", res_val);
                                     cx.notify();
                                 }))
                                 .child(res)
-                        })),
+                        }),
+                    ),
                 ),
         )
         .into_any_element()
@@ -2740,42 +2839,42 @@ pub fn render_card_layout_dividers(win: &MainWindow, cx: &mut Context<MainWindow
                         .child("Divider Bar Color:"),
                 )
                 .child(
-                    div()
-                        .flex()
-                        .flex_wrap()
-                        .gap_1p5()
-                        .children([
-                            "Black", "White", "Gray", "Red", "Green", "Blue", "Cyan",
-                        ].iter().enumerate().map(|(idx, &col)| {
-                            let is_active = settings.split_div_color.eq_ignore_ascii_case(col);
-                            let col_val = col.to_string();
-                            div()
-                                .id(("split-col", idx))
-                                .cursor_pointer()
-                                .px_2p5()
-                                .py_1()
-                                .rounded_md()
-                                .text_xs()
-                                .border_1()
-                                .when(is_active, |this| {
-                                    this.bg(theme::accent())
-                                        .border_color(theme::accent())
-                                        .text_color(theme::text_on_accent())
-                                        .font_weight(FontWeight::SEMIBOLD)
-                                })
-                                .when(!is_active, |this| {
-                                    this.bg(theme::bg_subtle())
-                                        .border_color(theme::border_subtle())
-                                        .text_color(theme::text_muted())
-                                        .hover(|s| s.bg(theme::bg_hover()))
-                                })
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    this.app_settings.split_div_color = col_val.clone();
-                                    this.status_message = format!("Divider color set to {}", col_val);
-                                    cx.notify();
-                                }))
-                                .child(col)
-                        })),
+                    div().flex().flex_wrap().gap_1p5().children(
+                        ["Black", "White", "Gray", "Red", "Green", "Blue", "Cyan"]
+                            .iter()
+                            .enumerate()
+                            .map(|(idx, &col)| {
+                                let is_active = settings.split_div_color.eq_ignore_ascii_case(col);
+                                let col_val = col.to_string();
+                                div()
+                                    .id(("split-col", idx))
+                                    .cursor_pointer()
+                                    .px_2p5()
+                                    .py_1()
+                                    .rounded_md()
+                                    .text_xs()
+                                    .border_1()
+                                    .when(is_active, |this| {
+                                        this.bg(theme::accent())
+                                            .border_color(theme::accent())
+                                            .text_color(theme::text_on_accent())
+                                            .font_weight(FontWeight::SEMIBOLD)
+                                    })
+                                    .when(!is_active, |this| {
+                                        this.bg(theme::bg_subtle())
+                                            .border_color(theme::border_subtle())
+                                            .text_color(theme::text_muted())
+                                            .hover(|s| s.bg(theme::bg_hover()))
+                                    })
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        this.app_settings.split_div_color = col_val.clone();
+                                        this.status_message =
+                                            format!("Divider color set to {}", col_val);
+                                        cx.notify();
+                                    }))
+                                    .child(col)
+                            }),
+                    ),
                 ),
         )
         .child(render_stepper_row(
@@ -2784,11 +2883,13 @@ pub fn render_card_layout_dividers(win: &MainWindow, cx: &mut Context<MainWindow
             "hor-lines",
             settings.horizontal_lines,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.horizontal_lines = this.app_settings.horizontal_lines.saturating_sub(1);
+                this.app_settings.horizontal_lines =
+                    this.app_settings.horizontal_lines.saturating_sub(1);
                 cx.notify();
             }),
             cx.listener(|this, _, _, cx| {
-                this.app_settings.horizontal_lines = (this.app_settings.horizontal_lines + 1).min(10);
+                this.app_settings.horizontal_lines =
+                    (this.app_settings.horizontal_lines + 1).min(10);
                 cx.notify();
             }),
         ))
@@ -2798,7 +2899,8 @@ pub fn render_card_layout_dividers(win: &MainWindow, cx: &mut Context<MainWindow
             "ver-lines",
             settings.vertical_lines,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.vertical_lines = this.app_settings.vertical_lines.saturating_sub(1);
+                this.app_settings.vertical_lines =
+                    this.app_settings.vertical_lines.saturating_sub(1);
                 cx.notify();
             }),
             cx.listener(|this, _, _, cx| {
@@ -2812,7 +2914,8 @@ pub fn render_card_layout_dividers(win: &MainWindow, cx: &mut Context<MainWindow
             "max-players",
             settings.max_players,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.max_players = this.app_settings.max_players.saturating_sub(1).max(1);
+                this.app_settings.max_players =
+                    this.app_settings.max_players.saturating_sub(1).max(1);
                 cx.notify();
             }),
             cx.listener(|this, _, _, cx| {
@@ -2829,7 +2932,9 @@ pub fn render_card_layout_cutscenes(win: &MainWindow, cx: &mut Context<MainWindo
 
     NefosCard::surface("card-layout-cutscenes")
         .title_text("Cutscenes Presentation Flags")
-        .description_text("Maintain original aspect ratio and handle audio during cutscene transitions")
+        .description_text(
+            "Maintain original aspect ratio and handle audio during cutscene transitions",
+        )
         .child(render_toggle(
             "Keep Aspect Ratio",
             "Maintain original aspect ratio during cutscene full-screen transitions",
@@ -2880,18 +2985,40 @@ pub fn render_card_appearance_theme(win: &MainWindow, cx: &mut Context<MainWindo
         .title_text("Visual Theme & Palette (Adobe Spectrum 2)")
         .description_text("Choose interface appearance and base light/dark color scheme")
         .child(
-            div()
-                .flex()
-                .gap_3()
-                .children([
-                    ("Spectrum 2 Dark", "Default dark palette with Spectrum blue accents", rgb(0x1d1d1f), rgb(0x2680eb)),
-                    ("Slate Dark", "Cool slate dark palette with cyan highlights", rgb(0x0f172a), rgb(0x38bdf8)),
-                    ("Spectrum 2 Light", "Clean, high-contrast light palette with deep blue", rgb(0xf5f5f7), rgb(0x0265dc)),
-                ].into_iter().enumerate().map(|(idx, (tname, desc, bg_dot, acc_dot))| {
+            div().flex().gap_3().children(
+                [
+                    (
+                        "Spectrum 2 Dark",
+                        "Default dark palette with Spectrum blue accents",
+                        rgb(0x1d1d1f),
+                        rgb(0x2680eb),
+                    ),
+                    (
+                        "Slate Dark",
+                        "Cool slate dark palette with cyan highlights",
+                        rgb(0x0f172a),
+                        rgb(0x38bdf8),
+                    ),
+                    (
+                        "Spectrum 2 Light",
+                        "Clean, high-contrast light palette with deep blue",
+                        rgb(0xf5f5f7),
+                        rgb(0x0265dc),
+                    ),
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(idx, (tname, desc, bg_dot, acc_dot))| {
                     let is_active = current_theme.eq_ignore_ascii_case(tname)
-                        || (tname == "Spectrum 2 Dark" && (current_theme.eq_ignore_ascii_case("Dark") || current_theme.is_empty()))
-                        || (tname == "Slate Dark" && (current_theme.eq_ignore_ascii_case("Slate") || current_theme.to_lowercase().contains("slate")))
-                        || (tname == "Spectrum 2 Light" && (current_theme.eq_ignore_ascii_case("Light") || current_theme.to_lowercase().contains("light")));
+                        || (tname == "Spectrum 2 Dark"
+                            && (current_theme.eq_ignore_ascii_case("Dark")
+                                || current_theme.is_empty()))
+                        || (tname == "Slate Dark"
+                            && (current_theme.eq_ignore_ascii_case("Slate")
+                                || current_theme.to_lowercase().contains("slate")))
+                        || (tname == "Spectrum 2 Light"
+                            && (current_theme.eq_ignore_ascii_case("Light")
+                                || current_theme.to_lowercase().contains("light")));
                     let name_str = tname.to_string();
                     div()
                         .id(("theme-opt", idx))
@@ -2907,7 +3034,9 @@ pub fn render_card_appearance_theme(win: &MainWindow, cx: &mut Context<MainWindo
                         .when(!is_active, |this| {
                             this.bg(theme::bg_subtle())
                                 .border_color(theme::border_subtle())
-                                .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
+                                .hover(|s| {
+                                    s.bg(theme::bg_hover()).border_color(theme::border_color())
+                                })
                         })
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.theme_name = name_str.clone();
@@ -2941,18 +3070,23 @@ pub fn render_card_appearance_theme(win: &MainWindow, cx: &mut Context<MainWindo
                                                 .flex()
                                                 .items_center()
                                                 .gap_1()
-                                                .child(div().size(px(10.0)).rounded_full().bg(bg_dot).border_1().border_color(theme::border_color()))
-                                                .child(div().size(px(10.0)).rounded_full().bg(acc_dot)),
+                                                .child(
+                                                    div()
+                                                        .size(px(10.0))
+                                                        .rounded_full()
+                                                        .bg(bg_dot)
+                                                        .border_1()
+                                                        .border_color(theme::border_color()),
+                                                )
+                                                .child(
+                                                    div().size(px(10.0)).rounded_full().bg(acc_dot),
+                                                ),
                                         ),
                                 )
-                                .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(theme::text_muted())
-                                        .child(desc),
-                                ),
+                                .child(div().text_xs().text_color(theme::text_muted()).child(desc)),
                         )
-                })),
+                }),
+            ),
         )
         .into_any_element()
 }
@@ -2963,18 +3097,17 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
 
     NefosCard::surface("card-appearance-accent")
         .title_text("Accent Color Palette")
-        .description_text("Select global primary accent highlight across buttons, badges, and focus rings")
+        .description_text(
+            "Select global primary accent highlight across buttons, badges, and focus rings",
+        )
         .header_action(
             NefosTag::new(format!("Active: {}", theme::active_accent_name()))
                 .id("badge-active-accent")
-                .tone(NefosTagTone::Accent)
+                .tone(NefosTagTone::Accent),
         )
         .child(
-            div()
-                .flex()
-                .flex_wrap()
-                .gap_2p5()
-                .children([
+            div().flex().flex_wrap().gap_2p5().children(
+                [
                     ("Blue", "Classic Spectrum Blue", rgb(0x2680eb)),
                     ("Purple", "Royal Violet", rgb(0x8b5cf6)),
                     ("Emerald", "Vibrant Green", rgb(0x10b981)),
@@ -2982,7 +3115,10 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
                     ("Amber", "Golden Orange", rgb(0xf59e0b)),
                     ("Cyan", "Electric Teal", rgb(0x06b6d4)),
                     ("Indigo", "Deep Indigo", rgb(0x6366f1)),
-                ].into_iter().enumerate().map(|(idx, (cname, cdesc, color_dot))| {
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(idx, (cname, cdesc, color_dot))| {
                     let is_active = settings.accent_color.eq_ignore_ascii_case(cname)
                         || (settings.accent_color.is_empty() && cname == "Blue");
                     let color_name = cname.to_string();
@@ -2997,13 +3133,14 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
                         .rounded_lg()
                         .border_2()
                         .when(is_active, |this| {
-                            this.bg(theme::bg_active())
-                                .border_color(color_dot)
+                            this.bg(theme::bg_active()).border_color(color_dot)
                         })
                         .when(!is_active, |this| {
                             this.bg(theme::bg_subtle())
                                 .border_color(theme::border_subtle())
-                                .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
+                                .hover(|s| {
+                                    s.bg(theme::bg_hover()).border_color(theme::border_color())
+                                })
                         })
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.app_settings.accent_color = color_name.clone();
@@ -3016,7 +3153,7 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
                                 .size(px(14.0))
                                 .rounded_full()
                                 .bg(color_dot)
-                                .shadow_sm()
+                                .shadow_sm(),
                         )
                         .child(
                             div()
@@ -3027,14 +3164,13 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
                                         .text_xs()
                                         .font_weight(FontWeight::BOLD)
                                         .when(is_active, |this| this.text_color(color_dot))
-                                        .when(!is_active, |this| this.text_color(theme::text_primary()))
+                                        .when(!is_active, |this| {
+                                            this.text_color(theme::text_primary())
+                                        })
                                         .child(cname),
                                 )
                                 .child(
-                                    div()
-                                        .text_xs()
-                                        .text_color(theme::text_muted())
-                                        .child(cdesc),
+                                    div().text_xs().text_color(theme::text_muted()).child(cdesc),
                                 ),
                         )
                         .when(is_active, |this| {
@@ -3043,10 +3179,11 @@ pub fn render_card_appearance_accent(win: &MainWindow, cx: &mut Context<MainWind
                                     .text_xs()
                                     .font_weight(FontWeight::BOLD)
                                     .text_color(color_dot)
-                                    .child("✓")
+                                    .child("✓"),
                             )
                         })
-                })),
+                }),
+            ),
         )
         .into_any_element()
 }
@@ -3161,7 +3298,10 @@ pub fn render_card_appearance_osd(win: &MainWindow, cx: &mut Context<MainWindow>
 }
 
 /// Renders Card: Game Handlers Directory.
-pub fn render_card_appearance_handlers_dir(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_appearance_handlers_dir(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let handlers_path = win.handlers_dir.clone();
 
     NefosCard::surface("card-appearance-handlers-dir")
@@ -3189,7 +3329,9 @@ pub fn render_card_appearance_handlers_dir(win: &MainWindow, cx: &mut Context<Ma
                         .icon(IconName::FolderOpen)
                         .size(CouchButtonSize::Sm)
                         .on_click(cx.listener(|this, _, _, cx| {
-                            if let Some(folder) = crate::dialogs::pick_folder("Select Game Handlers Directory") {
+                            if let Some(folder) =
+                                crate::dialogs::pick_folder("Select Game Handlers Directory")
+                            {
                                 let folder_str = folder.to_string_lossy().to_string();
                                 this.handlers_dir = folder_str.clone();
                                 this.app_settings.handlers_directory = folder_str.clone();
@@ -3197,10 +3339,12 @@ pub fn render_card_appearance_handlers_dir(win: &MainWindow, cx: &mut Context<Ma
                                     let updated = cb(&folder_str);
                                     if !updated.is_empty() {
                                         this.handlers = updated.clone();
-                                        this.handler_names = updated.iter().map(|h| h.game_name.clone()).collect();
+                                        this.handler_names =
+                                            updated.iter().map(|h| h.game_name.clone()).collect();
                                     }
                                 }
-                                this.status_message = format!("Handlers directory set to: {}", folder_str);
+                                this.status_message =
+                                    format!("Handlers directory set to: {}", folder_str);
                                 cx.notify();
                             }
                         })),
@@ -3210,50 +3354,64 @@ pub fn render_card_appearance_handlers_dir(win: &MainWindow, cx: &mut Context<Ma
 }
 
 /// Renders Card: Handler Script Text Editor.
-pub fn render_card_appearance_script_editor(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_appearance_script_editor(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let settings = &win.app_settings;
 
     NefosCard::surface("card-appearance-script-editor")
         .title_text("Handler Script Text Editor")
-        .description_text("External editor used to inspect and modify JavaScript (.js) game handler scripts")
+        .description_text(
+            "External editor used to inspect and modify JavaScript (.js) game handler scripts",
+        )
         .child(
-            div()
-                .flex()
-                .gap_2()
-                .children([
-                    "notepad.exe",
-                    "code.cmd",
-                    "notepad++.exe",
-                ].into_iter().enumerate().map(|(idx, editor)| {
-                    let is_active = settings.text_editor_path.eq_ignore_ascii_case(editor);
-                    let ed_str = editor.to_string();
-                    div()
-                        .id(("editor-opt", idx))
-                        .cursor_pointer()
-                        .px_3()
-                        .py_1p5()
-                        .rounded_md()
-                        .border_1()
-                        .text_xs()
-                        .when(is_active, |this| {
-                            this.bg(theme::accent()).border_color(theme::accent()).text_color(theme::text_on_accent()).font_weight(FontWeight::BOLD)
-                        })
-                        .when(!is_active, |this| {
-                            this.bg(theme::bg_subtle()).border_color(theme::border_subtle()).text_color(theme::text_muted()).hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
-                        })
-                        .on_click(cx.listener(move |this, _, _, cx| {
-                            this.app_settings.text_editor_path = ed_str.clone();
-                            this.status_message = format!("Script editor set to {}", ed_str);
-                            cx.notify();
-                        }))
-                        .child(editor)
-                })),
+            div().flex().gap_2().children(
+                ["notepad.exe", "code.cmd", "notepad++.exe"]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(idx, editor)| {
+                        let is_active = settings.text_editor_path.eq_ignore_ascii_case(editor);
+                        let ed_str = editor.to_string();
+                        div()
+                            .id(("editor-opt", idx))
+                            .cursor_pointer()
+                            .px_3()
+                            .py_1p5()
+                            .rounded_md()
+                            .border_1()
+                            .text_xs()
+                            .when(is_active, |this| {
+                                this.bg(theme::accent())
+                                    .border_color(theme::accent())
+                                    .text_color(theme::text_on_accent())
+                                    .font_weight(FontWeight::BOLD)
+                            })
+                            .when(!is_active, |this| {
+                                this.bg(theme::bg_subtle())
+                                    .border_color(theme::border_subtle())
+                                    .text_color(theme::text_muted())
+                                    .hover(|s| {
+                                        s.bg(theme::bg_hover()).text_color(theme::text_primary())
+                                    })
+                            })
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.app_settings.text_editor_path = ed_str.clone();
+                                this.status_message = format!("Script editor set to {}", ed_str);
+                                cx.notify();
+                            }))
+                            .child(editor)
+                    }),
+            ),
         )
         .into_any_element()
 }
 
 /// Renders Card: Game Discovery.
-pub fn render_card_appearance_autoscan(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_appearance_autoscan(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let auto_scan_enabled = win.auto_scan;
 
     NefosCard::surface("card-appearance-autoscan")
@@ -3346,7 +3504,9 @@ pub fn render_card_goldberg_config(win: &MainWindow, cx: &mut Context<MainWindow
 
     NefosCard::surface("card-goldberg-config")
         .title_text("Goldberg Steam Emulator Settings")
-        .description_text("Offline LAN multiplayer emulation flags, broadcast IP, and lobby discovery")
+        .description_text(
+            "Offline LAN multiplayer emulation flags, broadcast IP, and lobby discovery",
+        )
         .child(render_toggle(
             "Force Offline Mode",
             "Prevent Goldberg emulator from making any external network requests",
@@ -3362,11 +3522,13 @@ pub fn render_card_goldberg_config(win: &MainWindow, cx: &mut Context<MainWindow
             "goldberg-port",
             settings.goldberg_listen_port as u32,
             cx.listener(|this, _, _, cx| {
-                this.app_settings.goldberg_listen_port = this.app_settings.goldberg_listen_port.saturating_sub(1);
+                this.app_settings.goldberg_listen_port =
+                    this.app_settings.goldberg_listen_port.saturating_sub(1);
                 cx.notify();
             }),
             cx.listener(|this, _, _, cx| {
-                this.app_settings.goldberg_listen_port = this.app_settings.goldberg_listen_port.saturating_add(1);
+                this.app_settings.goldberg_listen_port =
+                    this.app_settings.goldberg_listen_port.saturating_add(1);
                 cx.notify();
             }),
         ))
@@ -3374,7 +3536,10 @@ pub fn render_card_goldberg_config(win: &MainWindow, cx: &mut Context<MainWindow
 }
 
 /// Renders Card: Instance Launch Countdown Timer.
-pub fn render_card_launch_timer_config(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+pub fn render_card_launch_timer_config(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     let settings = &win.app_settings;
 
     NefosCard::surface("card-launch-timer-config")
@@ -3435,7 +3600,10 @@ fn render_mini_toggle<F>(title: &str, enabled: bool, on_click: F) -> AnyElement
 where
     F: Fn(&gpui::ClickEvent, &mut Window, &mut App) + 'static,
 {
-    let mini_id = SharedString::from(format!("mini-toggle-{}", title.to_lowercase().replace(' ', "-")));
+    let mini_id = SharedString::from(format!(
+        "mini-toggle-{}",
+        title.to_lowercase().replace(' ', "-")
+    ));
     div()
         .id(mini_id)
         .flex_shrink_0()
@@ -3460,7 +3628,12 @@ where
         })
         .on_click(on_click)
         .child(div().text_xs().child(if enabled { "✓" } else { "○" }))
-        .child(div().text_xs().font_weight(FontWeight::SEMIBOLD).child(title.to_string()))
+        .child(
+            div()
+                .text_xs()
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(title.to_string()),
+        )
         .into_any_element()
 }
 
@@ -3608,7 +3781,9 @@ mod tests {
 
         // Verify player nicknames and steam id validation
         assert_eq!(settings.get_player_nickname(0), "Player1");
-        assert!(nucleus_profile::AppSettings::is_valid_steam_id(&settings.get_player_steam_id(0)));
+        assert!(nucleus_profile::AppSettings::is_valid_steam_id(
+            &settings.get_player_steam_id(0)
+        ));
         assert!(!nucleus_profile::AppSettings::is_valid_steam_id("12345"));
 
         // Verify audio endpoint assignment
@@ -3643,11 +3818,19 @@ mod tests {
 
         // Matching "goldberg"
         let goldberg_matches = filter_settings_cards("goldberg");
-        assert!(goldberg_matches.iter().any(|c| c.id == "card-goldberg-config"));
+        assert!(
+            goldberg_matches
+                .iter()
+                .any(|c| c.id == "card-goldberg-config")
+        );
 
         // Matching "isolation"
         let iso_matches = filter_settings_cards("isolation");
-        assert!(iso_matches.iter().any(|c| c.id == "card-general-isolation" || c.id == "card-network-isolation"));
+        assert!(
+            iso_matches
+                .iter()
+                .any(|c| c.id == "card-general-isolation" || c.id == "card-network-isolation")
+        );
 
         // Nonexistent query returns 0 matches
         let none_matches = filter_settings_cards("nonexistentxyz999");

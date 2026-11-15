@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::{Path, PathBuf};
 
 /// Tool for generating SDL2 game controller environment variables and mapping files
 /// to route distinct physical controllers to separate instances.
@@ -73,18 +73,13 @@ mod tests {
 
     #[test]
     fn test_sdl2_setup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_sdl2_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_sdl2_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let utils_dir = temp_dir.join("utils");
         let instance_dir = temp_dir.join("instance0");
 
-        let ini_path = Sdl2Tool::setup_sdl2(
-            &instance_dir,
-            Some(2),
-            &[3],
-            &utils_dir,
-            &[],
-        ).unwrap();
+        let ini_path = Sdl2Tool::setup_sdl2(&instance_dir, Some(2), &[3], &utils_dir, &[]).unwrap();
 
         assert!(ini_path.exists());
         let content = file_util::read_text_file(&ini_path).unwrap();
@@ -93,4 +88,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-

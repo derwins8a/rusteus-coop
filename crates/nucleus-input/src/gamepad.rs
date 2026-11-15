@@ -139,14 +139,16 @@ impl GamepadManager {
                             device_type: DeviceType::XInputGamepad,
                             is_connected: true,
                         };
-                        if let Some(existing) = self.devices.iter_mut().find(|d| d.id == numeric_id) {
+                        if let Some(existing) = self.devices.iter_mut().find(|d| d.id == numeric_id)
+                        {
                             *existing = dev;
                         } else {
                             self.devices.push(dev);
                         }
                     }
                     gilrs::EventType::Disconnected => {
-                        if let Some(existing) = self.devices.iter_mut().find(|d| d.id == numeric_id) {
+                        if let Some(existing) = self.devices.iter_mut().find(|d| d.id == numeric_id)
+                        {
                             existing.is_connected = false;
                         }
                     }
@@ -192,7 +194,9 @@ mod tests {
         mgr.add_mock_device(mock.clone());
 
         assert_eq!(mgr.get_gamepads().len(), initial_count + 1);
-        let found = mgr.get_gamepad_by_id(999).expect("Should find mock gamepad");
+        let found = mgr
+            .get_gamepad_by_id(999)
+            .expect("Should find mock gamepad");
         assert_eq!(found.name, "Virtual Xbox Controller");
         assert!(found.is_connected);
 

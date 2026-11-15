@@ -1,8 +1,8 @@
 //! Hex editing utilities for binary patching game executables and libraries.
 
+use nucleus_common::error::{NucleusError, NucleusResult};
 use std::fs;
 use std::path::{Path, PathBuf};
-use nucleus_common::error::{NucleusError, NucleusResult};
 
 /// Tool providing byte pattern search and replacement in game executables and dynamic libraries
 /// to modify hardcoded window sizes, mutex names, networking ports, or memory addresses.
@@ -93,10 +93,14 @@ impl HexEditTool {
         find_all: bool,
     ) -> NucleusResult<usize> {
         if find_bytes.is_empty() {
-            return Err(NucleusError::Other("Search pattern cannot be empty".to_string()));
+            return Err(NucleusError::Other(
+                "Search pattern cannot be empty".to_string(),
+            ));
         }
         if find_bytes.len() != replace_bytes.len() {
-            return Err(NucleusError::Other("Search and replace patterns must be equal length".to_string()));
+            return Err(NucleusError::Other(
+                "Search and replace patterns must be equal length".to_string(),
+            ));
         }
 
         let mut data = fs::read(src)?;
@@ -261,8 +265,14 @@ impl HexEditTool {
             }
 
             if let Some(parent) = full_file_path.parent() {
-                let stem = full_file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-                let ext = full_file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+                let stem = full_file_path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("");
+                let ext = full_file_path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
                 let backup_name = if ext.is_empty() {
                     format!("{}_NUCLEUS_BACKUP", stem)
                 } else {
@@ -299,7 +309,10 @@ mod tests {
         assert_eq!(bytes, vec![0x48, 0x89, 0x5C, 0x24, 0x08]);
 
         let bytes_no_spaces = HexEditTool::hex_to_bytes("DEADBEEF").unwrap();
-        assert_eq!(bytes_no_bytes_hex(bytes_no_spaces), [0xDE, 0xAD, 0xBE, 0xEF]);
+        assert_eq!(
+            bytes_no_bytes_hex(bytes_no_spaces),
+            [0xDE, 0xAD, 0xBE, 0xEF]
+        );
     }
 
     fn bytes_no_bytes_hex(b: Vec<u8>) -> [u8; 4] {
@@ -308,7 +321,8 @@ mod tests {
 
     #[test]
     fn test_replace_pattern() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_hex_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_hex_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let file_path = temp_dir.join("test_bin.bin");
 
@@ -327,7 +341,8 @@ mod tests {
 
     #[test]
     fn test_edit_at_offset() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_offset_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_offset_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let file_path = temp_dir.join("test_offset.bin");
 
@@ -342,7 +357,8 @@ mod tests {
 
     #[test]
     fn test_patch_file_find_pattern() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_patch_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_patch_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let src_file = temp_dir.join("src.bin");
         let dst_file = temp_dir.join("dst.bin");
@@ -354,7 +370,8 @@ mod tests {
             "76 1D C7 05",
             "EB 1D C7 05",
             false,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(patched_count, 1);
 
         let dst_bytes = std::fs::read(&dst_file).unwrap();
@@ -365,7 +382,8 @@ mod tests {
 
     #[test]
     fn test_patch_file_find_pattern_insert() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_insert_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_insert_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let src_file = temp_dir.join("src.bin");
         let dst_file = temp_dir.join("dst.bin");
@@ -380,7 +398,8 @@ mod tests {
             0x1234,
             3,
             false,
-        ).unwrap();
+        )
+        .unwrap();
         assert_eq!(count, 1);
 
         let dst_bytes = std::fs::read(&dst_file).unwrap();
@@ -391,7 +410,8 @@ mod tests {
 
     #[test]
     fn test_hex_edit_exe_address_and_backup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_exe_addr_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_exe_addr_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let exe_path = temp_dir.join("game.exe");
         std::fs::write(&exe_path, &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00]).unwrap();
@@ -406,7 +426,10 @@ mod tests {
         assert_eq!(backups.len(), 1);
         let backup_path = temp_dir.join("game_NUCLEUS_BACKUP.exe");
         assert!(backup_path.exists());
-        assert_eq!(std::fs::read(&backup_path).unwrap(), vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        assert_eq!(
+            std::fs::read(&backup_path).unwrap(),
+            vec![0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        );
 
         let patched_bytes = std::fs::read(&exe_path).unwrap();
         assert_eq!(patched_bytes, vec![0xFF, 0x00, 0xAA, 0xBB, 0x00, 0x00]);
@@ -416,15 +439,14 @@ mod tests {
 
     #[test]
     fn test_hex_edit_file_address() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_file_addr_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_file_addr_{}", std::process::id()));
         let sub = temp_dir.join("data");
         std::fs::create_dir_all(&sub).unwrap();
         let target_file = sub.join("config.bin");
         std::fs::write(&target_file, &[0x11, 0x22, 0x33, 0x44]).unwrap();
 
-        let lines = vec![
-            "data/config.bin|0x01|FFFF".to_string(),
-        ];
+        let lines = vec!["data/config.bin|0x01|FFFF".to_string()];
 
         let backups = HexEditTool::hex_edit_file_address(0, &temp_dir, &lines).unwrap();
         assert_eq!(backups.len(), 1);

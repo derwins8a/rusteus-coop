@@ -1,14 +1,14 @@
 //! Savegame slot management modal powered by Ludusavi CLI integration.
 
-use std::sync::Arc;
-use gpui::prelude::*;
-use gpui::*;
-use gpui_kit_assets::IconName;
-use nucleus_profile::save_slots::SaveSlot;
 use crate::components::badge::{CouchTag, TagTone};
 use crate::components::button::{CouchButton, CouchButtonSize};
 use crate::components::modal::{CouchModal, ModalWidth};
 use crate::theme;
+use gpui::prelude::*;
+use gpui::*;
+use gpui_kit_assets::IconName;
+use nucleus_profile::save_slots::SaveSlot;
+use std::sync::Arc;
 
 /// State for the savegame slots management modal.
 #[derive(Debug, Clone, Default)]
@@ -76,7 +76,10 @@ pub fn render_save_slots_modal(
     let title = format!("Save Slots: {}", state.game_name);
     let modal_close = on_close.clone();
     let modal = CouchModal::new("modal-save-slots", title)
-        .subtitle(format!("Managing isolated saves for Player {}", state.target_player_index + 1))
+        .subtitle(format!(
+            "Managing isolated saves for Player {}",
+            state.target_player_index + 1
+        ))
         .icon(IconName::Save)
         .width(ModalWidth::Lg)
         .on_close(move |ev, win, app| modal_close(ev, win, app));

@@ -1,7 +1,7 @@
-use std::time::Duration;
 use nucleus_common::types::DeviceType;
 use nucleus_input::gamepad::{DeviceFingerprint, GamepadDevice};
 use nucleus_ui::big_picture::setup::{CouchSetupState, DisconnectStatus};
+use std::time::Duration;
 
 fn make_test_device(id: usize, name: &str, guid: &str, connected: bool) -> GamepadDevice {
     GamepadDevice {
@@ -108,7 +108,8 @@ fn test_reconnect_after_expiry_restores_connected() {
 
     // Reconnect after expiry using fingerprint
     let fp = DeviceFingerprint::new("GUID-P1", "Xbox Controller", &DeviceType::XInputGamepad);
-    let reconnected = state.handle_device_reconnect(10, "GUID-P1-DIFFERENT", "Xbox Controller", Some(&fp));
+    let reconnected =
+        state.handle_device_reconnect(10, "GUID-P1-DIFFERENT", "Xbox Controller", Some(&fp));
     assert!(reconnected);
 
     assert_eq!(state.slots[0].device_id, Some(10));
@@ -161,15 +162,26 @@ fn test_main_window_sync_devices_disconnect_and_reconnect() {
 
     // Initially 2 devices connected
     window.sync_devices(vec![dev1.clone(), dev2.clone()]);
-    window.couch_setup_state.auto_assign_from_items(&window.detected_devices_list, &[]);
+    window
+        .couch_setup_state
+        .auto_assign_from_items(&window.detected_devices_list, &[]);
     assert_eq!(window.couch_setup_state.slots.len(), 2);
-    assert_eq!(window.couch_setup_state.slots[0].status, DisconnectStatus::Connected);
-    assert_eq!(window.couch_setup_state.slots[1].status, DisconnectStatus::Connected);
+    assert_eq!(
+        window.couch_setup_state.slots[0].status,
+        DisconnectStatus::Connected
+    );
+    assert_eq!(
+        window.couch_setup_state.slots[1].status,
+        DisconnectStatus::Connected
+    );
 
     // dev2 disconnects (only dev1 present in new device list)
     window.sync_devices(vec![dev1.clone()]);
     assert_eq!(window.couch_setup_state.slots.len(), 2);
-    assert_eq!(window.couch_setup_state.slots[0].status, DisconnectStatus::Connected);
+    assert_eq!(
+        window.couch_setup_state.slots[0].status,
+        DisconnectStatus::Connected
+    );
     assert_eq!(
         window.couch_setup_state.slots[1].status,
         DisconnectStatus::ReplugPending {
@@ -180,7 +192,9 @@ fn test_main_window_sync_devices_disconnect_and_reconnect() {
 
     // Tick 3 seconds
     window.tick_disconnect_resilience_state(Duration::from_secs(3));
-    if let DisconnectStatus::ReplugPending { remaining_ms, .. } = window.couch_setup_state.slots[1].status {
+    if let DisconnectStatus::ReplugPending { remaining_ms, .. } =
+        window.couch_setup_state.slots[1].status
+    {
         assert_eq!(remaining_ms, 7_000);
     } else {
         panic!("Expected ReplugPending with 7000ms remaining");
@@ -188,6 +202,14 @@ fn test_main_window_sync_devices_disconnect_and_reconnect() {
 
     // dev2 reconnected
     window.sync_devices(vec![dev1.clone(), dev2.clone()]);
-    assert_eq!(window.couch_setup_state.slots[1].status, DisconnectStatus::Connected);
-    assert!(window.couch_setup_state.active_disconnect_banner().is_none());
+    assert_eq!(
+        window.couch_setup_state.slots[1].status,
+        DisconnectStatus::Connected
+    );
+    assert!(
+        window
+            .couch_setup_state
+            .active_disconnect_banner()
+            .is_none()
+    );
 }

@@ -138,12 +138,16 @@ impl HubHandler {
 
     /// Returns the star rating score.
     pub fn rating(&self) -> u32 {
-        value_to_i32(&self.stars).map(|s| s.max(0) as u32).unwrap_or(0)
+        value_to_i32(&self.stars)
+            .map(|s| s.max(0) as u32)
+            .unwrap_or(0)
     }
 
     /// Returns the total comments count.
     pub fn comments(&self) -> u32 {
-        value_to_i32(&self.comment_count).map(|c| c.max(0) as u32).unwrap_or(0)
+        value_to_i32(&self.comment_count)
+            .map(|c| c.max(0) as u32)
+            .unwrap_or(0)
     }
 
     /// Returns the primary cover image URL.
@@ -199,7 +203,9 @@ impl HubHandler {
         if let Some(ref g_list) = self.genres {
             for g in g_list {
                 for std_g in &standard_genres {
-                    if g.eq_ignore_ascii_case(std_g) || g.to_lowercase().contains(&std_g.to_lowercase()) {
+                    if g.eq_ignore_ascii_case(std_g)
+                        || g.to_lowercase().contains(&std_g.to_lowercase())
+                    {
                         if !tags.contains(&std_g.to_string()) {
                             tags.push(std_g.to_string());
                         }
@@ -213,10 +219,15 @@ impl HubHandler {
             self.title.as_deref().unwrap_or(""),
             self.game_name.as_deref().unwrap_or(""),
             self.description.as_deref().unwrap_or("")
-        ).to_lowercase();
+        )
+        .to_lowercase();
 
         for std_g in &standard_genres {
-            let key = if std_g.contains("RPG") { "rpg" } else { &std_g.to_lowercase() };
+            let key = if std_g.contains("RPG") {
+                "rpg"
+            } else {
+                &std_g.to_lowercase()
+            };
             if combined.contains(key) && !tags.contains(&std_g.to_string()) {
                 tags.push(std_g.to_string());
             }
@@ -238,7 +249,10 @@ impl HubHandler {
     /// Constructs the IGDB cover image URL with the specified resolution (e.g. "cover_big", "thumb", "720p").
     pub fn cover_image_url(&self, size: &str) -> Option<String> {
         let cover = self.game_cover.as_ref()?;
-        Some(format!("https://images.igdb.com/igdb/image/upload/t_{}/{}.jpg", size, cover))
+        Some(format!(
+            "https://images.igdb.com/igdb/image/upload/t_{}/{}.jpg",
+            size, cover
+        ))
     }
 
     /// Converts this handler to a `HubHandlerSummary` for backward compatibility.

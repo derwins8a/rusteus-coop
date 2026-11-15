@@ -9,11 +9,11 @@ use gpui::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
 use crate::models::HubPackageItem;
 use crate::theme;
 use crate::window::MainWindow;
 use crate::{Icon, IconName};
-use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
 
 /// Result of checking whether a downloaded game handler's executable is resolved on disk.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -312,19 +312,29 @@ pub fn get_filtered_packages<'a>(
     match category_idx {
         0 => {
             // Popular: highest downloads then likes
-            list.sort_by(|a, b| b.downloads.cmp(&a.downloads).then_with(|| b.likes.cmp(&a.likes)));
+            list.sort_by(|a, b| {
+                b.downloads
+                    .cmp(&a.downloads)
+                    .then_with(|| b.likes.cmp(&a.likes))
+            });
         }
         1 => {
             // Trending: weighted likes + downloads, verified first
             list.sort_by(|a, b| {
                 let score_a = (a.likes * 2) as u64 + (a.downloads / 10);
                 let score_b = (b.likes * 2) as u64 + (b.downloads / 10);
-                b.is_verified.cmp(&a.is_verified).then_with(|| score_b.cmp(&score_a))
+                b.is_verified
+                    .cmp(&a.is_verified)
+                    .then_with(|| score_b.cmp(&score_a))
             });
         }
         2 => {
             // Recent: updated_at then created_at
-            list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at).then_with(|| b.created_at.cmp(&a.created_at)));
+            list.sort_by(|a, b| {
+                b.updated_at
+                    .cmp(&a.updated_at)
+                    .then_with(|| b.created_at.cmp(&a.created_at))
+            });
         }
         _ => {
             // All: preserve default order
@@ -411,7 +421,11 @@ fn render_couch_hub_header() -> AnyElement {
                 .flex()
                 .items_center()
                 .gap_2p5()
-                .child(Icon::new(IconName::Globe).size_6().text_color(theme::accent()))
+                .child(
+                    Icon::new(IconName::Globe)
+                        .size_6()
+                        .text_color(theme::accent()),
+                )
                 .child(
                     div()
                         .text_2xl()
@@ -460,21 +474,45 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                         .px_3p5()
                         .py_1p5()
                         .rounded_full()
-                        .bg(if has_search || win.couch_hub_state.search_input_open { theme::accent_subtle() } else { theme::bg_panel() })
+                        .bg(if has_search || win.couch_hub_state.search_input_open {
+                            theme::accent_subtle()
+                        } else {
+                            theme::bg_panel()
+                        })
                         .border_1()
-                        .border_color(if has_search || win.couch_hub_state.search_input_open { theme::accent() } else { theme::border_subtle() })
-                        .text_color(if has_search || win.couch_hub_state.search_input_open { theme::accent() } else { theme::text_primary() })
+                        .border_color(if has_search || win.couch_hub_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::border_subtle()
+                        })
+                        .text_color(if has_search || win.couch_hub_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::text_primary()
+                        })
                         .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
                         .on_mouse_down(MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
                         .on_click(cx.listener(|this, _, _, cx| {
                             cx.stop_propagation();
-                            this.couch_hub_state.search_input_open = !this.couch_hub_state.search_input_open;
+                            this.couch_hub_state.search_input_open =
+                                !this.couch_hub_state.search_input_open;
                             cx.notify();
                         }))
-                        .child(Icon::new(IconName::Search).size_3p5().text_color(if has_search || win.couch_hub_state.search_input_open { theme::accent() } else { theme::text_muted() }))
-                        .child(div().text_xs().font_weight(FontWeight::MEDIUM).child(search_label))
+                        .child(Icon::new(IconName::Search).size_3p5().text_color(
+                            if has_search || win.couch_hub_state.search_input_open {
+                                theme::accent()
+                            } else {
+                                theme::text_muted()
+                            },
+                        ))
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(search_label),
+                        )
                         .children(if has_search {
                             Some(
                                 div()
@@ -530,7 +568,13 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                                         .flex()
                                         .items_center()
                                         .justify_between()
-                                        .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(theme::text_primary()).child("Search Community Hub"))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::text_primary())
+                                                .child("Search Community Hub"),
+                                        )
                                         .child(
                                             div()
                                                 .id("btn-close-couch-hub-search")
@@ -564,84 +608,122 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                                         .border_1()
                                         .border_color(theme::border_color())
                                         .rounded_md()
-                                        .child(Icon::new(IconName::Search).size_3p5().text_color(theme::accent()))
+                                        .child(
+                                            Icon::new(IconName::Search)
+                                                .size_3p5()
+                                                .text_color(theme::accent()),
+                                        )
                                         .child(
                                             div()
                                                 .text_xs()
-                                                .text_color(if has_search { theme::text_primary() } else { theme::text_muted() })
-                                                .child(if has_search { format!("{} █", win.couch_hub_state.search_query) } else { "Type query or click preset below...".to_string() }),
+                                                .text_color(if has_search {
+                                                    theme::text_primary()
+                                                } else {
+                                                    theme::text_muted()
+                                                })
+                                                .child(if has_search {
+                                                    format!(
+                                                        "{} █",
+                                                        win.couch_hub_state.search_query
+                                                    )
+                                                } else {
+                                                    "Type query or click preset below..."
+                                                        .to_string()
+                                                }),
                                         ),
                                 )
                                 .child(
-                                    div()
-                                        .flex()
-                                        .flex_wrap()
-                                        .gap_1p5()
-                                        .pt_1()
-                                        .children(["Left 4 Dead", "Halo", "Borderlands", "Call of Duty", "Portal", "Resident Evil", "Risk of Rain"].iter().enumerate().map(|(idx, &preset)| {
-                                            div()
-                                                .id(("hub-preset", idx))
-                                                .cursor_pointer()
-                                                .px_2()
-                                                .py_1()
-                                                .rounded_full()
-                                                .bg(theme::bg_subtle())
-                                                .border_1()
-                                                .border_color(theme::border_color())
-                                                .text_xs()
-                                                .text_color(theme::text_muted())
-                                                .hover(|s| s.bg(theme::accent().opacity(0.15)).text_color(theme::accent()).border_color(theme::accent()))
-                                                .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                })
-                                                .on_click(cx.listener(move |this, _, _, cx| {
-                                                    cx.stop_propagation();
-                                                    this.couch_hub_state.search_query = preset.to_string();
-                                                    this.couch_hub_state.search_input_open = false;
-                                                    this.couch_hub_state.selected_index = 0;
-                                                    cx.notify();
-                                                }))
-                                                .child(preset)
-                                        }))
-                                )
+                                    div().flex().flex_wrap().gap_1p5().pt_1().children(
+                                        [
+                                            "Left 4 Dead",
+                                            "Halo",
+                                            "Borderlands",
+                                            "Call of Duty",
+                                            "Portal",
+                                            "Resident Evil",
+                                            "Risk of Rain",
+                                        ]
+                                        .iter()
+                                        .enumerate()
+                                        .map(
+                                            |(idx, &preset)| {
+                                                div()
+                                                    .id(("hub-preset", idx))
+                                                    .cursor_pointer()
+                                                    .px_2()
+                                                    .py_1()
+                                                    .rounded_full()
+                                                    .bg(theme::bg_subtle())
+                                                    .border_1()
+                                                    .border_color(theme::border_color())
+                                                    .text_xs()
+                                                    .text_color(theme::text_muted())
+                                                    .hover(|s| {
+                                                        s.bg(theme::accent().opacity(0.15))
+                                                            .text_color(theme::accent())
+                                                            .border_color(theme::accent())
+                                                    })
+                                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                                        cx.stop_propagation();
+                                                    })
+                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                        cx.stop_propagation();
+                                                        this.couch_hub_state.search_query =
+                                                            preset.to_string();
+                                                        this.couch_hub_state.search_input_open =
+                                                            false;
+                                                        this.couch_hub_state.selected_index = 0;
+                                                        cx.notify();
+                                                    }))
+                                                    .child(preset)
+                                            },
+                                        ),
+                                    ),
+                                ),
                         )
-                        .with_priority(10)
+                        .with_priority(10),
                     )
                 }),
         )
         // 2. Categories
-        .children(win.couch_hub_state.categories.iter().enumerate().map(|(idx, &name)| {
-            let is_active = idx == win.couch_hub_state.selected_category;
-            let tab = div()
-                .id(("couch-hub-cat-tab", idx))
-                .cursor_pointer()
-                .px_4()
-                .py_1p5()
-                .rounded_full()
-                .text_xs()
-                .font_weight(FontWeight::BOLD)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.couch_hub_state.selected_category = idx;
-                    this.couch_hub_state.selected_index = 0;
-                    cx.notify();
-                }));
+        .children(
+            win.couch_hub_state
+                .categories
+                .iter()
+                .enumerate()
+                .map(|(idx, &name)| {
+                    let is_active = idx == win.couch_hub_state.selected_category;
+                    let tab = div()
+                        .id(("couch-hub-cat-tab", idx))
+                        .cursor_pointer()
+                        .px_4()
+                        .py_1p5()
+                        .rounded_full()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.couch_hub_state.selected_category = idx;
+                            this.couch_hub_state.selected_index = 0;
+                            cx.notify();
+                        }));
 
-            let styled_tab = if is_active {
-                tab.bg(theme::accent())
-                    .text_color(theme::text_on_accent())
-                    .border_2()
-                    .border_color(theme::accent())
-                    .shadow_md()
-            } else {
-                tab.bg(theme::bg_panel())
-                    .text_color(theme::text_muted())
-                    .border_1()
-                    .border_color(theme::border_subtle())
-                    .hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
-            };
+                    let styled_tab = if is_active {
+                        tab.bg(theme::accent())
+                            .text_color(theme::text_on_accent())
+                            .border_2()
+                            .border_color(theme::accent())
+                            .shadow_md()
+                    } else {
+                        tab.bg(theme::bg_panel())
+                            .text_color(theme::text_muted())
+                            .border_1()
+                            .border_color(theme::border_subtle())
+                            .hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                    };
 
-            styled_tab.child(name)
-        }))
+                    styled_tab.child(name)
+                }),
+        )
         // 3. Tag Filter Pills (Verified, Controllers, Multi-KB/M)
         .child(
             div()
@@ -652,8 +734,19 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .rounded_full()
                 .text_xs()
                 .font_weight(FontWeight::BOLD)
-                .when(win.couch_hub_state.filter_verified, |s| s.bg(theme::accent()).text_color(theme::text_on_accent()).border_2().border_color(theme::accent()))
-                .when(!win.couch_hub_state.filter_verified, |s| s.bg(theme::bg_panel()).text_color(theme::text_muted()).border_1().border_color(theme::border_subtle()).hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary())))
+                .when(win.couch_hub_state.filter_verified, |s| {
+                    s.bg(theme::accent())
+                        .text_color(theme::text_on_accent())
+                        .border_2()
+                        .border_color(theme::accent())
+                })
+                .when(!win.couch_hub_state.filter_verified, |s| {
+                    s.bg(theme::bg_panel())
+                        .text_color(theme::text_muted())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                })
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.couch_hub_state.filter_verified = !this.couch_hub_state.filter_verified;
                     this.couch_hub_state.selected_index = 0;
@@ -663,7 +756,7 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .items_center()
                 .gap_1()
                 .child(Icon::new(IconName::BadgeCheck).size_3p5())
-                .child("Verified Only")
+                .child("Verified Only"),
         )
         .child(
             div()
@@ -674,8 +767,19 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .rounded_full()
                 .text_xs()
                 .font_weight(FontWeight::BOLD)
-                .when(win.couch_hub_state.filter_gamepads, |s| s.bg(theme::accent()).text_color(theme::text_on_accent()).border_2().border_color(theme::accent()))
-                .when(!win.couch_hub_state.filter_gamepads, |s| s.bg(theme::bg_panel()).text_color(theme::text_muted()).border_1().border_color(theme::border_subtle()).hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary())))
+                .when(win.couch_hub_state.filter_gamepads, |s| {
+                    s.bg(theme::accent())
+                        .text_color(theme::text_on_accent())
+                        .border_2()
+                        .border_color(theme::accent())
+                })
+                .when(!win.couch_hub_state.filter_gamepads, |s| {
+                    s.bg(theme::bg_panel())
+                        .text_color(theme::text_muted())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                })
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.couch_hub_state.filter_gamepads = !this.couch_hub_state.filter_gamepads;
                     this.couch_hub_state.selected_index = 0;
@@ -685,7 +789,7 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .items_center()
                 .gap_1()
                 .child(Icon::new(IconName::Gamepad2).size_3p5())
-                .child("Controllers")
+                .child("Controllers"),
         )
         .child(
             div()
@@ -696,8 +800,19 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .rounded_full()
                 .text_xs()
                 .font_weight(FontWeight::BOLD)
-                .when(win.couch_hub_state.filter_km, |s| s.bg(theme::accent()).text_color(theme::text_on_accent()).border_2().border_color(theme::accent()))
-                .when(!win.couch_hub_state.filter_km, |s| s.bg(theme::bg_panel()).text_color(theme::text_muted()).border_1().border_color(theme::border_subtle()).hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary())))
+                .when(win.couch_hub_state.filter_km, |s| {
+                    s.bg(theme::accent())
+                        .text_color(theme::text_on_accent())
+                        .border_2()
+                        .border_color(theme::accent())
+                })
+                .when(!win.couch_hub_state.filter_km, |s| {
+                    s.bg(theme::bg_panel())
+                        .text_color(theme::text_muted())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .hover(|h| h.bg(theme::bg_hover()).text_color(theme::text_primary()))
+                })
                 .on_click(cx.listener(|this, _, _, cx| {
                     this.couch_hub_state.filter_km = !this.couch_hub_state.filter_km;
                     this.couch_hub_state.selected_index = 0;
@@ -707,7 +822,7 @@ fn render_couch_hub_categories(win: &MainWindow, cx: &mut Context<MainWindow>) -
                 .items_center()
                 .gap_1()
                 .child(Icon::new(IconName::Keyboard).size_3p5())
-                .child("Multi-KB/M")
+                .child("Multi-KB/M"),
         )
         .into_any_element()
 }
@@ -733,7 +848,11 @@ fn render_empty_hub_state(is_loading: bool) -> AnyElement {
                 .size(px(64.0))
                 .rounded_full()
                 .bg(theme::bg_subtle())
-                .child(Icon::new(IconName::Gamepad2).size_8().text_color(theme::text_muted())),
+                .child(
+                    Icon::new(IconName::Gamepad2)
+                        .size_8()
+                        .text_color(theme::text_muted()),
+                ),
         )
         .child(
             div()
@@ -847,7 +966,11 @@ fn render_package_card(
             .size_full()
             .bg(theme::bg_subtle())
             .p_4()
-            .child(Icon::new(IconName::Gamepad2).size_10().text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Gamepad2)
+                    .size_10()
+                    .text_color(theme::text_muted()),
+            )
             .child(
                 div()
                     .text_xs()
@@ -878,16 +1001,13 @@ fn render_package_card(
             }))
     } else {
         let pid = pkg.id.clone();
-        CouchButton::secondary(
-            format!("btn-hub-install-{}", pkg.id),
-            "Download & Play (A)",
-        )
-        .icon(IconName::Download)
-        .size(CouchButtonSize::Lg)
-        .on_click(cx.listener(move |this, _, _, cx| {
-            this.couch_hub_state.selected_index = idx;
-            this.download_and_play_couch_package(&pid, cx);
-        }))
+        CouchButton::secondary(format!("btn-hub-install-{}", pkg.id), "Download & Play (A)")
+            .icon(IconName::Download)
+            .size(CouchButtonSize::Lg)
+            .on_click(cx.listener(move |this, _, _, cx| {
+                this.couch_hub_state.selected_index = idx;
+                this.download_and_play_couch_package(&pid, cx);
+            }))
     };
 
     let card_border = if is_selected {
@@ -929,11 +1049,11 @@ fn render_package_card(
                 // Verified Badge
                 .children(if pkg.is_verified {
                     Some(
-                        div()
-                            .absolute()
-                            .top_2()
-                            .left_2()
-                            .child(CouchTag::new("Verified").icon(IconName::BadgeCheck).tone(TagTone::Success)),
+                        div().absolute().top_2().left_2().child(
+                            CouchTag::new("Verified")
+                                .icon(IconName::BadgeCheck)
+                                .tone(TagTone::Success),
+                        ),
                     )
                 } else {
                     None
@@ -1083,26 +1203,32 @@ pub fn render_custom_options_modal(
             .into_any_element()
         }));
 
-    CouchModal::new("couch-handler-options-modal", format!("Splitscreen Options - {}", modal.game_title))
-        .subtitle("Select your gameplay preferences (defaults pre-selected):")
-        .width(ModalWidth::Lg)
-        .icon(IconName::SlidersHorizontal)
-        .tone(TagTone::Accent)
-        .body(options_list)
-        .action(
-            CouchButton::secondary("btn-cancel-options", "Cancel (B)")
-                .icon(IconName::X)
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.couch_hub_state.custom_options_modal = None;
-                    cx.notify();
-                }))
+    CouchModal::new(
+        "couch-handler-options-modal",
+        format!("Splitscreen Options - {}", modal.game_title),
+    )
+    .subtitle("Select your gameplay preferences (defaults pre-selected):")
+    .width(ModalWidth::Lg)
+    .icon(IconName::SlidersHorizontal)
+    .tone(TagTone::Accent)
+    .body(options_list)
+    .action(
+        CouchButton::secondary("btn-cancel-options", "Cancel (B)")
+            .icon(IconName::X)
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.couch_hub_state.custom_options_modal = None;
+                cx.notify();
+            })),
+    )
+    .action(
+        CouchButton::primary(
+            "btn-confirm-options-launch",
+            "Start Session with These Options (Start / A)",
         )
-        .action(
-            CouchButton::primary("btn-confirm-options-launch", "Start Session with These Options (Start / A)")
-                .icon(IconName::Play)
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.confirm_couch_options_and_launch(cx);
-                }))
-        )
-        .into_any_element()
+        .icon(IconName::Play)
+        .on_click(cx.listener(|this, _, _, cx| {
+            this.confirm_couch_options_and_launch(cx);
+        })),
+    )
+    .into_any_element()
 }

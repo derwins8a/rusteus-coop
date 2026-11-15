@@ -640,7 +640,8 @@ mod tests {
     fn test_handler_config_serde() {
         let config = HandlerConfig::default();
         let json = serde_json::to_string(&config).expect("Serialization failed");
-        let deserialized: HandlerConfig = serde_json::from_str(&json).expect("Deserialization failed");
+        let deserialized: HandlerConfig =
+            serde_json::from_str(&json).expect("Deserialization failed");
         assert_eq!(config, deserialized);
     }
 }

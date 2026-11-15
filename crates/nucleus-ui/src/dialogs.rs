@@ -63,9 +63,20 @@ pub fn pick_file(title: &str, filter: &str) -> Option<PathBuf> {
         }
     }
 
-    /// Opens a native file selection dialog asynchronously on a background blocking thread,
+    #[cfg(not(windows))]
+    {
+        let _ = (title, filter);
+    }
+
+    None
+}
+
+/// Opens a native file selection dialog asynchronously on a background blocking thread,
 /// ensuring the main GPUI thread and UI rendering never freeze.
-pub async fn pick_file_async(title: impl Into<String>, filter: impl Into<String>) -> Option<PathBuf> {
+pub async fn pick_file_async(
+    title: impl Into<String>,
+    filter: impl Into<String>,
+) -> Option<PathBuf> {
     let t = title.into();
     let f = filter.into();
     tokio::task::spawn_blocking(move || pick_file(&t, &f))

@@ -196,7 +196,10 @@ mod tests {
             "-windowed",
             options,
         );
-        assert_eq!(exe, PathBuf::from("C:\\Nucleus\\utils\\ForceBindIP\\ForceBindIP.exe"));
+        assert_eq!(
+            exe,
+            PathBuf::from("C:\\Nucleus\\utils\\ForceBindIP\\ForceBindIP.exe")
+        );
         assert_eq!(args[0], "127.0.0.2");
         assert_eq!(args[1], "C:\\Games\\game.exe");
         assert_eq!(args[2], "dummy");
@@ -217,7 +220,10 @@ mod tests {
             "-dx11 -novid",
             options,
         );
-        assert_eq!(exe, PathBuf::from("C:\\Nucleus\\utils\\ForceBindIP\\ForceBindIP64.exe"));
+        assert_eq!(
+            exe,
+            PathBuf::from("C:\\Nucleus\\utils\\ForceBindIP\\ForceBindIP64.exe")
+        );
         assert_eq!(args[0], "-i");
         assert_eq!(args[1], "127.0.0.3");
         assert_eq!(args[2], "C:\\Games\\game_x64.exe");

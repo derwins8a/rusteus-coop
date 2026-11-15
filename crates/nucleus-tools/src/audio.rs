@@ -5,8 +5,8 @@
 //! and `IAudioPolicyConfigFactoryFor21H2`).
 
 use nucleus_common::error::NucleusResult;
-use std::sync::mpsc::{channel, Sender};
 use std::sync::OnceLock;
+use std::sync::mpsc::{Sender, channel};
 use std::thread;
 
 /// Device interface GUID suffix for audio render endpoints.
@@ -95,7 +95,7 @@ impl ComThread {
 
                 #[cfg(windows)]
                 unsafe {
-                    use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
+                    use windows::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx};
                     let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
                 }
 
@@ -183,15 +183,11 @@ type FnWindowsCreateString = unsafe extern "system" fn(
 ) -> windows::core::HRESULT;
 
 #[cfg(windows)]
-type FnWindowsDeleteString = unsafe extern "system" fn(
-    string: HSTRING,
-) -> windows::core::HRESULT;
+type FnWindowsDeleteString = unsafe extern "system" fn(string: HSTRING) -> windows::core::HRESULT;
 
 #[cfg(windows)]
-type FnWindowsGetStringRawBuffer = unsafe extern "system" fn(
-    string: HSTRING,
-    length: *mut u32,
-) -> *const u16;
+type FnWindowsGetStringRawBuffer =
+    unsafe extern "system" fn(string: HSTRING, length: *mut u32) -> *const u16;
 
 #[cfg(windows)]
 type FnSetPersistedDefaultAudioEndpoint = unsafe extern "system" fn(
@@ -212,9 +208,8 @@ type FnGetPersistedDefaultAudioEndpoint = unsafe extern "system" fn(
 ) -> windows::core::HRESULT;
 
 #[cfg(windows)]
-type FnClearAllPersistedApplicationDefaultEndpoints = unsafe extern "system" fn(
-    this: *mut std::ffi::c_void,
-) -> windows::core::HRESULT;
+type FnClearAllPersistedApplicationDefaultEndpoints =
+    unsafe extern "system" fn(this: *mut std::ffi::c_void) -> windows::core::HRESULT;
 
 /// VTable layout for `IAudioPolicyConfigFactory` and `IAudioPolicyConfigFactoryFor21H2`.
 ///
@@ -228,12 +223,26 @@ type FnClearAllPersistedApplicationDefaultEndpoints = unsafe extern "system" fn(
 #[cfg(windows)]
 #[repr(C)]
 pub struct IAudioPolicyConfigFactoryVtbl {
-    pub query_interface: unsafe extern "system" fn(this: *mut std::ffi::c_void, riid: *const windows::core::GUID, ppv: *mut *mut std::ffi::c_void) -> windows::core::HRESULT,
+    pub query_interface: unsafe extern "system" fn(
+        this: *mut std::ffi::c_void,
+        riid: *const windows::core::GUID,
+        ppv: *mut *mut std::ffi::c_void,
+    ) -> windows::core::HRESULT,
     pub add_ref: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
     pub release: unsafe extern "system" fn(this: *mut std::ffi::c_void) -> u32,
-    pub get_iids: unsafe extern "system" fn(this: *mut std::ffi::c_void, iid_count: *mut u32, iids: *mut *mut windows::core::GUID) -> windows::core::HRESULT,
-    pub get_runtime_class_name: unsafe extern "system" fn(this: *mut std::ffi::c_void, class_name: *mut HSTRING) -> windows::core::HRESULT,
-    pub get_trust_level: unsafe extern "system" fn(this: *mut std::ffi::c_void, trust_level: *mut i32) -> windows::core::HRESULT,
+    pub get_iids: unsafe extern "system" fn(
+        this: *mut std::ffi::c_void,
+        iid_count: *mut u32,
+        iids: *mut *mut windows::core::GUID,
+    ) -> windows::core::HRESULT,
+    pub get_runtime_class_name: unsafe extern "system" fn(
+        this: *mut std::ffi::c_void,
+        class_name: *mut HSTRING,
+    ) -> windows::core::HRESULT,
+    pub get_trust_level: unsafe extern "system" fn(
+        this: *mut std::ffi::c_void,
+        trust_level: *mut i32,
+    ) -> windows::core::HRESULT,
     pub slot_6: usize,
     pub slot_7: usize,
     pub slot_8: usize,
@@ -255,7 +264,8 @@ pub struct IAudioPolicyConfigFactoryVtbl {
     pub slot_24: usize,
     pub set_persisted_default_audio_endpoint: FnSetPersistedDefaultAudioEndpoint,
     pub get_persisted_default_audio_endpoint: FnGetPersistedDefaultAudioEndpoint,
-    pub clear_all_persisted_application_default_endpoints: FnClearAllPersistedApplicationDefaultEndpoints,
+    pub clear_all_persisted_application_default_endpoints:
+        FnClearAllPersistedApplicationDefaultEndpoints,
 }
 
 /// GUID for Pre-Windows 10 21H2 `IAudioPolicyConfigFactory`:
@@ -285,8 +295,8 @@ struct ComBase {
 impl ComBase {
     fn load() -> Result<Self, String> {
         unsafe {
-            use windows::core::{s, w};
             use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+            use windows::core::{s, w};
 
             let module = LoadLibraryW(w!("combase.dll"))
                 .map_err(|e| format!("Failed to load combase.dll: {:?}", e))?;
@@ -297,14 +307,16 @@ impl ComBase {
                 .ok_or_else(|| "WindowsCreateString not found in combase.dll".to_string())?;
             let windows_delete_string = GetProcAddress(module, s!("WindowsDeleteString"))
                 .ok_or_else(|| "WindowsDeleteString not found in combase.dll".to_string())?;
-            let windows_get_string_raw_buffer = GetProcAddress(module, s!("WindowsGetStringRawBuffer"));
+            let windows_get_string_raw_buffer =
+                GetProcAddress(module, s!("WindowsGetStringRawBuffer"));
 
             Ok(Self {
                 _module: module,
                 ro_get_activation_factory: std::mem::transmute(ro_get_activation_factory),
                 windows_create_string: std::mem::transmute(windows_create_string),
                 windows_delete_string: std::mem::transmute(windows_delete_string),
-                windows_get_string_raw_buffer: windows_get_string_raw_buffer.map(|p| std::mem::transmute(p)),
+                windows_get_string_raw_buffer: windows_get_string_raw_buffer
+                    .map(|p| std::mem::transmute(p)),
             })
         }
     }
@@ -361,8 +373,8 @@ pub fn get_windows_build() -> u32 {
     type FnRtlGetVersion = unsafe extern "system" fn(info: *mut OsVersionInfoW) -> i32;
 
     unsafe {
-        use windows::core::{s, w};
         use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+        use windows::core::{s, w};
 
         if let Ok(module) = LoadLibraryW(w!("ntdll.dll")) {
             if let Some(proc) = GetProcAddress(module, s!("RtlGetVersion")) {
@@ -420,17 +432,10 @@ impl AudioPolicyClient {
         let mut is_21h2 = is_21h2_os;
 
         unsafe {
-            let hr = (combase.ro_get_activation_factory)(
-                class_hstring,
-                &primary_iid,
-                &mut factory,
-            );
+            let hr = (combase.ro_get_activation_factory)(class_hstring, &primary_iid, &mut factory);
             if hr.is_err() || factory.is_null() {
-                let hr_fallback = (combase.ro_get_activation_factory)(
-                    class_hstring,
-                    &fallback_iid,
-                    &mut factory,
-                );
+                let hr_fallback =
+                    (combase.ro_get_activation_factory)(class_hstring, &fallback_iid, &mut factory);
                 if hr_fallback.is_err() || factory.is_null() {
                     combase.delete_hstring(class_hstring);
                     return Err(format!(
@@ -592,9 +597,7 @@ impl AudioTool {
     pub fn enumerate_render_devices() -> Vec<AudioEndpoint> {
         #[cfg(windows)]
         {
-            ComThread::invoke_global(|| unsafe {
-                Self::enumerate_render_devices_win32()
-            })
+            ComThread::invoke_global(|| unsafe { Self::enumerate_render_devices_win32() })
         }
 
         #[cfg(not(windows))]
@@ -606,38 +609,41 @@ impl AudioTool {
     #[cfg(windows)]
     unsafe fn enumerate_render_devices_win32() -> Vec<AudioEndpoint> {
         unsafe {
-            use windows::core::GUID;
             use windows::Win32::Media::Audio::*;
             use windows::Win32::System::Com::*;
             use windows::Win32::UI::Shell::PropertiesSystem::*;
+            use windows::core::GUID;
 
-            let enumerator: IMMDeviceEnumerator = match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
-                Ok(e) => e,
-                Err(err) => {
-                    tracing::warn!("Failed to create MMDeviceEnumerator: {:?}", err);
-                    return Self::fallback_devices();
-                }
-            };
+            let enumerator: IMMDeviceEnumerator =
+                match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
+                    Ok(e) => e,
+                    Err(err) => {
+                        tracing::warn!("Failed to create MMDeviceEnumerator: {:?}", err);
+                        return Self::fallback_devices();
+                    }
+                };
 
-            let default_id: Option<String> = match enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
-                Ok(dev) => dev.GetId().ok().map(|pwstr| {
-                    let s = pwstr.to_string().unwrap_or_default();
-                    CoTaskMemFree(Some(pwstr.as_ptr() as *const _));
-                    s
-                }),
-                Err(err) => {
-                    tracing::debug!("No default audio endpoint discovered: {:?}", err);
-                    None
-                }
-            };
+            let default_id: Option<String> =
+                match enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
+                    Ok(dev) => dev.GetId().ok().map(|pwstr| {
+                        let s = pwstr.to_string().unwrap_or_default();
+                        CoTaskMemFree(Some(pwstr.as_ptr() as *const _));
+                        s
+                    }),
+                    Err(err) => {
+                        tracing::debug!("No default audio endpoint discovered: {:?}", err);
+                        None
+                    }
+                };
 
-            let collection: IMMDeviceCollection = match enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) {
-                Ok(c) => c,
-                Err(err) => {
-                    tracing::warn!("Failed to enumerate audio endpoints: {:?}", err);
-                    return Self::fallback_devices();
-                }
-            };
+            let collection: IMMDeviceCollection =
+                match enumerator.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) {
+                    Ok(c) => c,
+                    Err(err) => {
+                        tracing::warn!("Failed to enumerate audio endpoints: {:?}", err);
+                        return Self::fallback_devices();
+                    }
+                };
 
             let count = match collection.GetCount() {
                 Ok(c) => c,
@@ -782,7 +788,10 @@ impl AudioTool {
             });
 
             if let Err(err) = res {
-                tracing::warn!("Failed to reset application default audio endpoints: {}", err);
+                tracing::warn!(
+                    "Failed to reset application default audio endpoints: {}",
+                    err
+                );
             }
             Ok(())
         }
@@ -833,9 +842,7 @@ mod tests {
         assert_eq!(result, 142);
 
         // Nested invocation on the same COM thread should execute without deadlocking
-        let nested = ComThread::invoke_global(|| {
-            ComThread::invoke_global(|| 999)
-        });
+        let nested = ComThread::invoke_global(|| ComThread::invoke_global(|| 999));
         assert_eq!(nested, 999);
     }
 

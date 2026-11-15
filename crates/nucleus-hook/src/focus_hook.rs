@@ -23,7 +23,12 @@ impl FocusHook {
             let win_handle = HWND(hwnd as *mut _);
             unsafe {
                 let _ = PostMessageW(win_handle, WM_NCACTIVATE, WPARAM(1), LPARAM(0));
-                let _ = PostMessageW(win_handle, WM_ACTIVATE, WPARAM(WA_ACTIVE as usize), LPARAM(0));
+                let _ = PostMessageW(
+                    win_handle,
+                    WM_ACTIVATE,
+                    WPARAM(WA_ACTIVE as usize),
+                    LPARAM(0),
+                );
                 let _ = PostMessageW(win_handle, WM_SETFOCUS, WPARAM(0), LPARAM(0));
             }
         }

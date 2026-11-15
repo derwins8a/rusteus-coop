@@ -18,14 +18,20 @@ impl LinuxMutexManager {
 
 impl MutexManager for LinuxMutexManager {
     fn kill_mutex(&self, _pid: u32, _mutex_name: &str, _mutex_type: &str) -> NucleusResult<bool> {
-        Err(NucleusError::Unsupported("Named mutex killing not supported on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Named mutex killing not supported on Linux".into(),
+        ))
     }
 
     fn rename_mutex(&self, _pid: u32, _old_name: &str, _new_name: &str) -> NucleusResult<bool> {
-        Err(NucleusError::Unsupported("Named mutex renaming not supported on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Named mutex renaming not supported on Linux".into(),
+        ))
     }
 
     fn find_mutex(&self, _pid: u32, _name: &str, _partial: bool) -> NucleusResult<Vec<String>> {
-        Err(NucleusError::Unsupported("Mutex discovery not supported on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Mutex discovery not supported on Linux".into(),
+        ))
     }
 }

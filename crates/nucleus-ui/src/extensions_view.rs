@@ -1,12 +1,12 @@
 //! Extensions, Add-ons & Plugins view managing sandboxed WASM extensions and JS add-ons.
 
-use std::sync::Arc;
-use gpui::prelude::*;
-use gpui::*;
-use gpui_kit_assets::IconName;
 use crate::components::badge::{CouchTag, TagTone};
 use crate::components::button::{CouchButton, CouchButtonSize};
 use crate::theme;
+use gpui::prelude::*;
+use gpui::*;
+use gpui_kit_assets::IconName;
+use std::sync::Arc;
 
 /// Presentation model for an installed extension entry in the UI.
 #[derive(Debug, Clone, PartialEq, Eq)]

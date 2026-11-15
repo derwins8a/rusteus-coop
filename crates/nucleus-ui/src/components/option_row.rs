@@ -130,7 +130,11 @@ impl CouchOptionRow {
             .border_1()
             .border_color(theme::border_subtle())
             .hover(|s| s.bg(theme::bg_hover()).border_color(theme::accent()))
-            .child(Icon::new(IconName::ChevronLeft).size_4().text_color(theme::text_primary()));
+            .child(
+                Icon::new(IconName::ChevronLeft)
+                    .size_4()
+                    .text_color(theme::text_primary()),
+            );
 
         if let Some(h) = self.on_prev {
             prev_btn = prev_btn.on_click(move |ev, win, cx| h(ev, win, cx));
@@ -149,7 +153,11 @@ impl CouchOptionRow {
             .border_1()
             .border_color(theme::border_subtle())
             .hover(|s| s.bg(theme::bg_hover()).border_color(theme::accent()))
-            .child(Icon::new(IconName::ChevronRight).size_4().text_color(theme::text_primary()));
+            .child(
+                Icon::new(IconName::ChevronRight)
+                    .size_4()
+                    .text_color(theme::text_primary()),
+            );
 
         if let Some(h) = self.on_next {
             next_btn = next_btn.on_click(move |ev, win, cx| h(ev, win, cx));

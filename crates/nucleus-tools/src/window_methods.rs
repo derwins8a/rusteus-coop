@@ -120,8 +120,16 @@ impl WindowMethodsTool {
 
                     let cur_x = x + col * cell_w;
                     let cur_y = y + row * cell_h;
-                    let cur_w = if col == cols - 1 { w - col * cell_w } else { cell_w };
-                    let cur_h = if row == rows - 1 { h - row * cell_h } else { cell_h };
+                    let cur_w = if col == cols - 1 {
+                        w - col * cell_w
+                    } else {
+                        cell_w
+                    };
+                    let cur_h = if row == rows - 1 {
+                        h - row * cell_h
+                    } else {
+                        cell_h
+                    };
 
                     rects.push(Rect::new(cur_x, cur_y, cur_w, cur_h));
                 }

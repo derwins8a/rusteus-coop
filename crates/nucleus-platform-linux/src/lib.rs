@@ -49,9 +49,9 @@ pub use window_manager::LinuxWindowManager;
 
 #[cfg(target_os = "linux")]
 use nucleus_platform::{
-    DisplayManager, ElevationManager, FilesystemManager, InputHookManager, MutexManager, NetworkManager,
-    OsdManager, PlatformServices, ProcessManager, RegistryManager, TaskbarManager, UserAccountManager,
-    WindowManager,
+    DisplayManager, ElevationManager, FilesystemManager, InputHookManager, MutexManager,
+    NetworkManager, OsdManager, PlatformServices, ProcessManager, RegistryManager, TaskbarManager,
+    UserAccountManager, WindowManager,
 };
 
 /// Linux platform services provider.

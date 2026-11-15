@@ -43,7 +43,10 @@ impl InputManager {
     }
 
     /// Configures hotkeys and input lock toggle key based on persistent `AppSettings`.
-    pub fn register_settings(&mut self, settings: &nucleus_profile::AppSettings) -> NucleusResult<()> {
+    pub fn register_settings(
+        &mut self,
+        settings: &nucleus_profile::AppSettings,
+    ) -> NucleusResult<()> {
         let toggle_key = settings.lock_key_code();
         self.lock.set_toggle_key(toggle_key);
         let _ = self.hotkeys.register_hotkey(toggle_key, toggle_key, 0);
@@ -64,7 +67,8 @@ impl InputManager {
 
         for hotkey_id in triggered {
             if hotkey_id == crate::HOTKEY_ID_LOCK || hotkey_id == self.lock.toggle_key() {
-                self.lock.toggle_with_osd(self.platform.as_deref().map(|p| p.osd_manager()));
+                self.lock
+                    .toggle_with_osd(self.platform.as_deref().map(|p| p.osd_manager()));
                 result.push(hotkey_id);
             } else if self.lock.is_locked() {
                 // Parity with C# HotkeyListener.cs:161:
@@ -91,7 +95,10 @@ impl InputManager {
                         0x61 => "Numpad 1",
                         _ => "Lock",
                     };
-                    p.osd_manager().show(1600, &format!("Unlock Inputs First (Press {} Key)", key_name));
+                    p.osd_manager().show(
+                        1600,
+                        &format!("Unlock Inputs First (Press {} Key)", key_name),
+                    );
                 }
             } else {
                 result.push(hotkey_id);
@@ -145,7 +152,8 @@ mod tests {
     fn test_input_manager_register_settings() {
         let mut mgr = InputManager::new(None).expect("Failed to create InputManager");
         let settings = nucleus_profile::AppSettings::default();
-        mgr.register_settings(&settings).expect("Register settings should succeed");
+        mgr.register_settings(&settings)
+            .expect("Register settings should succeed");
         assert!(mgr.hotkeys().count() >= 8);
     }
 }

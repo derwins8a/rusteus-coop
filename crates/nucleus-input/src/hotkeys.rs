@@ -68,7 +68,10 @@ impl HotkeyListener {
     }
 
     /// Registers all standard hotkey combinations defined in `AppSettings`.
-    pub fn register_from_settings(&mut self, settings: &nucleus_profile::AppSettings) -> NucleusResult<()> {
+    pub fn register_from_settings(
+        &mut self,
+        settings: &nucleus_profile::AppSettings,
+    ) -> NucleusResult<()> {
         if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_close) {
             self.register_hotkey(HOTKEY_ID_CLOSE, k, m)?;
         }
@@ -78,25 +81,34 @@ impl HotkeyListener {
         if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_stop) {
             self.register_hotkey(HOTKEY_ID_STOP, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_set_focus) {
+        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_set_focus)
+        {
             self.register_hotkey(HOTKEY_ID_SET_FOCUS, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_reset_windows) {
+        if let Some((m, k)) =
+            nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_reset_windows)
+        {
             self.register_hotkey(HOTKEY_ID_RESET_WINDOWS, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_cutscenes) {
+        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_cutscenes)
+        {
             self.register_hotkey(HOTKEY_ID_CUTSCENES, k, m)?;
         }
         if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_switch) {
             self.register_hotkey(HOTKEY_ID_SWITCH, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_shortcuts_reminder) {
+        if let Some((m, k)) =
+            nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_shortcuts_reminder)
+        {
             self.register_hotkey(HOTKEY_ID_REMINDER, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_merger_switch) {
+        if let Some((m, k)) =
+            nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_merger_switch)
+        {
             self.register_hotkey(HOTKEY_ID_MERGER_SWITCH, k, m)?;
         }
-        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_couch_osd) {
+        if let Some((m, k)) = nucleus_profile::AppSettings::parse_hotkey(&settings.hotkey_couch_osd)
+        {
             self.register_hotkey(HOTKEY_ID_COUCH_OSD, k, m)?;
         } else {
             self.register_hotkey(HOTKEY_ID_COUCH_OSD, 121, 0)?;
@@ -130,13 +142,18 @@ impl HotkeyListener {
                         let alt_req = (binding.modifiers & 2) != 0;
                         let shift_req = (binding.modifiers & 4) != 0;
 
-                        let ctrl_down = (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
+                        let ctrl_down =
+                            (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0;
                         let alt_down = (GetAsyncKeyState(VK_MENU.0 as i32) as u16 & 0x8000) != 0;
                         let shift_down = (GetAsyncKeyState(VK_SHIFT.0 as i32) as u16 & 0x8000) != 0;
 
-                        if (ctrl_req == ctrl_down) && (alt_req == alt_down) && (shift_req == shift_down) {
+                        if (ctrl_req == ctrl_down)
+                            && (alt_req == alt_down)
+                            && (shift_req == shift_down)
+                        {
                             if let Some(&last) = self.last_triggered.get(&binding.id) {
-                                if now.duration_since(last) < std::time::Duration::from_millis(600) {
+                                if now.duration_since(last) < std::time::Duration::from_millis(600)
+                                {
                                     continue;
                                 }
                             }

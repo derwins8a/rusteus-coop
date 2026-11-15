@@ -1,8 +1,8 @@
 //! Central GameManager coordinator orchestrating game library, scanner, and active sessions.
 
 use crate::scanner::{DiskScanner, FoundGame};
-pub use crate::session::{ActiveSessionSlotSnapshot, ActiveSessionSnapshot};
 use crate::session::GameSession;
+pub use crate::session::{ActiveSessionSlotSnapshot, ActiveSessionSnapshot};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -94,7 +94,12 @@ pub fn get_app_content_path(guid: &str, custom_nucleus_data_dir: Option<&Path>) 
 
     // Ultimate fallback if AppData cannot be queried
     dirs::home_dir()
-        .map(|h| h.join("AppData").join("Roaming").join("Nucleus Coop").join(guid))
+        .map(|h| {
+            h.join("AppData")
+                .join("Roaming")
+                .join("Nucleus Coop")
+                .join(guid)
+        })
         .unwrap_or_else(|| std::env::temp_dir().join("Nucleus Coop").join(guid))
 }
 
@@ -284,11 +289,8 @@ impl GameManager {
                             entry.game_guid,
                             entry.exe_path
                         );
-                        let mut profile = GameProfile::new(
-                            &entry.game_guid,
-                            &entry.game_guid,
-                            entry.exe_path,
-                        );
+                        let mut profile =
+                            GameProfile::new(&entry.game_guid, &entry.game_guid, entry.exe_path);
                         profile.total_play_time_seconds = entry.total_play_time_seconds;
                         profile.last_played_timestamp = entry.last_played_timestamp;
                         profile.favorite = entry.favorite;
@@ -297,7 +299,8 @@ impl GameManager {
                         profile.custom_arguments = entry.custom_arguments;
                         profile.options = entry.options;
                         profile.assign_gamepads_by_index = entry.assign_gamepads_by_index;
-                        profile.assign_gamepads_on_button_press = entry.assign_gamepads_on_button_press;
+                        profile.assign_gamepads_on_button_press =
+                            entry.assign_gamepads_on_button_press;
                         profile.keep_instances_content_folder = entry.keep_instances_content_folder;
                         profile.disable_profile = entry.disable_profile;
                         profile.disable_handler_update = entry.disable_handler_update;
@@ -311,9 +314,15 @@ impl GameManager {
 
         // Cross-reference and sync with %USERPROFILE%\NucleusCoop\metaInfo.json
         for (guid, profile) in &mut self.profiles {
-            let meta_entry = self.meta_info.find_entry(guid).or_else(|| {
-                self.handlers.get(guid).and_then(|h| self.meta_info.find_entry(&h.game_name))
-            }).map(|(_, e)| e);
+            let meta_entry = self
+                .meta_info
+                .find_entry(guid)
+                .or_else(|| {
+                    self.handlers
+                        .get(guid)
+                        .and_then(|h| self.meta_info.find_entry(&h.game_name))
+                })
+                .map(|(_, e)| e);
 
             if let Some(meta) = meta_entry {
                 let meta_secs = meta.play_time_seconds();
@@ -377,7 +386,11 @@ impl GameManager {
         let user_profile = UserProfileJson { games: entries };
         if let Ok(json_str) = serde_json::to_string_pretty(&user_profile) {
             let _ = std::fs::write(&path, json_str);
-            tracing::info!("Saved {} game profile(s) to {:?}", user_profile.games.len(), path);
+            tracing::info!(
+                "Saved {} game profile(s) to {:?}",
+                user_profile.games.len(),
+                path
+            );
         }
         Ok(())
     }
@@ -445,17 +458,27 @@ impl GameManager {
 
         let file_path = dir.join(format!("Profile[{}].json", target_num));
         let mut to_save = profile.clone();
-        if to_save.profile_name.as_deref().map_or(true, |s| s.trim().is_empty()) {
+        if to_save
+            .profile_name
+            .as_deref()
+            .map_or(true, |s| s.trim().is_empty())
+        {
             to_save.profile_name = Some(format!("Profile {}", target_num));
         }
         to_save.save_to_file(&file_path)?;
 
-        self.platform.osd_manager().show(1600, "Handler Profile Saved. Setup Finished");
+        self.platform
+            .osd_manager()
+            .show(1600, "Handler Profile Saved. Setup Finished");
         Ok(target_num)
     }
 
     /// Loads a numbered game profile from `game profiles/<guid>/Profile[N].json`.
-    pub fn load_numbered_profile(&mut self, guid: &str, profile_number: usize) -> NucleusResult<GameProfile> {
+    pub fn load_numbered_profile(
+        &mut self,
+        guid: &str,
+        profile_number: usize,
+    ) -> NucleusResult<GameProfile> {
         let dir = self.get_game_profiles_dir(guid);
         let file_path = dir.join(format!("Profile[{}].json", profile_number));
         let profile = GameProfile::load_from_file(&file_path)?;
@@ -471,19 +494,27 @@ impl GameManager {
     }
 
     /// Deletes a numbered game profile `game profiles/<guid>/Profile[N].json`.
-    pub fn delete_numbered_profile(&mut self, guid: &str, profile_number: usize) -> NucleusResult<()> {
+    pub fn delete_numbered_profile(
+        &mut self,
+        guid: &str,
+        profile_number: usize,
+    ) -> NucleusResult<()> {
         let dir = self.get_game_profiles_dir(guid);
         let file_path = dir.join(format!("Profile[{}].json", profile_number));
         if file_path.exists() {
             let _ = std::fs::remove_file(&file_path);
         }
-        self.platform.osd_manager().show(500, "Handler Profile Deleted");
+        self.platform
+            .osd_manager()
+            .show(500, "Handler Profile Deleted");
         Ok(())
     }
 
     /// Unloads the active profile and displays OSD notification.
     pub fn unload_profile(&self) {
-        self.platform.osd_manager().show(500, "Handler Profile Unloaded");
+        self.platform
+            .osd_manager()
+            .show(500, "Handler Profile Unloaded");
     }
 
     /// Saves an updated profile in memory and persists to disk.
@@ -498,7 +529,8 @@ impl GameManager {
         entry.disable_profiles = Some(profile.disable_profile);
         entry.keep_sym_link = Some(profile.keep_instances_content_folder);
         entry.use_api_index = Some(profile.assign_gamepads_by_index);
-        entry.profile_assign_gamepad_by_button_press = Some(profile.assign_gamepads_on_button_press);
+        entry.profile_assign_gamepad_by_button_press =
+            Some(profile.assign_gamepads_on_button_press);
         if let Some(ref l) = profile.steam_language {
             entry.steam_language = Some(l.clone());
         }
@@ -602,13 +634,18 @@ impl GameManager {
                     if file_name.eq_ignore_ascii_case("MasterHandler.js") {
                         continue;
                     }
-                    if path.extension().map_or(false, |ext| ext.eq_ignore_ascii_case("js")) {
+                    if path
+                        .extension()
+                        .map_or(false, |ext| ext.eq_ignore_ascii_case("js"))
+                    {
                         if let Ok(script) = std::fs::read_to_string(&path) {
                             let mut engine = match nucleus_script::ScriptEngine::new() {
                                 Ok(e) => e,
                                 Err(_) => continue,
                             };
-                            if let Ok(mut config) = engine.load_handler_script_with_folder(&script, path.parent()) {
+                            if let Ok(mut config) =
+                                engine.load_handler_script_with_folder(&script, path.parent())
+                            {
                                 if config.guid.eq_ignore_ascii_case("My Game")
                                     || config.game_name.eq_ignore_ascii_case("My Game")
                                     || config.guid.eq_ignore_ascii_case("MasterHandler")
@@ -682,7 +719,10 @@ impl GameManager {
         self.stop_game()?;
 
         let config = self.handlers.get(guid).cloned().ok_or_else(|| {
-            nucleus_common::error::NucleusError::Other(format!("Handler not found for GUID: {}", guid))
+            nucleus_common::error::NucleusError::Other(format!(
+                "Handler not found for GUID: {}",
+                guid
+            ))
         })?;
 
         let exe_path = std::path::PathBuf::from(&profile.executable_path);
@@ -692,7 +732,11 @@ impl GameManager {
             .to_path_buf();
         let staging_dir = get_app_content_path(guid, self.nucleus_data_dir.as_deref());
         if let Err(e) = std::fs::create_dir_all(&staging_dir) {
-            tracing::warn!("Failed to create staging directory {:?}: {}", staging_dir, e);
+            tracing::warn!(
+                "Failed to create staging directory {:?}: {}",
+                staging_dir,
+                e
+            );
         }
         let player_count = std::cmp::max(1, profile.player_count);
 
@@ -774,10 +818,12 @@ impl GameManager {
                 }
 
                 let now_str = nucleus_profile::now_formatted();
-                self.meta_info.record_playtime(&session.game_guid, delta, &now_str);
+                self.meta_info
+                    .record_playtime(&session.game_guid, delta, &now_str);
                 if let Some(h) = self.handlers.get(&session.game_guid) {
                     if h.game_name != session.game_guid {
-                        self.meta_info.record_playtime(&h.game_name, delta, &now_str);
+                        self.meta_info
+                            .record_playtime(&h.game_name, delta, &now_str);
                     }
                 }
                 let _ = self.meta_info.save();
@@ -796,7 +842,10 @@ impl GameManager {
         self.stop_game()?;
 
         let config = self.handlers.get(guid).cloned().ok_or_else(|| {
-            nucleus_common::error::NucleusError::Other(format!("Handler not found for GUID: {}", guid))
+            nucleus_common::error::NucleusError::Other(format!(
+                "Handler not found for GUID: {}",
+                guid
+            ))
         })?;
 
         let exe_path = std::path::PathBuf::from(&profile.executable_path);
@@ -806,7 +855,11 @@ impl GameManager {
             .to_path_buf();
         let staging_dir = get_app_content_path(guid, self.nucleus_data_dir.as_deref());
         if let Err(e) = std::fs::create_dir_all(&staging_dir) {
-            tracing::warn!("Failed to create staging directory {:?}: {}", staging_dir, e);
+            tracing::warn!(
+                "Failed to create staging directory {:?}: {}",
+                staging_dir,
+                e
+            );
         }
         let player_count = std::cmp::max(1, profile.player_count);
         let split_mode = nucleus_handler::window::split_mode_from_name(&profile.layout);
@@ -874,13 +927,20 @@ impl GameManager {
 
     /// Returns the save slots manifest path for a game: `<data_dir>/saves/<guid>/manifest.json`.
     pub fn get_save_slots_manifest_path(&self, guid: &str) -> PathBuf {
-        nucleus_profile::save_slots::GameSaveSlotsManifest::manifest_path(&self.get_saves_dir(), guid)
+        nucleus_profile::save_slots::GameSaveSlotsManifest::manifest_path(
+            &self.get_saves_dir(),
+            guid,
+        )
     }
 
     /// Lists all save slots configured for the given game GUID.
-    pub fn list_save_slots(&self, guid: &str) -> NucleusResult<Vec<nucleus_profile::save_slots::SaveSlot>> {
+    pub fn list_save_slots(
+        &self,
+        guid: &str,
+    ) -> NucleusResult<Vec<nucleus_profile::save_slots::SaveSlot>> {
         let saves_dir = self.get_saves_dir();
-        let manifest = nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
+        let manifest =
+            nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
         Ok(manifest.slots)
     }
 
@@ -893,8 +953,11 @@ impl GameManager {
         source_hint: &str,
     ) -> NucleusResult<nucleus_profile::save_slots::SaveSlot> {
         let saves_dir = self.get_saves_dir();
-        let mut manifest = nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
-        let slot = manifest.create_slot(display_name, ludusavi_game_title, source_hint).clone();
+        let mut manifest =
+            nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
+        let slot = manifest
+            .create_slot(display_name, ludusavi_game_title, source_hint)
+            .clone();
         manifest.save_to_dir(&saves_dir)?;
         Ok(slot)
     }
@@ -907,13 +970,22 @@ impl GameManager {
         new_name: &str,
     ) -> NucleusResult<nucleus_profile::save_slots::SaveSlot> {
         let saves_dir = self.get_saves_dir();
-        let mut manifest = nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
+        let mut manifest =
+            nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
         let (title, hint) = if let Some(source_slot) = manifest.get_slot(source_id) {
-            (source_slot.ludusavi_game_title.clone(), source_slot.source_hint.clone())
+            (
+                source_slot.ludusavi_game_title.clone(),
+                source_slot.source_hint.clone(),
+            )
         } else {
-            return Err(nucleus_common::error::NucleusError::Other(format!("Slot '{}' not found", source_id)));
+            return Err(nucleus_common::error::NucleusError::Other(format!(
+                "Slot '{}' not found",
+                source_id
+            )));
         };
-        let new_slot = manifest.create_slot(new_name, &title, &format!("{}_clone", hint)).clone();
+        let new_slot = manifest
+            .create_slot(new_name, &title, &format!("{}_clone", hint))
+            .clone();
 
         // Replicate slot repository folder on disk if it exists
         let game_dir = saves_dir.join(guid);
@@ -930,7 +1002,8 @@ impl GameManager {
     /// Deletes a save slot and removes its backup files from disk.
     pub fn delete_save_slot(&mut self, guid: &str, slot_id: &str) -> NucleusResult<()> {
         let saves_dir = self.get_saves_dir();
-        let mut manifest = nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
+        let mut manifest =
+            nucleus_profile::save_slots::GameSaveSlotsManifest::load_from_dir(&saves_dir, guid)?;
         manifest.delete_slot(slot_id);
         manifest.save_to_dir(&saves_dir)?;
 
@@ -960,7 +1033,9 @@ impl GameManager {
     }
 
     /// Returns a reference to the ExtensionManager if available.
-    pub fn extension_manager(&self) -> Option<Arc<parking_lot::Mutex<nucleus_plugin::ExtensionManager>>> {
+    pub fn extension_manager(
+        &self,
+    ) -> Option<Arc<parking_lot::Mutex<nucleus_plugin::ExtensionManager>>> {
         self.extension_manager.clone()
     }
 
@@ -969,7 +1044,9 @@ impl GameManager {
         if let Some(ref ext_mgr) = self.extension_manager {
             ext_mgr.lock().install_archive(archive_path)
         } else {
-            Err(nucleus_common::error::NucleusError::Plugin("Extension manager not initialized".to_string()))
+            Err(nucleus_common::error::NucleusError::Plugin(
+                "Extension manager not initialized".to_string(),
+            ))
         }
     }
 
@@ -977,7 +1054,8 @@ impl GameManager {
     pub fn get_hub_credentials(&self) -> Option<nucleus_hub::auth::HubSessionToken> {
         let store = self.platform.credential_store();
         if let Ok(Some(bytes)) = store.load_secret("splitscreen_hub", "session") {
-            if let Ok(creds) = serde_json::from_slice::<nucleus_hub::auth::HubSessionToken>(&bytes) {
+            if let Ok(creds) = serde_json::from_slice::<nucleus_hub::auth::HubSessionToken>(&bytes)
+            {
                 return Some(creds);
             }
         }
@@ -985,7 +1063,10 @@ impl GameManager {
     }
 
     /// Saves Hub session credentials using platform credential store.
-    pub fn save_hub_credentials(&self, creds: &nucleus_hub::auth::HubSessionToken) -> NucleusResult<()> {
+    pub fn save_hub_credentials(
+        &self,
+        creds: &nucleus_hub::auth::HubSessionToken,
+    ) -> NucleusResult<()> {
         let store = self.platform.credential_store();
         let bytes = serde_json::to_vec(creds).map_err(nucleus_common::error::NucleusError::Json)?;
         store.save_secret("splitscreen_hub", "session", &bytes)
@@ -1080,7 +1161,11 @@ impl GameManager {
             if session.pending_playtime_seconds > 0 {
                 let delta = session.pending_playtime_seconds;
                 session.pending_playtime_seconds = 0;
-                Some((session.game_guid.clone(), delta, session.profile.last_played_timestamp))
+                Some((
+                    session.game_guid.clone(),
+                    delta,
+                    session.profile.last_played_timestamp,
+                ))
             } else {
                 None
             }
@@ -1099,7 +1184,8 @@ impl GameManager {
             self.meta_info.record_playtime(&guid, delta, &now_str);
             if let Some(h) = self.handlers.get(&guid) {
                 if h.game_name != guid {
-                    self.meta_info.record_playtime(&h.game_name, delta, &now_str);
+                    self.meta_info
+                        .record_playtime(&h.game_name, delta, &now_str);
                 }
             }
             let _ = self.meta_info.save();
@@ -1138,7 +1224,9 @@ impl GameManager {
     pub fn freeze_session(&mut self) -> NucleusResult<Option<bool>> {
         if let Some(ref mut session) = self.active_session {
             session.freeze_all()?;
-            self.platform.osd_manager().show(1500, "Instances Frozen (NtSuspendProcess)");
+            self.platform
+                .osd_manager()
+                .show(1500, "Instances Frozen (NtSuspendProcess)");
             Ok(Some(true))
         } else {
             Ok(None)
@@ -1149,7 +1237,9 @@ impl GameManager {
     pub fn unfreeze_session(&mut self) -> NucleusResult<Option<bool>> {
         if let Some(ref mut session) = self.active_session {
             session.unfreeze_all()?;
-            self.platform.osd_manager().show(1500, "Instances Resumed (NtResumeProcess)");
+            self.platform
+                .osd_manager()
+                .show(1500, "Instances Resumed (NtResumeProcess)");
             Ok(Some(false))
         } else {
             Ok(None)
@@ -1161,11 +1251,15 @@ impl GameManager {
         if let Some(ref mut session) = self.active_session {
             if session.is_frozen() {
                 session.unfreeze_all()?;
-                self.platform.osd_manager().show(1500, "Instances Resumed (NtResumeProcess)");
+                self.platform
+                    .osd_manager()
+                    .show(1500, "Instances Resumed (NtResumeProcess)");
                 Ok(Some(false))
             } else {
                 session.freeze_all()?;
-                self.platform.osd_manager().show(1500, "Instances Frozen (NtSuspendProcess)");
+                self.platform
+                    .osd_manager()
+                    .show(1500, "Instances Frozen (NtSuspendProcess)");
                 Ok(Some(true))
             }
         } else {
@@ -1174,10 +1268,18 @@ impl GameManager {
     }
 
     /// Reassigns the controller device ID for a specific player slot in the active session.
-    pub fn reassign_session_controller(&mut self, slot_idx: usize, new_device_id: usize) -> NucleusResult<()> {
+    pub fn reassign_session_controller(
+        &mut self,
+        slot_idx: usize,
+        new_device_id: usize,
+    ) -> NucleusResult<()> {
         if let Some(ref mut session) = self.active_session {
             session.reassign_controller(slot_idx, new_device_id)?;
-            let msg = format!("Player {} Controller Reassigned to Device #{}", slot_idx + 1, new_device_id);
+            let msg = format!(
+                "Player {} Controller Reassigned to Device #{}",
+                slot_idx + 1,
+                new_device_id
+            );
             self.platform.osd_manager().show(1500, &msg);
         }
         Ok(())
@@ -1187,7 +1289,9 @@ impl GameManager {
     pub fn re_enforce_session_windows(&mut self) -> NucleusResult<()> {
         if let Some(ref mut session) = self.active_session {
             session.re_enforce_windows()?;
-            self.platform.osd_manager().show(1200, "Window Bounds Re-enforced");
+            self.platform
+                .osd_manager()
+                .show(1200, "Window Bounds Re-enforced");
         }
         Ok(())
     }
@@ -1256,7 +1360,11 @@ impl GameManager {
 
     /// Deletes the UserProfile save data directory for the given handler GUID (%USERPROFILE%\NucleusCoop\<GameName>).
     pub fn delete_user_save_path(&self, guid: &str) -> NucleusResult<()> {
-        let game_name = self.handlers.get(guid).map(|h| h.game_name.clone()).unwrap_or_else(|| guid.to_string());
+        let game_name = self
+            .handlers
+            .get(guid)
+            .map(|h| h.game_name.clone())
+            .unwrap_or_else(|| guid.to_string());
         if let Some(home) = dirs::home_dir() {
             let user_save_dir = home.join("NucleusCoop").join(&game_name);
             if user_save_dir.exists() {
@@ -1264,7 +1372,9 @@ impl GameManager {
                 tracing::info!("Deleted UserProfile save path: {:?}", user_save_dir);
             }
         }
-        self.platform.osd_manager().show(1600, "UserProfile Save Path Deleted");
+        self.platform
+            .osd_manager()
+            .show(1600, "UserProfile Save Path Deleted");
         Ok(())
     }
 
@@ -1272,7 +1382,9 @@ impl GameManager {
     /// Removes a game handler and deletes its files from disk, userprofile, and metaInfo.
     pub fn remove_game(&mut self, guid: &str) -> NucleusResult<()> {
         self.delete_game_handler(guid)?;
-        self.platform.osd_manager().show(1600, "Game Removed From List");
+        self.platform
+            .osd_manager()
+            .show(1600, "Game Removed From List");
         Ok(())
     }
 }
@@ -1295,7 +1407,11 @@ mod tests {
             *self.last_message.lock().unwrap() = None;
         }
         fn current_message(&self) -> Option<String> {
-            self.last_message.lock().unwrap().as_ref().map(|(_, t)| t.clone())
+            self.last_message
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|(_, t)| t.clone())
         }
         fn set_color(&self, _color: &str) {}
     }
@@ -1359,11 +1475,15 @@ mod tests {
 
         gm.register_handler(config, None);
 
-        let detected = gm.add_game(Path::new("C:\\Games\\Portal 2\\portal2.exe")).unwrap();
+        let detected = gm
+            .add_game(Path::new("C:\\Games\\Portal 2\\portal2.exe"))
+            .unwrap();
         assert_eq!(detected, Some("portal2".to_string()));
         assert!(gm.profiles().contains_key("portal2"));
 
-        let unmatched = gm.add_game(Path::new("C:\\Games\\Unknown\\unknown.exe")).unwrap();
+        let unmatched = gm
+            .add_game(Path::new("C:\\Games\\Unknown\\unknown.exe"))
+            .unwrap();
         assert_eq!(unmatched, None);
     }
 
@@ -1372,16 +1492,21 @@ mod tests {
         let platform = Arc::new(MockPlatform::default());
         let mut gm = GameManager::new(platform).unwrap();
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_gm_handlers_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_gm_handlers_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let handler1 = temp_dir.join("test1.js");
-        std::fs::write(&handler1, r#"
+        std::fs::write(
+            &handler1,
+            r#"
             Game.GUID = "test1";
             Game.GameName = "Test Game 1";
             Game.ExecutableName = "test1.exe";
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         gm.set_handlers_dir(&temp_dir);
         assert_eq!(gm.handlers_dir(), temp_dir.as_path());
@@ -1392,11 +1517,15 @@ mod tests {
         let sub_dir = temp_dir.join("subdir");
         std::fs::create_dir_all(&sub_dir).unwrap();
         let handler2 = sub_dir.join("test2.js");
-        std::fs::write(&handler2, r#"
+        std::fs::write(
+            &handler2,
+            r#"
             Game.GUID = "test2";
             Game.GameName = "Test Game 2";
             Game.ExecutableName = "test2.exe";
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         gm.reload_handlers().unwrap();
         assert_eq!(gm.get_handlers().len(), 2);
@@ -1410,7 +1539,11 @@ mod tests {
     fn test_canonical_staging_path_resolution() {
         let path = get_app_content_path("Left 4 Dead 2", None);
         let temp = std::env::temp_dir();
-        assert!(!path.starts_with(&temp), "Staging path should not be in temp_dir: {:?}", path);
+        assert!(
+            !path.starts_with(&temp),
+            "Staging path should not be in temp_dir: {:?}",
+            path
+        );
         assert!(path.ends_with("Left 4 Dead 2"));
 
         let custom = std::path::PathBuf::from("C:\\NucleusCustom");
@@ -1420,7 +1553,8 @@ mod tests {
 
     #[test]
     fn test_game_manager_userprofile_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_gm_userprof_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_gm_userprof_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1449,15 +1583,22 @@ mod tests {
         gm2.set_nucleus_data_dir(&temp_dir);
         gm2.initialize().unwrap();
 
-        assert!(gm2.profiles().contains_key("TestGuid"), "TestGuid should be loaded from userprofile.json");
-        assert_eq!(gm2.get_profile("TestGuid").unwrap().executable_path, fake_exe.to_string_lossy());
+        assert!(
+            gm2.profiles().contains_key("TestGuid"),
+            "TestGuid should be loaded from userprofile.json"
+        );
+        assert_eq!(
+            gm2.get_profile("TestGuid").unwrap().executable_path,
+            fake_exe.to_string_lossy()
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_game_manager_numbered_profiles_and_osd_parity() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_gm_profiles_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_gm_profiles_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1477,7 +1618,10 @@ mod tests {
         prof1.layout = "2x2 (Grid)".to_string();
         let num1 = gm.save_numbered_profile(guid, None, &prof1).unwrap();
         assert_eq!(num1, 1);
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Handler Profile Saved. Setup Finished"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Handler Profile Saved. Setup Finished")
+        );
 
         // 3. Save profile 2 without explicit number
         let mut prof2 = GameProfile::default();
@@ -1490,7 +1634,9 @@ mod tests {
         let mut prof1_custom = GameProfile::default();
         prof1_custom.profile_name = Some("Campaign Co-op 4P".to_string());
         prof1_custom.player_count = 4;
-        let num1_updated = gm.save_numbered_profile(guid, Some(1), &prof1_custom).unwrap();
+        let num1_updated = gm
+            .save_numbered_profile(guid, Some(1), &prof1_custom)
+            .unwrap();
         assert_eq!(num1_updated, 1);
 
         // 5. List profiles
@@ -1504,27 +1650,42 @@ mod tests {
         // 6. Load profile 1: verifies custom title in OSD
         let loaded1 = gm.load_numbered_profile(guid, 1).unwrap();
         assert_eq!(loaded1.profile_name.as_deref(), Some("Campaign Co-op 4P"));
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Handler Profile \"Campaign Co-op 4P\" Loaded"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Handler Profile \"Campaign Co-op 4P\" Loaded")
+        );
 
         // 7. Load profile 2: verifies fallback N°2 in OSD
         let loaded2 = gm.load_numbered_profile(guid, 2).unwrap();
         assert_eq!(loaded2.player_count, 2);
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Handler Profile \"Profile 2\" Loaded"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Handler Profile \"Profile 2\" Loaded")
+        );
 
         // 8. Unload profile
         gm.unload_profile();
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Handler Profile Unloaded"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Handler Profile Unloaded")
+        );
 
         // 9. Delete profile 1
         gm.delete_numbered_profile(guid, 1).unwrap();
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Handler Profile Deleted"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Handler Profile Deleted")
+        );
         let remaining = gm.list_saved_profiles(guid);
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].0, 2);
 
         // 10. Remove game
         gm.remove_game(guid).unwrap();
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Game Removed From List"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Game Removed From List")
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -1557,19 +1718,29 @@ mod tests {
         gm2.initialize().unwrap();
 
         let loaded = gm2.get_profile(guid);
-        assert!(loaded.is_some(), "Uninstalled handler profile should persist in userprofile.json");
-        assert!(loaded.unwrap().favorite, "Favorite status must persist across restarts for uninstalled handlers");
+        assert!(
+            loaded.is_some(),
+            "Uninstalled handler profile should persist in userprofile.json"
+        );
+        assert!(
+            loaded.unwrap().favorite,
+            "Favorite status must persist across restarts for uninstalled handlers"
+        );
 
         // Test delete_user_save_path
         gm2.delete_user_save_path(guid).unwrap();
-        assert_eq!(platform2.osd.current_message().as_deref(), Some("UserProfile Save Path Deleted"));
+        assert_eq!(
+            platform2.osd.current_message().as_deref(),
+            Some("UserProfile Save Path Deleted")
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_load_handlers_from_dir_populates_handler_path() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_gm_hpath_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_gm_hpath_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1617,13 +1788,19 @@ mod tests {
         let res = gm.freeze_session().unwrap();
         assert_eq!(res, Some(true));
         assert!(gm.active_session().unwrap().is_frozen());
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Instances Frozen (NtSuspendProcess)"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Instances Frozen (NtSuspendProcess)")
+        );
 
         // Toggle freeze -> unfreezes
         let res2 = gm.toggle_freeze_session().unwrap();
         assert_eq!(res2, Some(false));
         assert!(!gm.active_session().unwrap().is_frozen());
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Instances Resumed (NtResumeProcess)"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Instances Resumed (NtResumeProcess)")
+        );
 
         // Toggle freeze -> freezes
         let res3 = gm.toggle_freeze_session().unwrap();
@@ -1638,16 +1815,23 @@ mod tests {
         // Reassign controller
         gm.reassign_session_controller(0, 5).unwrap();
         assert_eq!(gm.active_session().unwrap().players[0].device_id, 5);
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Player 1 Controller Reassigned to Device #5"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Player 1 Controller Reassigned to Device #5")
+        );
 
         // Re-enforce windows
         gm.re_enforce_session_windows().unwrap();
-        assert_eq!(platform.osd.current_message().as_deref(), Some("Window Bounds Re-enforced"));
+        assert_eq!(
+            platform.osd.current_message().as_deref(),
+            Some("Window Bounds Re-enforced")
+        );
     }
 
     #[test]
     fn test_load_handlers_from_dir_reads_hubmeta_sidecar() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_gm_hubmeta_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_gm_hubmeta_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1694,17 +1878,24 @@ mod tests {
         gm.set_nucleus_data_dir(&temp_dir);
         gm.load_handlers_from_dir(&temp_dir);
 
-        let h1 = gm.get_handler("sidecar_guid").expect("sidecar handler should load");
+        let h1 = gm
+            .get_handler("sidecar_guid")
+            .expect("sidecar handler should load");
         assert_eq!(h1.hub_handler_version, Some(2));
         assert_eq!(h1.hub_handler_id.as_deref(), Some("hid_abc"));
 
-        let h2 = gm.get_handler("sub_sidecar_guid").expect("subfolder sidecar handler should load");
+        let h2 = gm
+            .get_handler("sub_sidecar_guid")
+            .expect("subfolder sidecar handler should load");
         assert_eq!(h2.hub_handler_version, Some(4));
         assert_eq!(h2.hub_handler_id.as_deref(), Some("hid_sub"));
 
         gm.delete_game_handler("sidecar_guid").unwrap();
         assert!(!js_file.exists());
-        assert!(!meta_file.exists(), "TestSidecar.hubmeta.json should be deleted on delete_game_handler");
+        assert!(
+            !meta_file.exists(),
+            "TestSidecar.hubmeta.json should be deleted on delete_game_handler"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

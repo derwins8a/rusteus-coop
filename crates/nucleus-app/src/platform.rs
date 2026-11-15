@@ -1,7 +1,7 @@
 //! Platform services initialization and factory dispatch.
 
-use std::sync::Arc;
 use nucleus_platform::PlatformServices;
+use std::sync::Arc;
 
 /// Creates concrete platform services based on target operating system.
 pub fn create_platform_services() -> Arc<dyn PlatformServices> {

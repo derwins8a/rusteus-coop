@@ -1,9 +1,9 @@
 //! Easy Anti-Cheat bypass preparation and launch configuration.
 
-use std::fs;
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Tool for configuring game startup flags, deploying offline bypass DLLs,
 /// and disabling Easy Anti-Cheat (EAC) when launching local multi-instance sessions.
@@ -46,7 +46,12 @@ impl EacBypassTool {
             None
         };
 
-        Self::scan_and_replace_dlls_recursive(link_folder, &x64_bypass, &x86_bypass, &mut replaced)?;
+        Self::scan_and_replace_dlls_recursive(
+            link_folder,
+            &x64_bypass,
+            &x86_bypass,
+            &mut replaced,
+        )?;
 
         Ok(replaced)
     }
@@ -133,7 +138,10 @@ impl EacBypassTool {
     }
 
     /// Writes an offline configuration file to disable EAC telemetry and enforce offline mode.
-    pub fn setup_offline_config(target_dir: &Path, product_id: Option<&str>) -> NucleusResult<PathBuf> {
+    pub fn setup_offline_config(
+        target_dir: &Path,
+        product_id: Option<&str>,
+    ) -> NucleusResult<PathBuf> {
         let eac_dir = target_dir.join("EasyAntiCheat");
         file_util::ensure_dir(&eac_dir)?;
 
@@ -164,7 +172,8 @@ mod tests {
 
     #[test]
     fn test_eac_bypass_and_restore() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_eac_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_eac_test_{}", std::process::id()));
         file_util::ensure_dir(&temp_dir).unwrap();
 
         let launcher = temp_dir.join("start_protected_game.exe");
@@ -173,7 +182,8 @@ mod tests {
         file_util::write_text_file(&launcher, "ORIGINAL_LAUNCHER").unwrap();
         file_util::write_text_file(&game, "REAL_GAME_BIN").unwrap();
 
-        EacBypassTool::setup_launcher_bypass(&temp_dir, "start_protected_game.exe", "game.exe").unwrap();
+        EacBypassTool::setup_launcher_bypass(&temp_dir, "start_protected_game.exe", "game.exe")
+            .unwrap();
 
         let content = file_util::read_text_file(&launcher).unwrap();
         assert_eq!(content, "REAL_GAME_BIN");
@@ -187,7 +197,8 @@ mod tests {
 
     #[test]
     fn test_eac_deploy_bypass_dlls() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_eac_dll_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_eac_dll_test_{}", std::process::id()));
         let utils_dir = temp_dir.join("utils");
         let eac_utils = utils_dir.join("EAC Bypass");
         file_util::ensure_dir(&eac_utils).unwrap();
@@ -226,7 +237,8 @@ mod tests {
 
     #[test]
     fn test_eac_offline_config() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_eac_cfg_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_eac_cfg_test_{}", std::process::id()));
         let cfg = EacBypassTool::setup_offline_config(&temp_dir, Some("halo_mcc")).unwrap();
 
         assert!(cfg.exists());

@@ -1,8 +1,8 @@
 //! Linux implementation of `ElevationManager`.
 
-use std::path::Path;
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_platform::ElevationManager;
+use std::path::Path;
 
 /// Concrete Linux elevation manager.
 #[derive(Default, Debug, Clone)]
@@ -42,14 +42,13 @@ impl ElevationManager for LinuxElevationManager {
         }
 
         if wait {
-            let status = cmd.status().map_err(|e| {
-                NucleusError::Platform(format!("Failed to execute pkexec: {}", e))
-            })?;
+            let status = cmd
+                .status()
+                .map_err(|e| NucleusError::Platform(format!("Failed to execute pkexec: {}", e)))?;
             Ok(status.code().map(|c| c as u32))
         } else {
-            cmd.spawn().map_err(|e| {
-                NucleusError::Platform(format!("Failed to spawn pkexec: {}", e))
-            })?;
+            cmd.spawn()
+                .map_err(|e| NucleusError::Platform(format!("Failed to spawn pkexec: {}", e)))?;
             Ok(None)
         }
     }

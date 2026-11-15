@@ -1,7 +1,7 @@
 //! Input lock and unlock state management.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Default virtual key code for toggling input lock (VK_END = 0x23).
 pub const DEFAULT_LOCK_TOGGLE_KEY: u32 = 0x23;
@@ -99,7 +99,11 @@ mod tests {
             *self.last_msg.lock().unwrap() = None;
         }
         fn current_message(&self) -> Option<String> {
-            self.last_msg.lock().unwrap().as_ref().map(|(_, msg)| msg.clone())
+            self.last_msg
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|(_, msg)| msg.clone())
         }
         fn set_color(&self, _color: &str) {}
     }

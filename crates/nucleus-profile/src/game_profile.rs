@@ -1,9 +1,9 @@
 //! Game-specific profile data and launch configurations.
 
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Persistent configuration and state associated with a configured game.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

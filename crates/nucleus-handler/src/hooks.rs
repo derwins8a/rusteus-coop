@@ -19,11 +19,14 @@ impl HookManager {
         pid: u32,
         player_index: usize,
     ) -> NucleusResult<()> {
-        tracing::info!("Executing post-launch hooks for player {} (PID {})", player_index, pid);
+        tracing::info!(
+            "Executing post-launch hooks for player {} (PID {})",
+            player_index,
+            pid
+        );
         if let Some(hook_mgr) = input_hook {
             hook_mgr.block_raw_input(pid, false)?;
         }
         Ok(())
     }
 }
-

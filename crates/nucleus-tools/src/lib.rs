@@ -38,13 +38,15 @@ pub use dpi_scaling::DpiScalingTool;
 pub use dx9_wrapper::{Dx9WrapperConfig, Dx9WrapperTool};
 pub use eac_bypass::EacBypassTool;
 pub use elevator::ElevatorTool;
-pub use epic_emu::{get_epic_language, EpicEmuConfig, EpicEmuTool};
+pub use epic_emu::{EpicEmuConfig, EpicEmuTool, get_epic_language};
 pub use flawless_widescreen::FlawlessWidescreenTool;
 pub use galaxy_emu::{GalaxyEmuConfig, GalaxyEmuTool};
 pub use game_starter::{GameStarterTool, LaunchSpec};
 pub use hex_edit::HexEditTool;
-pub use ludusavi::{LudusaviApiReport, LudusaviDriver, LudusaviFileReport, LudusaviGameReport, LudusaviOverallStats};
-pub use ludusavi_config::{write_isolated_config, LudusaviInstanceTarget, LudusaviRedirect};
+pub use ludusavi::{
+    LudusaviApiReport, LudusaviDriver, LudusaviFileReport, LudusaviGameReport, LudusaviOverallStats,
+};
+pub use ludusavi_config::{LudusaviInstanceTarget, LudusaviRedirect, write_isolated_config};
 pub use network::{ForceBindIpOptions, NetworkInterfaceInfo, NetworkTool};
 pub use sdl2::Sdl2Tool;
 pub use steam_emu::{

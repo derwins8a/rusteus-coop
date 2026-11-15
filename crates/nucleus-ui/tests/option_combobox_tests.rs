@@ -35,8 +35,7 @@ fn test_couch_toggle_and_option_row_construction() {
         .focused(false);
     let _e2 = empty_desc_toggle.into_any_element();
 
-    let compact_toggle = CouchToggle::new("opt-toggle-compact", "Offline Mode", true)
-        .compact(true);
+    let compact_toggle = CouchToggle::new("opt-toggle-compact", "Offline Mode", true).compact(true);
     let _e3 = compact_toggle.into_any_element();
 
     let option_row = CouchOptionRow::new(
@@ -139,7 +138,10 @@ fn test_filter_combobox_options_ranking() {
 fn test_validate_combobox_input_strict_matching() {
     let values: Vec<String> = vec!["Low".into(), "Medium".into(), "High".into(), "Ultra".into()];
 
-    assert_eq!(validate_combobox_input("high", &values), Ok("High".to_string()));
+    assert_eq!(
+        validate_combobox_input("high", &values),
+        Ok("High".to_string())
+    );
     assert_eq!(
         validate_combobox_input("  HIGH ", &values),
         Ok("High".to_string())

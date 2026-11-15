@@ -37,40 +37,44 @@ pub mod window;
 
 pub use actions::UiAction;
 pub use callbacks::{EngineToGui, MainWindowCallbacks};
-pub use debugger_view::{render_debugger_view, DebuggerViewState};
+pub use components::*;
+pub use debugger_view::{DebuggerViewState, render_debugger_view};
 pub use device_panel::DevicePanelComponent;
 pub use disk_scanner::DiskScannerView;
 pub use download_dialog::DownloadDialog;
-pub use extensions_view::{render_extensions_view, ExtensionItem, ExtensionType, ExtensionsViewState};
-pub use game_card::{render_game_card, GameCardComponent};
+pub use extensions_view::{
+    ExtensionItem, ExtensionType, ExtensionsViewState, render_extensions_view,
+};
+pub use game_card::{GameCardComponent, render_game_card};
 pub use game_list::GameListView;
+pub use gpui_component::Icon;
+pub use gpui_component::scroll::ScrollableElement;
+pub use gpui_component::tooltip::Tooltip;
+pub use gpui_kit_assets::IconName;
 pub use handler_details::render_handler_details_modal;
 pub use http_client::NucleusHttpClient;
-pub use hub_account_modal::{render_hub_account_modal, HubAccountModalState};
+pub use hub_account_modal::{HubAccountModalState, render_hub_account_modal};
 pub use hub_browser::HubBrowserView;
-pub use hub_details::{render_hub_details_screen, HubDetailTab};
+pub use hub_details::{HubDetailTab, render_hub_details_screen};
 pub use main_view::MainView;
 pub use markdown::{render_markdown, render_markdown_with_id};
 pub use models::{
     ConfirmAction, ConfirmDialogState, DeviceItem, HandlerItem, HubInstallProgressMsg,
     HubPackageItem, LaunchPromptRequest,
 };
+pub use nefos::*;
 pub use osd::{parse_osd_color, render_hotkey_recording_modal, render_osd_overlay};
 pub use profile_editor::ProfileEditorView;
-pub use save_slots_modal::{render_save_slots_modal, SaveSlotsModalState};
+pub use save_slots_modal::{SaveSlotsModalState, render_save_slots_modal};
 pub use settings_view::{SettingsCategory, SettingsView};
 pub use setup_screen::SetupScreenView;
 pub use theme::{Color, Theme};
 pub use window::{ActiveTab, MainWindow};
-pub use gpui_component::Icon;
-pub use gpui_kit_assets::IconName;
-pub use gpui_component::scroll::ScrollableElement;
-pub use gpui_component::tooltip::Tooltip;
-pub use components::*;
-pub use nefos::*;
 
 /// Creates a tooltip closure for use with `.tooltip(...)`.
-pub fn make_tooltip(text: impl Into<gpui::SharedString>) -> impl Fn(&mut gpui::Window, &mut gpui::App) -> gpui::AnyView {
+pub fn make_tooltip(
+    text: impl Into<gpui::SharedString>,
+) -> impl Fn(&mut gpui::Window, &mut gpui::App) -> gpui::AnyView {
     let s: gpui::SharedString = text.into();
     move |window, cx| gpui_component::tooltip::Tooltip::new(s.clone()).build(window, cx)
 }
@@ -93,4 +97,3 @@ pub fn make_image_source(path_or_url: &str) -> gpui::ImageSource {
         std::path::PathBuf::from(path_or_url).into()
     }
 }
-

@@ -104,7 +104,11 @@ impl CouchSearchBar {
             .flex()
             .items_center()
             .gap_2p5()
-            .child(Icon::new(IconName::Search).size_4().text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Search)
+                    .size_4()
+                    .text_color(theme::text_muted()),
+            )
             .child(
                 div()
                     .flex_1()
@@ -132,7 +136,11 @@ impl CouchSearchBar {
                 .p_1()
                 .rounded_md()
                 .hover(|s| s.bg(theme::bg_hover()))
-                .child(Icon::new(IconName::X).size_3p5().text_color(theme::text_muted()));
+                .child(
+                    Icon::new(IconName::X)
+                        .size_3p5()
+                        .text_color(theme::text_muted()),
+                );
 
             if let Some(h) = self.on_clear {
                 clear_btn = clear_btn.on_click(move |ev, win, cx| h(ev, win, cx));

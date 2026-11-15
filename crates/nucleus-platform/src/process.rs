@@ -9,7 +9,11 @@ pub trait ProcessManager: Send + Sync {
     fn start_process(&self, config: &ProcessConfig) -> NucleusResult<ProcessHandle>;
 
     /// Start a new process using extended options (suspended creation, unicode environment).
-    fn start_process_extended(&self, config: &ProcessConfig, suspended: bool) -> NucleusResult<ProcessHandle> {
+    fn start_process_extended(
+        &self,
+        config: &ProcessConfig,
+        suspended: bool,
+    ) -> NucleusResult<ProcessHandle> {
         let _ = suspended;
         self.start_process(config)
     }
@@ -17,7 +21,9 @@ pub trait ProcessManager: Send + Sync {
     /// Write bytes into a target process's virtual memory space.
     fn write_process_memory(&self, pid: u32, address: usize, data: &[u8]) -> NucleusResult<usize> {
         let _ = (pid, address, data);
-        Err(NucleusError::Platform("WriteProcessMemory not supported on this platform".to_string()))
+        Err(NucleusError::Platform(
+            "WriteProcessMemory not supported on this platform".to_string(),
+        ))
     }
 
     /// Terminate a process by process ID.

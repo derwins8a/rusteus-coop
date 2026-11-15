@@ -1,10 +1,10 @@
 //! Callback builder struct for `MainWindow` events and engine actions.
 
-use std::collections::HashMap;
-use std::sync::Arc;
 use crate::models::{HandlerItem, HubPackageItem};
 use nucleus_engine::session::ActiveSessionSnapshot;
 use nucleus_profile::GameProfile;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Callback type for installing a specific version of a Community Hub handler package.
 pub type HubVersionInstallFn = Arc<
@@ -36,13 +36,21 @@ pub struct MainWindowCallbacks {
     /// Optional callback invoked to remove a game from the list.
     pub on_remove_game: Option<Arc<dyn Fn(&str) + Send + Sync>>,
     /// Optional callback invoked when the user starts a game session from the UI.
-    pub on_launch: Option<Arc<dyn Fn(&str, usize, &str, &HashMap<String, String>, &[String], &[usize], &[String]) + Send + Sync>>,
+    pub on_launch: Option<
+        Arc<
+            dyn Fn(&str, usize, &str, &HashMap<String, String>, &[String], &[usize], &[String])
+                + Send
+                + Sync,
+        >,
+    >,
     /// Optional callback invoked when a new game .exe is added via the file explorer dialog.
     pub on_add_game: Option<Arc<dyn Fn(&str) -> Option<HandlerItem> + Send + Sync>>,
     /// Optional callback invoked when searching the Community Hub.
     pub on_search_hub: Option<Arc<dyn Fn(&str) -> Vec<HubPackageItem> + Send + Sync>>,
     /// Optional callback invoked when downloading/installing a Community Hub package with progress.
-    pub on_install_handler: Option<Arc<dyn Fn(&str, Box<dyn Fn(f32) + Send + Sync>) -> Option<HandlerItem> + Send + Sync>>,
+    pub on_install_handler: Option<
+        Arc<dyn Fn(&str, Box<dyn Fn(f32) + Send + Sync>) -> Option<HandlerItem> + Send + Sync>,
+    >,
     /// Optional callback invoked when downloading/installing a specific Community Hub package version with progress.
     pub on_install_handler_version: Option<HubVersionInstallFn>,
     /// Optional callback invoked when a new player drops into an active session (`(device_assignment, layout_name) -> Ok(slot_idx)`).
@@ -50,7 +58,8 @@ pub struct MainWindowCallbacks {
     /// Optional callback invoked when an active player drops out (`(slot_idx, layout_name) -> Ok(remaining_count)`).
     pub on_drop_out_player: Option<Arc<dyn Fn(usize, &str) -> Result<usize, String> + Send + Sync>>,
     /// Optional callback to query a live snapshot of the active game session for the In-Game OSD.
-    pub on_query_active_session: Option<Arc<dyn Fn() -> Option<ActiveSessionSnapshot> + Send + Sync>>,
+    pub on_query_active_session:
+        Option<Arc<dyn Fn() -> Option<ActiveSessionSnapshot> + Send + Sync>>,
     /// Optional callback invoked when changing the handlers directory.
     pub on_handlers_dir_changed: Option<Arc<dyn Fn(&str) -> Vec<HandlerItem> + Send + Sync>>,
     /// Optional callback invoked when visual theme is changed.
@@ -60,9 +69,11 @@ pub struct MainWindowCallbacks {
     /// Optional callback to list saved numbered profiles for a game GUID: returns Vec<(profile_number, title)>.
     pub on_list_profiles: Option<Arc<dyn Fn(&str) -> Vec<(usize, String)> + Send + Sync>>,
     /// Optional callback to load a numbered profile: returns GameProfile if found.
-    pub on_load_numbered_profile: Option<Arc<dyn Fn(&str, usize) -> Option<GameProfile> + Send + Sync>>,
+    pub on_load_numbered_profile:
+        Option<Arc<dyn Fn(&str, usize) -> Option<GameProfile> + Send + Sync>>,
     /// Optional callback to save a numbered profile: takes (guid, Option<profile_number>, &GameProfile) and returns assigned profile_number.
-    pub on_save_numbered_profile: Option<Arc<dyn Fn(&str, Option<usize>, &GameProfile) -> Option<usize> + Send + Sync>>,
+    pub on_save_numbered_profile:
+        Option<Arc<dyn Fn(&str, Option<usize>, &GameProfile) -> Option<usize> + Send + Sync>>,
     /// Optional callback to delete a numbered profile.
     pub on_delete_numbered_profile: Option<Arc<dyn Fn(&str, usize) -> bool + Send + Sync>>,
     /// Optional callback to unload the currently loaded profile.
@@ -87,11 +98,22 @@ pub struct MainWindowCallbacks {
     /// Optional callback for Hub account logout.
     pub on_hub_logout: Option<Arc<dyn Fn() + Send + Sync>>,
     /// Optional callback to list save slots for a game GUID.
-    pub on_list_save_slots: Option<Arc<dyn Fn(&str) -> Vec<nucleus_profile::save_slots::SaveSlot> + Send + Sync>>,
+    pub on_list_save_slots:
+        Option<Arc<dyn Fn(&str) -> Vec<nucleus_profile::save_slots::SaveSlot> + Send + Sync>>,
     /// Optional callback to create a save slot: `(guid, display_name, game_title, hint)`.
-    pub on_create_save_slot: Option<Arc<dyn Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync>>,
+    pub on_create_save_slot: Option<
+        Arc<
+            dyn Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot>
+                + Send
+                + Sync,
+        >,
+    >,
     /// Optional callback to clone a save slot: `(guid, source_id, new_name)`.
-    pub on_clone_save_slot: Option<Arc<dyn Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync>>,
+    pub on_clone_save_slot: Option<
+        Arc<
+            dyn Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync,
+        >,
+    >,
     /// Optional callback to delete a save slot: `(guid, slot_id)`.
     pub on_delete_save_slot: Option<Arc<dyn Fn(&str, &str) -> bool + Send + Sync>>,
     /// Optional callback to assign a save slot to a player slot: `(guid, player_idx, Option<slot_id>)`.
@@ -129,7 +151,10 @@ impl MainWindowCallbacks {
     /// Sets the launch callback for starting games from the GUI.
     pub fn with_launcher<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, usize, &str, &HashMap<String, String>, &[String], &[usize], &[String]) + Send + Sync + 'static,
+        F: Fn(&str, usize, &str, &HashMap<String, String>, &[String], &[usize], &[String])
+            + Send
+            + Sync
+            + 'static,
     {
         self.on_launch = Some(Arc::new(callback));
         self
@@ -402,7 +427,10 @@ impl MainWindowCallbacks {
     /// Sets callback for creating a save slot.
     pub fn with_save_slot_creator<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync + 'static,
+        F: Fn(&str, &str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot>
+            + Send
+            + Sync
+            + 'static,
     {
         self.on_create_save_slot = Some(Arc::new(callback));
         self
@@ -411,7 +439,10 @@ impl MainWindowCallbacks {
     /// Sets callback for cloning a save slot.
     pub fn with_save_slot_cloner<F>(mut self, callback: F) -> Self
     where
-        F: Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot> + Send + Sync + 'static,
+        F: Fn(&str, &str, &str) -> Option<nucleus_profile::save_slots::SaveSlot>
+            + Send
+            + Sync
+            + 'static,
     {
         self.on_clone_save_slot = Some(Arc::new(callback));
         self
@@ -534,4 +565,3 @@ impl MainWindowCallbacks {
         self
     }
 }
-

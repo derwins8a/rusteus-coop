@@ -175,7 +175,10 @@ fn test_main_window_osd_summoner_lifecycle() {
     win.set_osd_visible_for_player(Some(1), false);
     assert!(!win.in_game_osd.is_visible);
     assert_eq!(win.in_game_osd.summoner_slot, None);
-    assert_eq!(*calls.lock().unwrap(), vec![(true, Some(1)), (false, Some(1))]);
+    assert_eq!(
+        *calls.lock().unwrap(),
+        vec![(true, Some(1)), (false, Some(1))]
+    );
 }
 
 #[test]
@@ -221,7 +224,10 @@ fn test_osd_drop_in_two_step_flow_and_max_capacity_guard() {
     // Valid capacity -> opens Step 1 PickController and clears action_error
     assert!(osd.open_drop_in(2, 4));
     assert_eq!(osd.action_error, None);
-    assert_eq!(osd.drop_in_step, DropInStep::PickController { focused_idx: 0 });
+    assert_eq!(
+        osd.drop_in_step,
+        DropInStep::PickController { focused_idx: 0 }
+    );
 
     // Select device -> advances to Step 2 SelectLayout
     osd.select_drop_in_device(
@@ -239,7 +245,10 @@ fn test_osd_drop_in_two_step_flow_and_max_capacity_guard() {
 
     // Cancel step-back: SelectLayout -> PickController -> None -> outer close
     assert!(osd.cancel_submodal());
-    assert_eq!(osd.drop_in_step, DropInStep::PickController { focused_idx: 0 });
+    assert_eq!(
+        osd.drop_in_step,
+        DropInStep::PickController { focused_idx: 0 }
+    );
     assert!(osd.cancel_submodal());
     assert_eq!(osd.drop_in_step, DropInStep::None);
     assert!(!osd.cancel_submodal());

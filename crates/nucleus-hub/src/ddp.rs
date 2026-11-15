@@ -2,10 +2,13 @@
 //!
 //! Provides protocol mapping for Meteor RPC calls (login, giveHotness, addComment, reportHandler).
 
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::{NucleusError, NucleusResult};
 use crate::auth::{HubSessionToken, MeteorPasswordDigest};
-use crate::types::{CommentSubmission, HotnessVoteResult, HubComment, ReportReason, UploadHandlerRequest, UploadedHandlerResult};
+use crate::types::{
+    CommentSubmission, HotnessVoteResult, HubComment, ReportReason, UploadHandlerRequest,
+    UploadedHandlerResult,
+};
+use nucleus_common::error::{NucleusError, NucleusResult};
+use serde::{Deserialize, Serialize};
 
 /// Configuration mapping of remote Meteor method names.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,7 +61,9 @@ impl DdpClient {
         digest: &MeteorPasswordDigest,
     ) -> NucleusResult<HubSessionToken> {
         if identifier.trim().is_empty() {
-            return Err(NucleusError::Auth("Username or email cannot be empty".to_string()));
+            return Err(NucleusError::Auth(
+                "Username or email cannot be empty".to_string(),
+            ));
         }
 
         // Stubbed response as requested by user
@@ -120,7 +125,9 @@ impl DdpClient {
         req: CommentSubmission,
     ) -> NucleusResult<HubComment> {
         if req.content.trim().is_empty() {
-            return Err(NucleusError::Other("Comment content cannot be empty".to_string()));
+            return Err(NucleusError::Other(
+                "Comment content cannot be empty".to_string(),
+            ));
         }
 
         tracing::info!(
@@ -131,7 +138,13 @@ impl DdpClient {
         );
 
         Ok(HubComment {
-            id: format!("cmt_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis()),
+            id: format!(
+                "cmt_{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis()
+            ),
             author: session.username.clone(),
             owner: Some(session.user_id.clone()),
             reply_to: req.reply_to,

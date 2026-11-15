@@ -48,8 +48,14 @@ impl InstanceSetup {
     }
 
     /// Prepares an isolated directory for a specific instance using instant junctions/hardlinks.
-    pub fn prepare_instance_folder(&self, instance_index: usize, game_root: &Path) -> NucleusResult<PathBuf> {
-        let instance_folder = self.session_root.join(format!("Instance{}", instance_index));
+    pub fn prepare_instance_folder(
+        &self,
+        instance_index: usize,
+        game_root: &Path,
+    ) -> NucleusResult<PathBuf> {
+        let instance_folder = self
+            .session_root
+            .join(format!("Instance{}", instance_index));
         file_util::ensure_dir(&instance_folder)?;
 
         if game_root.exists() && game_root.is_dir() {
@@ -101,7 +107,11 @@ impl InstanceSetup {
         if instance_folder.exists() {
             Self::strip_readonly_recursive(instance_folder);
             if let Err(e) = std::fs::remove_dir_all(instance_folder) {
-                tracing::warn!("remove_dir_all failed for {:?}: {}. Retrying after stripping readonly...", instance_folder, e);
+                tracing::warn!(
+                    "remove_dir_all failed for {:?}: {}. Retrying after stripping readonly...",
+                    instance_folder,
+                    e
+                );
                 Self::strip_readonly_recursive(instance_folder);
                 let _ = std::fs::remove_dir_all(instance_folder);
             }
@@ -185,12 +195,10 @@ impl InstanceSetup {
         }
 
         // 4. Only if both symlink and hardlink fail (e.g. crossing volume/drive boundaries), copy file
-        std::fs::copy(src, dst)
-            .map(|_| ())
-            .map_err(|e| {
-                tracing::warn!("Failed to link or copy {:?} to {:?}: {}", src, dst, e);
-                nucleus_common::error::NucleusError::Io(e)
-            })
+        std::fs::copy(src, dst).map(|_| ()).map_err(|e| {
+            tracing::warn!("Failed to link or copy {:?} to {:?}: {}", src, dst, e);
+            nucleus_common::error::NucleusError::Io(e)
+        })
     }
 
     /// Copies a single file directly with directory creation.
@@ -201,12 +209,10 @@ impl InstanceSetup {
         if let Some(parent) = dst.parent() {
             file_util::ensure_dir(parent)?;
         }
-        std::fs::copy(src, dst)
-            .map(|_| ())
-            .map_err(|e| {
-                tracing::warn!("Failed to copy {:?} to {:?}: {}", src, dst, e);
-                nucleus_common::error::NucleusError::Io(e)
-            })
+        std::fs::copy(src, dst).map(|_| ()).map_err(|e| {
+            tracing::warn!("Failed to copy {:?} to {:?}: {}", src, dst, e);
+            nucleus_common::error::NucleusError::Io(e)
+        })
     }
 
     /// Symlinks or copies a game directory into an instance folder with full fidelity to C# WinDirectoryUtil.
@@ -265,7 +271,8 @@ impl InstanceSetup {
                     .unwrap_or(ex.as_str())
                     .to_lowercase()
                     .replace('/', "\\");
-                if (!rel_path.is_empty() && (rel_path == ex_clean || rel_path.starts_with(&format!("{}\\", ex_clean))))
+                if (!rel_path.is_empty()
+                    && (rel_path == ex_clean || rel_path.starts_with(&format!("{}\\", ex_clean))))
                     || dir_name == ex_clean
                 {
                     tracing::debug!("Skipping excluded directory: {:?}", current_dir);
@@ -282,7 +289,8 @@ impl InstanceSetup {
         if !options.dir_symlink_exclusions.is_empty() {
             for ex in &options.dir_symlink_exclusions {
                 let ex_clean = ex.to_lowercase().replace('/', "\\");
-                if (!rel_path.is_empty() && (rel_path == ex_clean || ex_clean.starts_with(&rel_path)))
+                if (!rel_path.is_empty()
+                    && (rel_path == ex_clean || ex_clean.starts_with(&rel_path)))
                     || dir_name == ex_clean
                 {
                     special = true;
@@ -298,14 +306,16 @@ impl InstanceSetup {
                 if (!rel_path.is_empty() && rel_path == copy_clean) || dir_name == copy_clean {
                     is_copy_dir_root = true;
                     break;
-                } else if !rel_path.is_empty() && rel_path.starts_with(&format!("{}\\", copy_clean)) {
+                } else if !rel_path.is_empty() && rel_path.starts_with(&format!("{}\\", copy_clean))
+                {
                     is_copy_dir_sub = true;
                     break;
                 }
             }
         }
 
-        let copy_dir = is_copy_dir_root || (is_copy_dir_sub && options.dir_symlink_copy_instead_include_sub_folders);
+        let copy_dir = is_copy_dir_root
+            || (is_copy_dir_sub && options.dir_symlink_copy_instead_include_sub_folders);
         if copy_dir || options.hardcopy {
             special = true;
         }
@@ -328,7 +338,10 @@ impl InstanceSetup {
                 let dest = destination.join(&file_name);
 
                 if path.is_dir() {
-                    if copy_dir && !options.dir_symlink_copy_instead_include_sub_folders && !options.hardcopy {
+                    if copy_dir
+                        && !options.dir_symlink_copy_instead_include_sub_folders
+                        && !options.hardcopy
+                    {
                         // If false, only files directly in that directory are copied and child subfolders are linked as junctions
                         Self::link_or_copy_dir(&path, &dest)?;
                     } else {
@@ -353,7 +366,8 @@ impl InstanceSetup {
                     if !should_copy {
                         for cpy in &options.file_symlink_copy_instead {
                             let cpy_clean = cpy.to_lowercase();
-                            if file_name_lower == cpy_clean || file_name_lower.contains(&cpy_clean) {
+                            if file_name_lower == cpy_clean || file_name_lower.contains(&cpy_clean)
+                            {
                                 should_copy = true;
                                 break;
                             }
@@ -367,7 +381,11 @@ impl InstanceSetup {
                             }
                         }
                     }
-                    if !should_copy && !options.symlink_exe && !options.exe_name.is_empty() && file_name_lower == options.exe_name.to_lowercase() {
+                    if !should_copy
+                        && !options.symlink_exe
+                        && !options.exe_name.is_empty()
+                        && file_name_lower == options.exe_name.to_lowercase()
+                    {
                         should_copy = true;
                     }
 
@@ -424,7 +442,8 @@ mod tests {
 
     #[test]
     fn test_instance_setup_folder_creation_and_cleanup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_inst_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_inst_{}", std::process::id()));
         let game_dir = temp_dir.join("MockGame");
         let session_dir = temp_dir.join("SessionRoot");
 
@@ -444,14 +463,20 @@ mod tests {
 
     #[test]
     fn test_instance_linking_dir_symlink_exclusions_preserves_files() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_symlink_ex_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_symlink_ex_{}", std::process::id()));
         let game_dir = temp_dir.join("L4D2Mock");
         let inst_dir = temp_dir.join("Instance0");
 
         file_util::ensure_dir(&game_dir.join("bin")).unwrap();
-        file_util::write_text_file(&game_dir.join("bin").join("client.dll"), "dll_content").unwrap();
+        file_util::write_text_file(&game_dir.join("bin").join("client.dll"), "dll_content")
+            .unwrap();
         file_util::ensure_dir(&game_dir.join("left4dead2")).unwrap();
-        file_util::write_text_file(&game_dir.join("left4dead2").join("gameinfo.txt"), "gameinfo").unwrap();
+        file_util::write_text_file(
+            &game_dir.join("left4dead2").join("gameinfo.txt"),
+            "gameinfo",
+        )
+        .unwrap();
 
         let options = LinkOptions {
             symlink_folders: false,
@@ -471,17 +496,30 @@ mod tests {
         InstanceSetup::link_game_directory(&game_dir, &inst_dir, &options).unwrap();
 
         // Crucial test: bin and left4dead2 must NOT have been skipped!
-        assert!(inst_dir.join("bin").exists(), "bin folder should exist in instance");
-        assert!(inst_dir.join("bin").join("client.dll").exists(), "client.dll should exist in instance/bin");
-        assert!(inst_dir.join("left4dead2").exists(), "left4dead2 folder should exist in instance");
-        assert!(inst_dir.join("left4dead2").join("gameinfo.txt").exists(), "gameinfo.txt should exist in instance/left4dead2");
+        assert!(
+            inst_dir.join("bin").exists(),
+            "bin folder should exist in instance"
+        );
+        assert!(
+            inst_dir.join("bin").join("client.dll").exists(),
+            "client.dll should exist in instance/bin"
+        );
+        assert!(
+            inst_dir.join("left4dead2").exists(),
+            "left4dead2 folder should exist in instance"
+        );
+        assert!(
+            inst_dir.join("left4dead2").join("gameinfo.txt").exists(),
+            "gameinfo.txt should exist in instance/left4dead2"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_instance_linking_dir_exclusions_skips_folder() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_direx_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_direx_{}", std::process::id()));
         let game_dir = temp_dir.join("Game");
         let inst_dir = temp_dir.join("Instance0");
 
@@ -507,14 +545,18 @@ mod tests {
         InstanceSetup::link_game_directory(&game_dir, &inst_dir, &options).unwrap();
 
         assert!(inst_dir.join("game.exe").exists());
-        assert!(!inst_dir.join("crash_logs").exists(), "crash_logs folder should have been skipped");
+        assert!(
+            !inst_dir.join("crash_logs").exists(),
+            "crash_logs folder should have been skipped"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_instance_linking_copy_files_and_file_exclusions() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_fileex_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_fileex_{}", std::process::id()));
         let game_dir = temp_dir.join("Game");
         let inst_dir = temp_dir.join("Instance0");
 
@@ -541,17 +583,30 @@ mod tests {
 
         InstanceSetup::link_game_directory(&game_dir, &inst_dir, &options).unwrap();
 
-        assert!(!inst_dir.join("skip.me").exists(), "skip.me should be excluded");
-        assert!(inst_dir.join("copy.cfg").exists(), "copy.cfg should be present");
-        assert!(inst_dir.join("copied_root.txt").exists(), "copied_root.txt should be present");
-        assert!(inst_dir.join("normal.bin").exists(), "normal.bin should be present");
+        assert!(
+            !inst_dir.join("skip.me").exists(),
+            "skip.me should be excluded"
+        );
+        assert!(
+            inst_dir.join("copy.cfg").exists(),
+            "copy.cfg should be present"
+        );
+        assert!(
+            inst_dir.join("copied_root.txt").exists(),
+            "copied_root.txt should be present"
+        );
+        assert!(
+            inst_dir.join("normal.bin").exists(),
+            "normal.bin should be present"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_dir_symlink_copy_instead_include_sub_folders_behavior() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_subfolders_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_subfolders_{}", std::process::id()));
         let game_dir = temp_dir.join("Game");
         let inst_false = temp_dir.join("InstFalse");
         let inst_true = temp_dir.join("InstTrue");
@@ -581,7 +636,13 @@ mod tests {
         InstanceSetup::link_game_directory(&game_dir, &inst_false, &opts_false).unwrap();
         assert!(inst_false.join("data").join("config.ini").exists());
         assert!(inst_false.join("data").join("sub").exists());
-        assert!(inst_false.join("data").join("sub").join("nested.txt").exists());
+        assert!(
+            inst_false
+                .join("data")
+                .join("sub")
+                .join("nested.txt")
+                .exists()
+        );
 
         // 2. With dir_symlink_copy_instead_include_sub_folders = true
         let opts_true = LinkOptions {
@@ -601,19 +662,33 @@ mod tests {
         InstanceSetup::link_game_directory(&game_dir, &inst_true, &opts_true).unwrap();
         assert!(inst_true.join("data").join("config.ini").exists());
         assert!(inst_true.join("data").join("sub").exists());
-        assert!(inst_true.join("data").join("sub").join("nested.txt").exists());
+        assert!(
+            inst_true
+                .join("data")
+                .join("sub")
+                .join("nested.txt")
+                .exists()
+        );
 
         // Verify independent copying: modify inst_true nested file, game_dir file should remain intact
-        file_util::write_text_file(&inst_true.join("data").join("sub").join("nested.txt"), "modified_true").unwrap();
+        file_util::write_text_file(
+            &inst_true.join("data").join("sub").join("nested.txt"),
+            "modified_true",
+        )
+        .unwrap();
         let orig_content = std::fs::read_to_string(&sub_dir.join("nested.txt")).unwrap();
-        assert_eq!(orig_content, "nested_val", "Original file in game directory must remain unmodified");
+        assert_eq!(
+            orig_content, "nested_val",
+            "Original file in game directory must remain unmodified"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_cleanup_instance_folder_strips_readonly() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_readonly_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_readonly_{}", std::process::id()));
         let inst_dir = temp_dir.join("InstanceRO");
         let sub_dir = inst_dir.join("subfolder");
         file_util::ensure_dir(&sub_dir).unwrap();
@@ -632,14 +707,27 @@ mod tests {
         perm2.set_readonly(true);
         std::fs::set_permissions(&ro_file2, perm2).unwrap();
 
-        assert!(std::fs::metadata(&ro_file1).unwrap().permissions().readonly());
-        assert!(std::fs::metadata(&ro_file2).unwrap().permissions().readonly());
+        assert!(
+            std::fs::metadata(&ro_file1)
+                .unwrap()
+                .permissions()
+                .readonly()
+        );
+        assert!(
+            std::fs::metadata(&ro_file2)
+                .unwrap()
+                .permissions()
+                .readonly()
+        );
 
         // cleanup_instance_folder must strip readonly and successfully delete instance folder
-        InstanceSetup::cleanup_instance_folder(&inst_dir).expect("cleanup_instance_folder should succeed on readonly files");
-        assert!(!inst_dir.exists(), "Instance folder should have been deleted");
+        InstanceSetup::cleanup_instance_folder(&inst_dir)
+            .expect("cleanup_instance_folder should succeed on readonly files");
+        assert!(
+            !inst_dir.exists(),
+            "Instance folder should have been deleted"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-

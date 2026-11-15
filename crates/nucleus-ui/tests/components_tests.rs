@@ -1,7 +1,7 @@
 //! Integration and unit tests for the Nucleus UI custom component meta-framework.
-use nucleus_ui::components::*;
+use gpui::{ParentElement, Styled, px};
 use gpui_kit_assets::IconName;
-use gpui::{px, ParentElement, Styled};
+use nucleus_ui::components::*;
 
 #[test]
 fn test_couch_button_presets_and_focus() {
@@ -11,12 +11,10 @@ fn test_couch_button_presets_and_focus() {
         .focused(true);
     let _elem = btn_primary.into_any_element();
 
-    let btn_danger = CouchButton::danger("btn-d", "Delete")
-        .disabled(true);
+    let btn_danger = CouchButton::danger("btn-d", "Delete").disabled(true);
     let _elem2 = btn_danger.into_any_element();
 
-    let btn_ghost = CouchButton::ghost("btn-g", "Cancel")
-        .size(CouchButtonSize::Sm);
+    let btn_ghost = CouchButton::ghost("btn-g", "Cancel").size(CouchButtonSize::Sm);
     let _elem3 = btn_ghost.into_any_element();
 
     assert_eq!(CouchButtonSize::Sm.height_px(), px(28.0));
@@ -29,7 +27,9 @@ fn test_couch_tag_tones_and_player_slots() {
     let tag_neutral = CouchTag::new("Ready").with_dot();
     let _e1 = tag_neutral.into_any_element();
 
-    let tag_success = CouchTag::new("Connected").tone(TagTone::Success).icon(IconName::Check);
+    let tag_success = CouchTag::new("Connected")
+        .tone(TagTone::Success)
+        .icon(IconName::Check);
     let _e2 = tag_success.into_any_element();
 
     let tag_p1 = CouchTag::player(0, "PLAYER 1");
@@ -108,8 +108,7 @@ fn test_couch_picker_options_and_selection() {
 
 #[test]
 fn test_couch_slot_card_assignments_and_split() {
-    let empty_slot = CouchSlotCard::new("slot-0", 0)
-        .drop_target(true);
+    let empty_slot = CouchSlotCard::new("slot-0", 0).drop_target(true);
     let _e1 = empty_slot.into_any_element();
 
     let assigned_slot = CouchSlotCard::new("slot-1", 1)
@@ -152,8 +151,7 @@ fn test_couch_toggle_variants() {
         .disabled(false);
     let _e1 = toggle_full.into_any_element();
 
-    let toggle_compact = CouchToggle::new("t-mini", "Offline Mode", false)
-        .compact(true);
+    let toggle_compact = CouchToggle::new("t-mini", "Offline Mode", false).compact(true);
     let _e2 = toggle_compact.into_any_element();
 }
 
@@ -173,17 +171,16 @@ fn test_couch_search_bar_states() {
 
 #[test]
 fn test_main_window_callbacks_default_and_builders() {
+    use nucleus_ui::MainWindowCallbacks;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
-    use nucleus_ui::MainWindowCallbacks;
 
     let called = Arc::new(AtomicBool::new(false));
     let called_clone = called.clone();
 
-    let cbs = MainWindowCallbacks::new()
-        .with_theme_changer(move |_| {
-            called_clone.store(true, Ordering::SeqCst);
-        });
+    let cbs = MainWindowCallbacks::new().with_theme_changer(move |_| {
+        called_clone.store(true, Ordering::SeqCst);
+    });
 
     assert!(cbs.on_theme_changed.is_some());
     assert!(cbs.on_launch.is_none());
@@ -331,8 +328,7 @@ fn test_couch_modal_header_actions_and_close_button() {
         .header_action(CouchButton::primary("btn-hdr-act", "Apply").size(CouchButtonSize::Sm));
     let _e2 = modal_actions_only.into_any_element();
 
-    let modal_close_only = CouchModal::new("modal-close-only", "Close Only")
-        .on_close(|_, _, _| {});
+    let modal_close_only = CouchModal::new("modal-close-only", "Close Only").on_close(|_, _, _| {});
     let _e3 = modal_close_only.into_any_element();
 }
 
@@ -350,14 +346,33 @@ fn test_library_sort_option_ascii_labels_and_icons() {
 
     for (opt, expected_label) in cases {
         assert_eq!(opt.label(), expected_label);
-        assert!(opt.label().is_ascii(), "Label must be ASCII: {}", opt.label());
+        assert!(
+            opt.label().is_ascii(),
+            "Label must be ASCII: {}",
+            opt.label()
+        );
     }
 
-    assert!(matches!(LibrarySortOption::Alphabetical.icon(), IconName::ArrowDownAZ));
-    assert!(matches!(LibrarySortOption::LastPlayed.icon(), IconName::Clock));
-    assert!(matches!(LibrarySortOption::PlayTime.icon(), IconName::Timer));
-    assert!(matches!(LibrarySortOption::MaxPlayers.icon(), IconName::Users));
-    assert!(matches!(LibrarySortOption::DateAdded.icon(), IconName::Calendar));
+    assert!(matches!(
+        LibrarySortOption::Alphabetical.icon(),
+        IconName::ArrowDownAZ
+    ));
+    assert!(matches!(
+        LibrarySortOption::LastPlayed.icon(),
+        IconName::Clock
+    ));
+    assert!(matches!(
+        LibrarySortOption::PlayTime.icon(),
+        IconName::Timer
+    ));
+    assert!(matches!(
+        LibrarySortOption::MaxPlayers.icon(),
+        IconName::Users
+    ));
+    assert!(matches!(
+        LibrarySortOption::DateAdded.icon(),
+        IconName::Calendar
+    ));
 }
 
 #[test]
@@ -369,9 +384,18 @@ fn test_library_sort_direction_ascii_labels_and_icons() {
     assert!(LibrarySortDirection::Ascending.label().is_ascii());
     assert!(LibrarySortDirection::Descending.label().is_ascii());
 
-    assert!(matches!(LibrarySortDirection::Ascending.icon(), IconName::ArrowUp));
-    assert!(matches!(LibrarySortDirection::Descending.icon(), IconName::ArrowDown));
-    assert_eq!(LibrarySortDirection::Ascending.toggle(), LibrarySortDirection::Descending);
+    assert!(matches!(
+        LibrarySortDirection::Ascending.icon(),
+        IconName::ArrowUp
+    ));
+    assert!(matches!(
+        LibrarySortDirection::Descending.icon(),
+        IconName::ArrowDown
+    ));
+    assert_eq!(
+        LibrarySortDirection::Ascending.toggle(),
+        LibrarySortDirection::Descending
+    );
 }
 
 #[test]
@@ -408,13 +432,11 @@ fn test_library_and_hub_visual_polish_elements() {
 
     // 4. GameCover checkmark badge behavior:
     // Library covers never show checkmark badge
-    let cover_library = GameCover::new("Left 4 Dead 2", px(56.0), px(84.0))
-        .installed(true);
+    let cover_library = GameCover::new("Left 4 Dead 2", px(56.0), px(84.0)).installed(true);
     let _e_cl = cover_library.into_any_element();
 
     // Hub uninstalled cover has no badge
-    let cover_hub_uninstalled = GameCover::new("Portal 2", px(56.0), px(84.0))
-        .installed(false);
+    let cover_hub_uninstalled = GameCover::new("Portal 2", px(56.0), px(84.0)).installed(false);
     let _e_chu = cover_hub_uninstalled.into_any_element();
 
     // Hub installed cover shows checkmark badge
@@ -422,11 +444,7 @@ fn test_library_and_hub_visual_polish_elements() {
     let cover_hub_installed = GameCover::new("Portal 2", px(56.0), px(84.0))
         .installed(is_installed)
         .when(is_installed, |c| {
-            c.badge(
-                gpui::div()
-                    .child(gpui_component::Icon::new(IconName::Check).size_3())
-            )
+            c.badge(gpui::div().child(gpui_component::Icon::new(IconName::Check).size_3()))
         });
     let _e_chi = cover_hub_installed.into_any_element();
 }
-

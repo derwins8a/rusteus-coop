@@ -13,7 +13,7 @@ pub mod user_profile;
 
 pub use game_profile::GameProfile;
 pub use hub_account::HubAccountSummary;
-pub use meta_info::{now_formatted, GameMetaInfoEntry, MetaInfoStore};
+pub use meta_info::{GameMetaInfoEntry, MetaInfoStore, now_formatted};
 pub use player::PlayerInfo;
 pub use save_slots::{GameSaveSlotsManifest, SaveSlot, SaveSlotSyncMode};
 pub use settings::AppSettings;
@@ -25,7 +25,8 @@ mod tests {
 
     #[test]
     fn test_user_profile_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_prof_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_prof_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let path = temp_dir.join("profile.json");
 
@@ -41,7 +42,8 @@ mod tests {
 
     #[test]
     fn test_game_profile_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_game_prof_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_game_prof_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let path = temp_dir.join("game.json");
 
@@ -61,7 +63,8 @@ mod tests {
 
     #[test]
     fn test_app_settings_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_settings_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_settings_{}", std::process::id()));
         std::fs::create_dir_all(&temp_dir).unwrap();
         let path = temp_dir.join("settings.json");
 
@@ -89,7 +92,8 @@ mod tests {
 
     #[test]
     fn test_app_settings_save_and_load_persistence() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_appdata_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_appdata_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let old_appdata = std::env::var("APPDATA").ok();
 
@@ -205,4 +209,3 @@ mod tests {
         assert_eq!(settings.hotkey_couch_osd, "Ctrl+F11");
     }
 }
-

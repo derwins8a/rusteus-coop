@@ -1,16 +1,17 @@
 //! Windows implementation of `WindowManager` using Win32 APIs.
 
-use windows::core::HSTRING;
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-    ClipCursor, EnumWindows, FindWindowW, GetDesktopWindow, GetWindow, GetWindowLongW, GetWindowRect,
-    GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, PostMessageW,
-    SendMessageW, SetForegroundWindow, SetWindowLongW, SetWindowPos, SetWindowTextW, ShowWindow, GWL_EXSTYLE,
-    GWL_STYLE, GW_OWNER, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
-    SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SW_MINIMIZE, SW_RESTORE, WM_CLOSE, WM_COMMAND,
-    WM_EXITSIZEMOVE, WM_SIZE, WS_BORDER, WS_CAPTION, WS_DLGFRAME, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME,
-    WS_EX_STATICEDGE, WS_EX_WINDOWEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
+    ClipCursor, EnumWindows, FindWindowW, GW_OWNER, GWL_EXSTYLE, GWL_STYLE, GetDesktopWindow,
+    GetWindow, GetWindowLongW, GetWindowRect, GetWindowTextLengthW, GetWindowTextW,
+    GetWindowThreadProcessId, HWND_NOTOPMOST, HWND_TOPMOST, IsIconic, IsWindowVisible,
+    PostMessageW, SW_MINIMIZE, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SendMessageW, SetForegroundWindow, SetWindowLongW,
+    SetWindowPos, SetWindowTextW, ShowWindow, WM_CLOSE, WM_COMMAND, WM_EXITSIZEMOVE, WM_SIZE,
+    WS_BORDER, WS_CAPTION, WS_DLGFRAME, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE,
+    WS_EX_WINDOWEDGE, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME,
 };
+use windows::core::HSTRING;
 
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::types::{Rect, WindowHandle, WindowStyle};
@@ -19,7 +20,6 @@ use nucleus_platform::WindowManager;
 /// Windows Win32 window manager implementation.
 #[derive(Default)]
 pub struct WindowsWindowManager;
-
 
 impl WindowsWindowManager {
     /// Creates a new `WindowsWindowManager`.
@@ -49,7 +49,11 @@ impl WindowsWindowManager {
 }
 
 impl WindowManager for WindowsWindowManager {
-    fn find_window_by_title(&self, title: &str, partial: bool) -> NucleusResult<Option<WindowHandle>> {
+    fn find_window_by_title(
+        &self,
+        title: &str,
+        partial: bool,
+    ) -> NucleusResult<Option<WindowHandle>> {
         struct SearchData<'a> {
             target: &'a str,
             partial: bool,
@@ -69,7 +73,9 @@ impl WindowManager for WindowsWindowManager {
 
                 if !win_title.is_empty() {
                     let matched = if data.partial {
-                        win_title.to_lowercase().contains(&data.target.to_lowercase())
+                        win_title
+                            .to_lowercase()
+                            .contains(&data.target.to_lowercase())
                     } else {
                         win_title.eq_ignore_ascii_case(data.target)
                     };
@@ -133,7 +139,12 @@ impl WindowManager for WindowsWindowManager {
         self.set_window_position_ext(handle, rect, false)
     }
 
-    fn set_window_position_ext(&self, handle: WindowHandle, rect: &Rect, not_top_most: bool) -> NucleusResult<()> {
+    fn set_window_position_ext(
+        &self,
+        handle: WindowHandle,
+        rect: &Rect,
+        not_top_most: bool,
+    ) -> NucleusResult<()> {
         let hwnd = Self::to_hwnd(handle);
         unsafe {
             if IsIconic(hwnd).as_bool() {
@@ -143,9 +154,15 @@ impl WindowManager for WindowsWindowManager {
             // Parity: If not_top_most is requested, use HWND_NOTOPMOST and SWP_NOZORDER
             // rather than forcing topmost unconditionally.
             let (z_order, flags) = if not_top_most {
-                (HWND_NOTOPMOST, SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOZORDER)
+                (
+                    HWND_NOTOPMOST,
+                    SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW | SWP_NOZORDER,
+                )
             } else {
-                (HWND_TOPMOST, SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW)
+                (
+                    HWND_TOPMOST,
+                    SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_SHOWWINDOW,
+                )
             };
 
             SetWindowPos(
@@ -287,7 +304,11 @@ impl WindowManager for WindowsWindowManager {
 
     fn set_topmost(&self, handle: WindowHandle, topmost: bool) -> NucleusResult<()> {
         let hwnd = Self::to_hwnd(handle);
-        let z_order = if topmost { HWND_TOPMOST } else { HWND_NOTOPMOST };
+        let z_order = if topmost {
+            HWND_TOPMOST
+        } else {
+            HWND_NOTOPMOST
+        };
         unsafe {
             SetWindowPos(
                 hwnd,
@@ -340,8 +361,7 @@ impl WindowManager for WindowsWindowManager {
         let hwnd = Self::to_hwnd(handle);
         let mut r = windows::Win32::Foundation::RECT::default();
         unsafe {
-            GetWindowRect(hwnd, &mut r)
-                .map_err(|e| NucleusError::Platform(e.to_string()))?;
+            GetWindowRect(hwnd, &mut r).map_err(|e| NucleusError::Platform(e.to_string()))?;
         }
         Ok(Rect {
             x: r.left,
@@ -368,8 +388,7 @@ impl WindowManager for WindowsWindowManager {
         let hwnd = Self::to_hwnd(handle);
         let hstring = HSTRING::from(title);
         unsafe {
-            SetWindowTextW(hwnd, &hstring)
-                .map_err(|e| NucleusError::Platform(e.to_string()))?;
+            SetWindowTextW(hwnd, &hstring).map_err(|e| NucleusError::Platform(e.to_string()))?;
         }
         Ok(())
     }
@@ -467,7 +486,8 @@ impl WindowManager for WindowsWindowManager {
             );
             if !hmon.is_invalid() {
                 let mut mi = windows::Win32::Graphics::Gdi::MONITORINFO {
-                    cbSize: std::mem::size_of::<windows::Win32::Graphics::Gdi::MONITORINFO>() as u32,
+                    cbSize: std::mem::size_of::<windows::Win32::Graphics::Gdi::MONITORINFO>()
+                        as u32,
                     ..Default::default()
                 };
                 let ok = windows::Win32::Graphics::Gdi::GetMonitorInfoW(hmon, &mut mi);
@@ -521,4 +541,3 @@ mod tests {
         assert!(res.is_ok());
     }
 }
-

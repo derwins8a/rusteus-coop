@@ -1,11 +1,11 @@
 //! Typed driver and JSON report parsing for the Ludusavi save manager CLI.
 
+use crate::ludusavi_config::LudusaviInstanceTarget;
+use nucleus_common::error::{NucleusError, NucleusResult};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::{NucleusError, NucleusResult};
-use crate::ludusavi_config::LudusaviInstanceTarget;
 
 /// Overall summary statistics in a Ludusavi `--api` JSON report.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -61,7 +61,9 @@ impl LudusaviDriver {
     pub fn discover(custom_path: Option<&Path>) -> NucleusResult<Self> {
         if let Some(custom) = custom_path {
             if custom.exists() && custom.is_file() {
-                return Ok(Self { exe_path: custom.to_path_buf() });
+                return Ok(Self {
+                    exe_path: custom.to_path_buf(),
+                });
             }
             let direct = custom.join("ludusavi.exe");
             if direct.exists() {
@@ -76,13 +78,17 @@ impl LudusaviDriver {
         };
 
         if utils_exe.exists() {
-            return Ok(Self { exe_path: utils_exe });
+            return Ok(Self {
+                exe_path: utils_exe,
+            });
         }
 
         // Try PATH
         if let Ok(output) = Command::new("ludusavi").arg("--version").output() {
             if output.status.success() {
-                return Ok(Self { exe_path: PathBuf::from("ludusavi") });
+                return Ok(Self {
+                    exe_path: PathBuf::from("ludusavi"),
+                });
             }
         }
 
@@ -107,7 +113,10 @@ impl LudusaviDriver {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(NucleusError::Process(format!("Ludusavi find failed: {}", stderr)));
+            return Err(NucleusError::Process(format!(
+                "Ludusavi find failed: {}",
+                stderr
+            )));
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -159,15 +168,20 @@ impl LudusaviDriver {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.trim().is_empty() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(NucleusError::Process(format!("Ludusavi backup returned empty stdout: {}", stderr)));
+            return Err(NucleusError::Process(format!(
+                "Ludusavi backup returned empty stdout: {}",
+                stderr
+            )));
         }
 
-        let report: LudusaviApiReport = serde_json::from_str(&stdout).map_err(|e| {
-            NucleusError::Json(e)
-        })?;
+        let report: LudusaviApiReport =
+            serde_json::from_str(&stdout).map_err(|e| NucleusError::Json(e))?;
 
         if !report.errors.is_empty() {
-            tracing::warn!("Ludusavi backup reported non-fatal errors: {:?}", report.errors);
+            tracing::warn!(
+                "Ludusavi backup reported non-fatal errors: {:?}",
+                report.errors
+            );
         }
 
         Ok(report)
@@ -206,12 +220,14 @@ impl LudusaviDriver {
         let stdout = String::from_utf8_lossy(&output.stdout);
         if stdout.trim().is_empty() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(NucleusError::Process(format!("Ludusavi restore returned empty stdout: {}", stderr)));
+            return Err(NucleusError::Process(format!(
+                "Ludusavi restore returned empty stdout: {}",
+                stderr
+            )));
         }
 
-        let report: LudusaviApiReport = serde_json::from_str(&stdout).map_err(|e| {
-            NucleusError::Json(e)
-        })?;
+        let report: LudusaviApiReport =
+            serde_json::from_str(&stdout).map_err(|e| NucleusError::Json(e))?;
 
         Ok(report)
     }

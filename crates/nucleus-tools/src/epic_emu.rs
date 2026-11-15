@@ -1,10 +1,10 @@
 //! Nemirtingas Epic Games offline emulator configuration and DLL deployment.
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Mapping between common language names and ISO language codes supported by Epic Games Store and EOS.
 pub fn get_epic_language(lang: &str) -> String {
@@ -105,12 +105,32 @@ impl EpicEmuTool {
         let x64_src = epic_utils_dir.join("x64").join("EOSSDK-Win64-Shipping.dll");
         let x64_fallback = epic_utils_dir.join("EOSSDK-Win64-Shipping.dll");
 
-        let src_86 = if x86_src.exists() { Some(x86_src) } else if x86_fallback.exists() { Some(x86_fallback) } else { None };
-        let src_64 = if x64_src.exists() { Some(x64_src) } else if x64_fallback.exists() { Some(x64_fallback) } else { None };
+        let src_86 = if x86_src.exists() {
+            Some(x86_src)
+        } else if x86_fallback.exists() {
+            Some(x86_fallback)
+        } else {
+            None
+        };
+        let src_64 = if x64_src.exists() {
+            Some(x64_src)
+        } else if x64_fallback.exists() {
+            Some(x64_fallback)
+        } else {
+            None
+        };
 
         let mut found_any = false;
         if game_root_dir.exists() {
-            Self::scan_and_deploy_recursive(game_root_dir, game_root_dir, instance_dir, &src_86, &src_64, &mut deployed, &mut found_any)?;
+            Self::scan_and_deploy_recursive(
+                game_root_dir,
+                game_root_dir,
+                instance_dir,
+                &src_86,
+                &src_64,
+                &mut deployed,
+                &mut found_any,
+            )?;
         }
 
         // If no existing EOSSDK DLL was found in game tree, deploy standard DLL into instance root
@@ -148,7 +168,15 @@ impl EpicEmuTool {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                Self::scan_and_deploy_recursive(&path, root_dir, instance_dir, src_86, src_64, deployed, found_any)?;
+                Self::scan_and_deploy_recursive(
+                    &path,
+                    root_dir,
+                    instance_dir,
+                    src_86,
+                    src_64,
+                    deployed,
+                    found_any,
+                )?;
             } else if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                 let lower = file_name.to_ascii_lowercase();
                 let is_x64 = lower == "eossdk-win64-shipping.dll";
@@ -156,7 +184,10 @@ impl EpicEmuTool {
 
                 if is_x64 || is_x86 {
                     *found_any = true;
-                    let rel_folder = path.parent().and_then(|p| p.strip_prefix(root_dir).ok()).unwrap_or(Path::new(""));
+                    let rel_folder = path
+                        .parent()
+                        .and_then(|p| p.strip_prefix(root_dir).ok())
+                        .unwrap_or(Path::new(""));
                     let dest_folder = instance_dir.join(rel_folder);
                     let _ = file_util::ensure_dir(&dest_folder);
                     let dest_file = dest_folder.join(file_name);
@@ -194,7 +225,11 @@ impl EpicEmuTool {
             unlock_dlcs: true,
             language: get_epic_language(language.unwrap_or("English")),
             username: username.to_string(),
-            app_name: if app_name.is_empty() { None } else { Some(app_name.to_string()) },
+            app_name: if app_name.is_empty() {
+                None
+            } else {
+                Some(app_name.to_string())
+            },
         };
 
         let json_content = Self::generate_json(&config);
@@ -250,18 +285,24 @@ mod tests {
 
     #[test]
     fn test_epic_emu_setup_and_deploy() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_epic_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_epic_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
 
         let utils_dir = temp_dir.join("utils");
         let epic_utils_x64 = utils_dir.join("NemirtingasEpicEmu").join("x64");
         file_util::ensure_dir(&epic_utils_x64).unwrap();
-        file_util::write_text_file(&epic_utils_x64.join("EOSSDK-Win64-Shipping.dll"), "EOS64_BYTES").unwrap();
+        file_util::write_text_file(
+            &epic_utils_x64.join("EOSSDK-Win64-Shipping.dll"),
+            "EOS64_BYTES",
+        )
+        .unwrap();
 
         let game_root = temp_dir.join("GameRoot");
         let game_bin = game_root.join("Engine").join("Binaries").join("Win64");
         file_util::ensure_dir(&game_bin).unwrap();
-        file_util::write_text_file(&game_bin.join("EOSSDK-Win64-Shipping.dll"), "ORIG_EOS").unwrap();
+        file_util::write_text_file(&game_bin.join("EOSSDK-Win64-Shipping.dll"), "ORIG_EOS")
+            .unwrap();
 
         let instance_dir = temp_dir.join("Instance0");
 
@@ -271,18 +312,27 @@ mod tests {
             "0000000000000000000000000player1",
             "Player1",
             Some("German"),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(settings_path.exists());
         let read_json = file_util::read_text_file(&settings_path).unwrap();
         assert!(read_json.contains("\"language\": \"de\""));
         assert!(instance_dir.join("NemirtingasEpicEmu.json").exists());
 
-        let deployed = EpicEmuTool::deploy_dlls(&game_root, &instance_dir, &utils_dir, true).unwrap();
+        let deployed =
+            EpicEmuTool::deploy_dlls(&game_root, &instance_dir, &utils_dir, true).unwrap();
         assert_eq!(deployed.len(), 1);
-        let deployed_dll = instance_dir.join("Engine").join("Binaries").join("Win64").join("EOSSDK-Win64-Shipping.dll");
+        let deployed_dll = instance_dir
+            .join("Engine")
+            .join("Binaries")
+            .join("Win64")
+            .join("EOSSDK-Win64-Shipping.dll");
         assert!(deployed_dll.exists());
-        assert_eq!(file_util::read_text_file(&deployed_dll).unwrap(), "EOS64_BYTES");
+        assert_eq!(
+            file_util::read_text_file(&deployed_dll).unwrap(),
+            "EOS64_BYTES"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

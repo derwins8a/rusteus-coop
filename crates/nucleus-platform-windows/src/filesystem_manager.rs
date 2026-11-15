@@ -92,12 +92,17 @@ impl FilesystemManager for WindowsFilesystemManager {
                 None,
                 Some(&mut fs_name_buf),
             )
-            .map_err(|e| nucleus_common::error::NucleusError::Platform(format!(
-                "GetVolumeInformationW failed for {}: {}",
-                root, e
-            )))?;
+            .map_err(|e| {
+                nucleus_common::error::NucleusError::Platform(format!(
+                    "GetVolumeInformationW failed for {}: {}",
+                    root, e
+                ))
+            })?;
         }
-        let len = fs_name_buf.iter().position(|&c| c == 0).unwrap_or(fs_name_buf.len());
+        let len = fs_name_buf
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(fs_name_buf.len());
         let fs_name = String::from_utf16_lossy(&fs_name_buf[..len]);
         Ok(fs_name)
     }
@@ -116,11 +121,11 @@ pub fn get_volume_root(path: &Path) -> String {
     }
     if let Ok(canonical) = path.canonicalize() {
         let canon_str = canonical.to_string_lossy();
-        if canon_str.starts_with(r"\\?\") && canon_str.len() >= 6 && canon_str.as_bytes()[5] == b':' {
+        if canon_str.starts_with(r"\\?\") && canon_str.len() >= 6 && canon_str.as_bytes()[5] == b':'
+        {
             let drive = (canon_str.as_bytes()[4] as char).to_ascii_uppercase();
             return format!("{}:\\", drive);
         }
     }
     "C:\\".to_string()
 }
-

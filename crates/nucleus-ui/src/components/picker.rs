@@ -114,11 +114,13 @@ impl<T: Clone + PartialEq + 'static> CouchPicker<T> {
 
         if let Some(icn) = self.icon {
             trigger = trigger.child(
-                Icon::new(icn).size_4().text_color(if is_open || is_focused {
-                    theme::accent()
-                } else {
-                    theme::text_muted()
-                }),
+                Icon::new(icn)
+                    .size_4()
+                    .text_color(if is_open || is_focused {
+                        theme::accent()
+                    } else {
+                        theme::text_muted()
+                    }),
             );
         }
 
@@ -191,7 +193,11 @@ impl<T: Clone + PartialEq + 'static> CouchPicker<T> {
                     .child(opt_label);
 
                 if is_active {
-                    item = item.child(Icon::new(IconName::Check).size_4().text_color(theme::accent()));
+                    item = item.child(
+                        Icon::new(IconName::Check)
+                            .size_4()
+                            .text_color(theme::accent()),
+                    );
                 }
 
                 if let Some(handler) = on_select {

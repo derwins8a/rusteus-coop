@@ -10,7 +10,13 @@ pub trait MutexManager: Send + Sync {
     fn kill_mutex(&self, pid: u32, mutex_name: &str, mutex_type: &str) -> NucleusResult<bool>;
 
     /// Close/kill a named mutex belonging to a target process with extended matching options (partial search).
-    fn kill_mutex_ext(&self, pid: u32, mutex_name: &str, mutex_type: &str, partial: bool) -> NucleusResult<bool> {
+    fn kill_mutex_ext(
+        &self,
+        pid: u32,
+        mutex_name: &str,
+        mutex_type: &str,
+        partial: bool,
+    ) -> NucleusResult<bool> {
         let _ = partial;
         self.kill_mutex(pid, mutex_name, mutex_type)
     }

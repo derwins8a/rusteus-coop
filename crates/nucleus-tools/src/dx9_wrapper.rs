@@ -1,8 +1,8 @@
 //! DirectX 9 wrapper and DLL loader configuration.
 
-use std::path::Path;
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::Path;
 
 /// Configuration options for the DirectX 9 wrapper.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,10 +50,22 @@ impl Dx9WrapperTool {
     pub fn generate_ini(config: &Dx9WrapperConfig) -> String {
         let mut ini = String::new();
         ini.push_str("[Settings]\r\n");
-        ini.push_str(&format!("ForceWindowed={}\r\n", if config.force_windowed { "1" } else { "0" }));
-        ini.push_str(&format!("Borderless={}\r\n", if config.borderless { "1" } else { "0" }));
-        ini.push_str(&format!("ClipCursor={}\r\n", if config.clip_cursor { "1" } else { "0" }));
-        ini.push_str(&format!("VSync={}\r\n", if config.vsync { "1" } else { "0" }));
+        ini.push_str(&format!(
+            "ForceWindowed={}\r\n",
+            if config.force_windowed { "1" } else { "0" }
+        ));
+        ini.push_str(&format!(
+            "Borderless={}\r\n",
+            if config.borderless { "1" } else { "0" }
+        ));
+        ini.push_str(&format!(
+            "ClipCursor={}\r\n",
+            if config.clip_cursor { "1" } else { "0" }
+        ));
+        ini.push_str(&format!(
+            "VSync={}\r\n",
+            if config.vsync { "1" } else { "0" }
+        ));
 
         if let Some(w) = config.target_width {
             ini.push_str(&format!("TargetWidth={}\r\n", w));
@@ -122,7 +134,8 @@ mod tests {
 
     #[test]
     fn test_dx9_wrapper_setup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_dx9_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_dx9_test_{}", std::process::id()));
         let config = Dx9WrapperConfig::default();
         Dx9WrapperTool::setup_wrapper(&temp_dir, &config, None).unwrap();
 

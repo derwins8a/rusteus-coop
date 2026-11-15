@@ -1,11 +1,11 @@
 //! Pure JavaScript add-on modules, syntax validation, and dependency ordering.
 
+use crate::manifest::PluginManifest;
+use boa_parser::{Parser, Source};
+use nucleus_common::error::{NucleusError, NucleusResult};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use boa_parser::{Parser, Source};
-use nucleus_common::error::{NucleusError, NucleusResult};
-use crate::manifest::PluginManifest;
 
 /// An installed pure JavaScript add-on module.
 #[derive(Debug, Clone)]
@@ -65,9 +65,9 @@ impl JsAddon {
         let mut parser = Parser::new(source);
         let scope = boa_ast::scope::Scope::new_global();
 
-        parser
-            .parse_script(&scope, &mut interner)
-            .map_err(|e| NucleusError::Plugin(format!("Syntax error in JS addon '{file_name}': {e}")))?;
+        parser.parse_script(&scope, &mut interner).map_err(|e| {
+            NucleusError::Plugin(format!("Syntax error in JS addon '{file_name}': {e}"))
+        })?;
 
         Ok(())
     }
@@ -77,10 +77,7 @@ impl JsAddon {
         let ns = &self.manifest.js_namespace;
         format!(
             "/* Nucleus Addon: {} v{} */\n(function() {{\n  var __addon_ns = '{}';\n  if (!globalThis.Plugins) globalThis.Plugins = {{}};\n  var exports = {{}};\n  globalThis.Plugins[__addon_ns] = exports;\n  (function(exports, Plugins) {{\n{}\n  }})(exports, globalThis.Plugins);\n}})();\n",
-            self.manifest.name,
-            self.manifest.version,
-            ns,
-            self.source_code
+            self.manifest.name, self.manifest.version, ns, self.source_code
         )
     }
 }
@@ -126,7 +123,13 @@ pub fn sort_addons_by_dependencies(addons: &[JsAddon]) -> NucleusResult<Vec<JsAd
 
     for addon in addons {
         if !visited.contains(&addon.manifest.id) {
-            visit(&addon.manifest.id, &by_id, &mut visited, &mut visiting, &mut sorted)?;
+            visit(
+                &addon.manifest.id,
+                &by_id,
+                &mut visited,
+                &mut visiting,
+                &mut sorted,
+            )?;
         }
     }
 
@@ -183,7 +186,10 @@ entrypoint = "main.js"
         let raw = vec![addon_c, addon_a, addon_b];
         let sorted = sort_addons_by_dependencies(&raw).unwrap();
 
-        let order = sorted.iter().map(|a| a.manifest.id.as_str()).collect::<Vec<_>>();
+        let order = sorted
+            .iter()
+            .map(|a| a.manifest.id.as_str())
+            .collect::<Vec<_>>();
         assert_eq!(order, vec!["addon_a", "addon_b", "addon_c"]);
     }
 }

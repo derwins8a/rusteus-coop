@@ -7,14 +7,14 @@
 //! - Split content: Notes with rich Markdown (`TextView::markdown`) and action buttons ("Install Handler", "Reinstall", "Uninstall") on left; large 2:3 `NefosCover` poster on right.
 //! - Tabs: Comments, JS Code, Versions history, Statistics.
 
-use gpui::prelude::*;
-use gpui::*;
-use nucleus_hub::{HubComment, HubPackage};
 use crate::models::HubPackageItem;
 use crate::nefos::*;
 use crate::theme;
 use crate::window::MainWindow;
 use crate::{Icon, IconName};
+use gpui::prelude::*;
+use gpui::*;
+use nucleus_hub::{HubComment, HubPackage};
 
 /// Active tab within the Hub Handler Details screen.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
@@ -99,7 +99,8 @@ fn spawn_install_flow(
 
     if let Some(ref cb) = this.callbacks.on_install_handler {
         let cb = cb.clone();
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::models::HubInstallProgressMsg>();
+        let (tx, mut rx) =
+            tokio::sync::mpsc::unbounded_channel::<crate::models::HubInstallProgressMsg>();
         let tx_prog = tx.clone();
 
         std::thread::spawn(move || {
@@ -116,49 +117,52 @@ fn spawn_install_flow(
             while let Some(msg) = rx.recv().await {
                 let id_key = p_id_cl2.clone();
                 let title_key = p_title_cl.clone();
-                let _ = this.update(&mut *cx, |this, cx| {
-                    match msg {
-                        crate::models::HubInstallProgressMsg::Progress(p) => {
-                            this.installing_handlers.insert(id_key, p);
-                            cx.notify();
+                let _ = this.update(&mut *cx, |this, cx| match msg {
+                    crate::models::HubInstallProgressMsg::Progress(p) => {
+                        this.installing_handlers.insert(id_key, p);
+                        cx.notify();
+                    }
+                    crate::models::HubInstallProgressMsg::Done(opt_h) => {
+                        this.installing_handlers.remove(&id_key);
+                        this.installed_package_ids.insert(id_key.clone());
+                        if let Some(p) = this.hub_packages.iter_mut().find(|item| item.id == id_key)
+                        {
+                            p.is_installed = true;
+                            p.has_update = false;
+                            p.is_up_to_date = true;
+                            p.installed_version = Some(p.version_number);
                         }
-                        crate::models::HubInstallProgressMsg::Done(opt_h) => {
-                            this.installing_handlers.remove(&id_key);
-                            this.installed_package_ids.insert(id_key.clone());
-                            if let Some(p) = this.hub_packages.iter_mut().find(|item| item.id == id_key) {
-                                p.is_installed = true;
-                                p.has_update = false;
-                                p.is_up_to_date = true;
-                                p.installed_version = Some(p.version_number);
+                        if let Some(ref mut inspecting) = this.inspecting_hub_package {
+                            if inspecting.id == id_key {
+                                inspecting.is_installed = true;
+                                inspecting.has_update = false;
+                                inspecting.is_up_to_date = true;
+                                inspecting.installed_version = Some(inspecting.version_number);
                             }
-                            if let Some(ref mut inspecting) = this.inspecting_hub_package {
-                                if inspecting.id == id_key {
-                                    inspecting.is_installed = true;
-                                    inspecting.has_update = false;
-                                    inspecting.is_up_to_date = true;
-                                    inspecting.installed_version = Some(inspecting.version_number);
-                                }
-                            }
-                            if let Some(h) = opt_h {
-                                let name = h.game_name.clone();
-                                if let Some(existing) = this.handlers.iter_mut().find(|e| e.guid == h.guid) {
-                                    *existing = h.clone();
-                                } else {
-                                    this.handlers.push(h.clone());
-                                }
-                                if !this.handler_names.contains(&name) {
-                                    this.handler_names.push(name.clone());
-                                }
-                                this.selected_game = Some(h.game_name.clone());
-                            }
-                            this.status_message = format!("Successfully installed handler for '{}'!", title_key);
-                            this.show_osd(&format!("Installed {}!", title_key), 3000, cx);
-                            cx.notify();
                         }
+                        if let Some(h) = opt_h {
+                            let name = h.game_name.clone();
+                            if let Some(existing) =
+                                this.handlers.iter_mut().find(|e| e.guid == h.guid)
+                            {
+                                *existing = h.clone();
+                            } else {
+                                this.handlers.push(h.clone());
+                            }
+                            if !this.handler_names.contains(&name) {
+                                this.handler_names.push(name.clone());
+                            }
+                            this.selected_game = Some(h.game_name.clone());
+                        }
+                        this.status_message =
+                            format!("Successfully installed handler for '{}'!", title_key);
+                        this.show_osd(&format!("Installed {}!", title_key), 3000, cx);
+                        cx.notify();
                     }
                 });
             }
-        }).detach();
+        })
+        .detach();
     }
 }
 
@@ -189,7 +193,8 @@ fn perform_uninstall(
         let norm_h = crate::hub_browser::normalize_for_match(&h.game_name);
         norm_h != norm_game && h.guid != pkg_id
     });
-    this.handler_names.retain(|n| crate::hub_browser::normalize_for_match(n) != norm_game);
+    this.handler_names
+        .retain(|n| crate::hub_browser::normalize_for_match(n) != norm_game);
     this.status_message = format!("Uninstalled handler for '{}'.", game_name);
     this.show_osd(&format!("Uninstalled {}", game_name), 2000, cx);
     cx.notify();
@@ -216,7 +221,11 @@ pub fn render_hub_details_screen(
     let max_players = pkg.max_players.clone();
     let total_downloads = pkg.downloads;
     let base_likes = pkg.likes;
-    let display_likes = if has_extra_like { base_likes + 1 } else { base_likes };
+    let display_likes = if has_extra_like {
+        base_likes + 1
+    } else {
+        base_likes
+    };
     let is_verified = pkg.is_verified;
     let desc_md = pkg.description.clone();
 
@@ -230,17 +239,39 @@ pub fn render_hub_details_screen(
     // Sort packages by version descending
     let mut sorted_packages = packages.to_vec();
     sorted_packages.sort_by(|a, b| {
-        let ver_a = a.meta.as_ref().and_then(|m| nucleus_hub::value_to_i32(&m.handler_version)).unwrap_or(0);
-        let ver_b = b.meta.as_ref().and_then(|m| nucleus_hub::value_to_i32(&m.handler_version)).unwrap_or(0);
+        let ver_a = a
+            .meta
+            .as_ref()
+            .and_then(|m| nucleus_hub::value_to_i32(&m.handler_version))
+            .unwrap_or(0);
+        let ver_b = b
+            .meta
+            .as_ref()
+            .and_then(|m| nucleus_hub::value_to_i32(&m.handler_version))
+            .unwrap_or(0);
         ver_b.cmp(&ver_a)
     });
 
-    let latest_js_code = sorted_packages.iter().find_map(|p| {
-        p.meta.as_ref().and_then(|m| m.js_content.as_ref()).filter(|s| !s.trim().is_empty())
-    }).cloned();
+    let latest_js_code = sorted_packages
+        .iter()
+        .find_map(|p| {
+            p.meta
+                .as_ref()
+                .and_then(|m| m.js_content.as_ref())
+                .filter(|s| !s.trim().is_empty())
+        })
+        .cloned();
 
-    let comments_count = if !comments.is_empty() { comments.len() } else { pkg.comments_count as usize };
-    let versions_count = if !packages.is_empty() { packages.len() } else { 1 };
+    let comments_count = if !comments.is_empty() {
+        comments.len()
+    } else {
+        pkg.comments_count as usize
+    };
+    let versions_count = if !packages.is_empty() {
+        packages.len()
+    } else {
+        1
+    };
 
     let modal_id = ElementId::Name(format!("hub-details-modal-{}", pkg_id).into());
     let mut modal = NefosModal::new(modal_id, format!("{} - Details", game_name))
@@ -288,23 +319,24 @@ pub fn render_hub_details_screen(
 
         let p_id_re = pkg_id.clone();
         let p_title_re = pkg_title.clone();
-        modal = modal.action(
-            if pkg.has_update {
-                NefosButton::primary("modal-btn-update", format!("Update Handler (v{})", remote_version))
-                    .icon(IconName::RefreshCw)
-                    .size(NefosButtonSize::Md)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        spawn_install_flow(&p_id_re, &p_title_re, this, cx);
-                    }))
-            } else {
-                NefosButton::secondary("modal-btn-reinstall", "Reinstall")
-                    .icon(IconName::RefreshCw)
-                    .size(NefosButtonSize::Md)
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        spawn_install_flow(&p_id_re, &p_title_re, this, cx);
-                    }))
-            },
-        );
+        modal = modal.action(if pkg.has_update {
+            NefosButton::primary(
+                "modal-btn-update",
+                format!("Update Handler (v{})", remote_version),
+            )
+            .icon(IconName::RefreshCw)
+            .size(NefosButtonSize::Md)
+            .on_click(cx.listener(move |this, _, _, cx| {
+                spawn_install_flow(&p_id_re, &p_title_re, this, cx);
+            }))
+        } else {
+            NefosButton::secondary("modal-btn-reinstall", "Reinstall")
+                .icon(IconName::RefreshCw)
+                .size(NefosButtonSize::Md)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    spawn_install_flow(&p_id_re, &p_title_re, this, cx);
+                }))
+        });
     } else {
         let p_id_in = pkg_id.clone();
         let p_title_in = pkg_title.clone();
@@ -331,9 +363,7 @@ pub fn render_hub_details_screen(
                     .args(["url.dll,FileProtocolHandler", &url])
                     .spawn();
                 #[cfg(target_os = "linux")]
-                let _ = std::process::Command::new("xdg-open")
-                    .arg(&url)
-                    .spawn();
+                let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
                 this.show_osd("Opening report page on Splitscreen.Me Hub...", 2500, cx);
             })),
     );
@@ -619,9 +649,12 @@ pub fn render_hub_details_screen(
     modal.body(body_element).into_any_element()
 }
 
-
 /// Renders Tab 1: Comments list matching the reference image, using TextView::markdown for comment contents.
-fn render_comments_tab(comments: &[HubComment], is_loading: bool, _cx: &mut Context<MainWindow>) -> AnyElement {
+fn render_comments_tab(
+    comments: &[HubComment],
+    is_loading: bool,
+    _cx: &mut Context<MainWindow>,
+) -> AnyElement {
     if is_loading {
         return div()
             .flex()
@@ -658,111 +691,118 @@ fn render_comments_tab(comments: &[HubComment], is_loading: bool, _cx: &mut Cont
                 .child("You must log in to post comments."),
         )
         // Comments List
-        .child(
-            if comments.is_empty() {
-                div()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .justify_center()
-                    .p_8()
-                    .text_sm()
-                    .text_color(theme::text_muted())
-                    .child("No comments posted yet for this handler.")
-                    .into_any_element()
-            } else {
-                div()
-                    .flex()
-                    .flex_col()
-                    .gap_4()
-                    .children(comments.iter().enumerate().map(|(c_idx, comment)| {
-                        let is_reply = comment.reply_to.is_some();
-                        let initial = comment.author.chars().next().unwrap_or('?').to_uppercase().to_string();
-                        let rel_time = format_relative_time(&comment.created_at);
+        .child(if comments.is_empty() {
+            div()
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .p_8()
+                .text_sm()
+                .text_color(theme::text_muted())
+                .child("No comments posted yet for this handler.")
+                .into_any_element()
+        } else {
+            div()
+                .flex()
+                .flex_col()
+                .gap_4()
+                .children(comments.iter().enumerate().map(|(c_idx, comment)| {
+                    let is_reply = comment.reply_to.is_some();
+                    let initial = comment
+                        .author
+                        .chars()
+                        .next()
+                        .unwrap_or('?')
+                        .to_uppercase()
+                        .to_string();
+                    let rel_time = format_relative_time(&comment.created_at);
 
-                        div()
-                            .id(("hub-comment-item", c_idx))
-                            .flex()
-                            .flex_col()
-                            .gap_2()
-                            .p_4()
-                            .when(is_reply, |s| s.ml_6().border_l_2().border_color(theme::accent()))
-                            .bg(theme::bg_panel())
-                            .rounded_xl()
-                            .border_1()
-                            .border_color(theme::border_color())
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_3()
-                                    // User Avatar
-                                    .child(
-                                        div()
-                                            .size(px(32.0))
-                                            .rounded_full()
-                                            .bg(theme::accent_subtle())
-                                            .border_1()
-                                            .border_color(theme::accent())
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .text_xs()
-                                            .font_weight(FontWeight::BOLD)
-                                            .text_color(theme::accent())
-                                            .child(initial),
-                                    )
-                                    // Author Name & Timestamp
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap_2()
-                                            .child(
-                                                div()
-                                                    .text_sm()
-                                                    .font_weight(FontWeight::BOLD)
-                                                    .text_color(theme::text_primary())
-                                                    .child(comment.author.clone()),
-                                            )
-                                            .child(
-                                                div()
-                                                    .text_xs()
-                                                    .text_color(theme::text_muted())
-                                                    .child(rel_time),
-                                            ),
-                                    ),
-                            )
-                            // Comment Body formatted via TextView::markdown
-                            .child(
-                                div()
-                                    .text_sm()
-                                    .text_color(theme::text_primary())
-                                    .child(crate::markdown::render_markdown_with_id(
-                                        ElementId::Name(format!("hub-comment-body-{}", c_idx).into()),
-                                        &comment.content,
-                                    )),
-                            )
-                            // Reply action link
-                            .child(
-                                div()
-                                    .id(("hub-comment-reply", c_idx))
-                                    .cursor_pointer()
-                                    .text_xs()
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(theme::accent())
-                                    .hover(|s| s.underline())
-                                    .child("Reply"),
-                            )
-                    }))
-                    .into_any_element()
-            },
-        )
+                    div()
+                        .id(("hub-comment-item", c_idx))
+                        .flex()
+                        .flex_col()
+                        .gap_2()
+                        .p_4()
+                        .when(is_reply, |s| {
+                            s.ml_6().border_l_2().border_color(theme::accent())
+                        })
+                        .bg(theme::bg_panel())
+                        .rounded_xl()
+                        .border_1()
+                        .border_color(theme::border_color())
+                        .child(
+                            div()
+                                .flex()
+                                .items_center()
+                                .gap_3()
+                                // User Avatar
+                                .child(
+                                    div()
+                                        .size(px(32.0))
+                                        .rounded_full()
+                                        .bg(theme::accent_subtle())
+                                        .border_1()
+                                        .border_color(theme::accent())
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .text_xs()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(theme::accent())
+                                        .child(initial),
+                                )
+                                // Author Name & Timestamp
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::text_primary())
+                                                .child(comment.author.clone()),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::text_muted())
+                                                .child(rel_time),
+                                        ),
+                                ),
+                        )
+                        // Comment Body formatted via TextView::markdown
+                        .child(div().text_sm().text_color(theme::text_primary()).child(
+                            crate::markdown::render_markdown_with_id(
+                                ElementId::Name(format!("hub-comment-body-{}", c_idx).into()),
+                                &comment.content,
+                            ),
+                        ))
+                        // Reply action link
+                        .child(
+                            div()
+                                .id(("hub-comment-reply", c_idx))
+                                .cursor_pointer()
+                                .text_xs()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(theme::accent())
+                                .hover(|s| s.underline())
+                                .child("Reply"),
+                        )
+                }))
+                .into_any_element()
+        })
         .into_any_element()
 }
 
 /// Renders Tab 2: JavaScript Code Viewer with TextView::markdown syntax styling.
-fn render_js_code_tab(js_code: Option<&str>, is_loading: bool, cx: &mut Context<MainWindow>) -> AnyElement {
+fn render_js_code_tab(
+    js_code: Option<&str>,
+    is_loading: bool,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     if is_loading {
         return div()
             .flex()
@@ -827,7 +867,9 @@ fn render_js_code_tab(js_code: Option<&str>, is_loading: bool, cx: &mut Context<
                         .icon(IconName::Copy)
                         .size(NefosButtonSize::Sm)
                         .on_click(cx.listener(move |this, _, _, cx| {
-                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(copy_code.clone()));
+                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(
+                                copy_code.clone(),
+                            ));
                             this.show_osd("Handler JavaScript copied to clipboard!", 2500, cx);
                         })),
                 ),
@@ -901,10 +943,17 @@ fn render_versions_history_tab(
         .w_full()
         .children(packages.iter().enumerate().map(|(idx, package)| {
             let meta = package.meta.as_ref();
-            let ver_num = meta.and_then(|m| nucleus_hub::value_to_i32(&m.handler_version)).unwrap_or(1);
-            let rel_desc = meta.and_then(|m| m.release_description.as_deref()).unwrap_or("Regular release update.").to_string();
+            let ver_num = meta
+                .and_then(|m| nucleus_hub::value_to_i32(&m.handler_version))
+                .unwrap_or(1);
+            let rel_desc = meta
+                .and_then(|m| m.release_description.as_deref())
+                .unwrap_or("Regular release update.")
+                .to_string();
             let rel_date = meta.and_then(|m| m.release_date.as_deref()).unwrap_or("");
-            let downloads = meta.and_then(|m| nucleus_hub::value_to_u64(&m.downloads)).unwrap_or(0);
+            let downloads = meta
+                .and_then(|m| nucleus_hub::value_to_u64(&m.downloads))
+                .unwrap_or(0);
             let is_latest = idx == 0;
             let formatted_date = format_relative_time(rel_date);
 
@@ -922,7 +971,11 @@ fn render_versions_history_tab(
                 .bg(theme::bg_panel())
                 .rounded_xl()
                 .border_1()
-                .border_color(if is_latest { theme::accent() } else { theme::border_color() })
+                .border_color(if is_latest {
+                    theme::accent()
+                } else {
+                    theme::border_color()
+                })
                 .child(
                     div()
                         .flex_1()
@@ -939,7 +992,11 @@ fn render_versions_history_tab(
                                 .child(
                                     NefosTag::new(format!("v{}", ver_num))
                                         .id(("hub-ver-pill", idx))
-                                        .tone(if is_latest { NefosTagTone::Accent } else { NefosTagTone::Neutral }),
+                                        .tone(if is_latest {
+                                            NefosTagTone::Accent
+                                        } else {
+                                            NefosTagTone::Neutral
+                                        }),
                                 )
                                 .when(is_latest, |r| {
                                     r.child(
@@ -958,19 +1015,19 @@ fn render_versions_history_tab(
                                     div()
                                         .text_xs()
                                         .text_color(theme::text_muted())
-                                        .child(format!("• {} downloads", format_number_k(downloads))),
+                                        .child(format!(
+                                            "• {} downloads",
+                                            format_number_k(downloads)
+                                        )),
                                 ),
                         )
                         // Changelog notes via TextView::markdown
-                        .child(
-                            div()
-                                .text_sm()
-                                .text_color(theme::text_primary())
-                                .child(crate::markdown::render_markdown_with_id(
-                                    ElementId::Name(format!("ver-desc-md-{}", idx).into()),
-                                    &rel_desc,
-                                )),
-                        ),
+                        .child(div().text_sm().text_color(theme::text_primary()).child(
+                            crate::markdown::render_markdown_with_id(
+                                ElementId::Name(format!("ver-desc-md-{}", idx).into()),
+                                &rel_desc,
+                            ),
+                        )),
                 )
                 // Download button for this specific version via NefosButton
                 .child(
@@ -982,49 +1039,62 @@ fn render_versions_history_tab(
                             let dl_h_id = dl_handler_id.clone();
                             let title = dl_title.clone();
                             this.installing_handlers.insert(dl_h_id.clone(), 0.0);
-                            this.status_message = format!("Downloading version v{} of '{}'...", ver_num, title);
+                            this.status_message =
+                                format!("Downloading version v{} of '{}'...", ver_num, title);
                             cx.notify();
 
                             if let Some(ref cb) = this.callbacks.on_install_handler {
                                 let cb = cb.clone();
-                                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<crate::models::HubInstallProgressMsg>();
+                                let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<
+                                    crate::models::HubInstallProgressMsg,
+                                >();
                                 let tx_prog = tx.clone();
 
                                 std::thread::spawn(move || {
                                     let item = cb(
                                         &dl_id,
                                         Box::new(move |p: f32| {
-                                            let _ = tx_prog.send(crate::models::HubInstallProgressMsg::Progress(p));
+                                            let _ = tx_prog.send(
+                                                crate::models::HubInstallProgressMsg::Progress(p),
+                                            );
                                         }),
                                     );
-                                    let _ = tx.send(crate::models::HubInstallProgressMsg::Done(item));
+                                    let _ =
+                                        tx.send(crate::models::HubInstallProgressMsg::Done(item));
                                 });
 
                                 cx.spawn(async move |this, cx| {
                                     while let Some(msg) = rx.recv().await {
                                         let h_key = dl_h_id.clone();
                                         let t_key = title.clone();
-                                        let _ = this.update(&mut *cx, |this, cx| {
-                                            match msg {
-                                                crate::models::HubInstallProgressMsg::Progress(p) => {
-                                                    this.installing_handlers.insert(h_key, p);
-                                                    cx.notify();
-                                                }
-                                                crate::models::HubInstallProgressMsg::Done(opt_h) => {
-                                                    this.installing_handlers.remove(&h_key);
-                                                    this.installed_package_ids.insert(h_key.clone());
-                                                    if let Some(h) = opt_h {
-                                                        if !this.handlers.iter().any(|existing| existing.guid == h.guid) {
-                                                            this.handlers.push(h);
-                                                        }
+                                        let _ = this.update(&mut *cx, |this, cx| match msg {
+                                            crate::models::HubInstallProgressMsg::Progress(p) => {
+                                                this.installing_handlers.insert(h_key, p);
+                                                cx.notify();
+                                            }
+                                            crate::models::HubInstallProgressMsg::Done(opt_h) => {
+                                                this.installing_handlers.remove(&h_key);
+                                                this.installed_package_ids.insert(h_key.clone());
+                                                if let Some(h) = opt_h {
+                                                    if !this
+                                                        .handlers
+                                                        .iter()
+                                                        .any(|existing| existing.guid == h.guid)
+                                                    {
+                                                        this.handlers.push(h);
                                                     }
-                                                    this.show_osd(&format!("Installed {} v{}!", t_key, ver_num), 3000, cx);
-                                                    cx.notify();
                                                 }
+                                                this.show_osd(
+                                                    &format!("Installed {} v{}!", t_key, ver_num),
+                                                    3000,
+                                                    cx,
+                                                );
+                                                cx.notify();
                                             }
                                         });
                                     }
-                                }).detach();
+                                })
+                                .detach();
                             }
                         })),
                 )
@@ -1053,10 +1123,30 @@ fn render_statistics_tab(
                 .gap_4()
                 .w_full()
                 .flex_wrap()
-                .child(render_stat_box("Total Downloads", &pkg.downloads.to_string(), IconName::Download, theme::accent()))
-                .child(render_stat_box("Community Hotness", &display_likes.to_string(), IconName::Flame, theme::warning()))
-                .child(render_stat_box("Total Versions", &format!("{} releases", versions_count), IconName::Clock, theme::success()))
-                .child(render_stat_box("Comments Count", &format!("{} comments", comments_count), IconName::MessageSquare, theme::purple())),
+                .child(render_stat_box(
+                    "Total Downloads",
+                    &pkg.downloads.to_string(),
+                    IconName::Download,
+                    theme::accent(),
+                ))
+                .child(render_stat_box(
+                    "Community Hotness",
+                    &display_likes.to_string(),
+                    IconName::Flame,
+                    theme::warning(),
+                ))
+                .child(render_stat_box(
+                    "Total Versions",
+                    &format!("{} releases", versions_count),
+                    IconName::Clock,
+                    theme::success(),
+                ))
+                .child(render_stat_box(
+                    "Comments Count",
+                    &format!("{} comments", comments_count),
+                    IconName::MessageSquare,
+                    theme::purple(),
+                )),
         )
         // Compatibility & Technical Breakdown Card
         .child(
@@ -1082,9 +1172,32 @@ fn render_statistics_tab(
                         .flex_col()
                         .gap_1p5()
                         .child(render_info_row("Supported Players", &pkg.max_players))
-                        .child(render_info_row("Gamepads (XInput)", if pkg.playable_controllers { "Supported" } else { "Not supported" }))
-                        .child(render_info_row("Keyboards & Mice", if pkg.playable_multi_mouse_keyboard { "Multiple (ProtoInput)" } else if pkg.playable_mouse_keyboard { "Single" } else { "Not supported" }))
-                        .child(render_info_row("Verified by SplitscreenMe", if pkg.is_verified { "Yes (Official Release)" } else { "Community Contributed" })),
+                        .child(render_info_row(
+                            "Gamepads (XInput)",
+                            if pkg.playable_controllers {
+                                "Supported"
+                            } else {
+                                "Not supported"
+                            },
+                        ))
+                        .child(render_info_row(
+                            "Keyboards & Mice",
+                            if pkg.playable_multi_mouse_keyboard {
+                                "Multiple (ProtoInput)"
+                            } else if pkg.playable_mouse_keyboard {
+                                "Single"
+                            } else {
+                                "Not supported"
+                            },
+                        ))
+                        .child(render_info_row(
+                            "Verified by SplitscreenMe",
+                            if pkg.is_verified {
+                                "Yes (Official Release)"
+                            } else {
+                                "Community Contributed"
+                            },
+                        )),
                 ),
         )
         // Release Lifecycle Card
@@ -1112,15 +1225,26 @@ fn render_statistics_tab(
                         .gap_1p5()
                         .child(render_info_row("Author / Maintainer", &pkg.author))
                         .child(render_info_row("Package Version", &pkg.version))
-                        .child(render_info_row("Created Date", &format_relative_time(&pkg.created_at)))
-                        .child(render_info_row("Last Updated", &format_relative_time(&pkg.updated_at))),
+                        .child(render_info_row(
+                            "Created Date",
+                            &format_relative_time(&pkg.created_at),
+                        ))
+                        .child(render_info_row(
+                            "Last Updated",
+                            &format_relative_time(&pkg.updated_at),
+                        )),
                 ),
         )
         .into_any_element()
 }
 
 /// Helper to render an analytics box card.
-fn render_stat_box(title: &'static str, value: &str, icon: IconName, accent: gpui::Hsla) -> AnyElement {
+fn render_stat_box(
+    title: &'static str,
+    value: &str,
+    icon: IconName,
+    accent: gpui::Hsla,
+) -> AnyElement {
     div()
         .flex_1()
         .min_w(px(140.0))
@@ -1144,11 +1268,7 @@ fn render_stat_box(title: &'static str, value: &str, icon: IconName, accent: gpu
                         .text_color(theme::text_muted())
                         .child(title),
                 )
-                .child(
-                    div()
-                        .text_color(accent)
-                        .child(Icon::new(icon).size_3p5()),
-                ),
+                .child(div().text_color(accent).child(Icon::new(icon).size_3p5())),
         )
         .child(
             div()
@@ -1167,11 +1287,7 @@ fn render_info_row(key: &'static str, val: &str) -> AnyElement {
         .items_center()
         .justify_between()
         .text_xs()
-        .child(
-            div()
-                .text_color(theme::text_muted())
-                .child(key),
-        )
+        .child(div().text_color(theme::text_muted()).child(key))
         .child(
             div()
                 .font_weight(FontWeight::SEMIBOLD)

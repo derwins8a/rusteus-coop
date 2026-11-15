@@ -1,11 +1,11 @@
 //! Boa JavaScript runtime debugger bridge and cycle-safe object inspector.
 
-use std::collections::HashSet;
 use boa_engine::object::builtins::JsArray;
 use boa_engine::{Context, JsArgs, JsNativeError, JsResult, JsString, JsValue, NativeFunction};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_debug::controller::DebugController;
 use nucleus_debug::protocol::InspectValue;
+use std::collections::HashSet;
 
 /// Recursively inspects a Boa JsValue, preventing infinite recursion on circular references.
 pub fn js_value_to_inspect(
@@ -154,73 +154,77 @@ pub fn js_value_to_inspect(
 }
 
 /// Registers the native `__nucleus_dbg_stmt`, `__nucleus_dbg_enter`, and `__nucleus_dbg_exit` hooks in the Boa Context.
-pub fn register_debug_probes(
-    ctx: &mut Context,
-    controller: DebugController,
-) -> NucleusResult<()> {
+pub fn register_debug_probes(ctx: &mut Context, controller: DebugController) -> NucleusResult<()> {
     let ctrl_stmt = controller.clone();
     let stmt_func = unsafe {
-        NativeFunction::from_closure(move |_this: &JsValue, args: &[JsValue], ctx: &mut Context| -> JsResult<JsValue> {
-            let file_id = args.get_or_undefined(0).to_string(ctx)?.to_std_string_escaped();
-            let line = args.get_or_undefined(1).to_u32(ctx)?;
-            let col = args.get_or_undefined(2).to_u32(ctx)?;
-            let eval_closure = args.get(3).cloned();
+        NativeFunction::from_closure(
+            move |_this: &JsValue, args: &[JsValue], ctx: &mut Context| -> JsResult<JsValue> {
+                let file_id = args
+                    .get_or_undefined(0)
+                    .to_string(ctx)?
+                    .to_std_string_escaped();
+                let line = args.get_or_undefined(1).to_u32(ctx)?;
+                let col = args.get_or_undefined(2).to_u32(ctx)?;
+                let eval_closure = args.get(3).cloned();
 
-            let mut eval_fn = |expr: &str| -> Result<String, String> {
-                if let Some(ref closure) = eval_closure {
-                    if let Some(func_obj) = closure.as_object() {
-                        let arg = JsString::from(expr).into();
-                        match func_obj.call(&JsValue::undefined(), &[arg], ctx) {
-                            Ok(v) => Ok(v.to_string(ctx).map(|s| s.to_std_string_escaped()).unwrap_or_default()),
-                            Err(e) => Err(e.to_string()),
+                let mut eval_fn = |expr: &str| -> Result<String, String> {
+                    if let Some(ref closure) = eval_closure {
+                        if let Some(func_obj) = closure.as_object() {
+                            let arg = JsString::from(expr).into();
+                            match func_obj.call(&JsValue::undefined(), &[arg], ctx) {
+                                Ok(v) => Ok(v
+                                    .to_string(ctx)
+                                    .map(|s| s.to_std_string_escaped())
+                                    .unwrap_or_default()),
+                                Err(e) => Err(e.to_string()),
+                            }
+                        } else {
+                            Err("Eval closure is not callable".to_string())
                         }
                     } else {
-                        Err("Eval closure is not callable".to_string())
+                        Err("No eval closure provided".to_string())
                     }
-                } else {
-                    Err("No eval closure provided".to_string())
+                };
+
+                if let Err(e) =
+                    ctrl_stmt.on_statement_probe(&file_id, line, col, Some(&mut eval_fn))
+                {
+                    return Err(JsNativeError::error().with_message(e.to_string()).into());
                 }
-            };
 
-            if let Err(e) = ctrl_stmt.on_statement_probe(&file_id, line, col, Some(&mut eval_fn)) {
-                return Err(JsNativeError::error().with_message(e.to_string()).into());
-            }
-
-            Ok(JsValue::undefined())
-        })
+                Ok(JsValue::undefined())
+            },
+        )
     };
 
-    ctx.register_global_callable(
-        boa_engine::js_string!("__nucleus_dbg_stmt"),
-        4,
-        stmt_func,
-    ).map_err(|e| NucleusError::Script(format!("Failed registering __nucleus_dbg_stmt: {e}")))?;
+    ctx.register_global_callable(boa_engine::js_string!("__nucleus_dbg_stmt"), 4, stmt_func)
+        .map_err(|e| NucleusError::Script(format!("Failed registering __nucleus_dbg_stmt: {e}")))?;
 
     let ctrl_enter = controller.clone();
     let enter_func = unsafe {
-        NativeFunction::from_closure(move |_this: &JsValue, _args: &[JsValue], _ctx: &mut Context| -> JsResult<JsValue> {
-            ctrl_enter.enter_function();
-            Ok(JsValue::undefined())
-        })
+        NativeFunction::from_closure(
+            move |_this: &JsValue, _args: &[JsValue], _ctx: &mut Context| -> JsResult<JsValue> {
+                ctrl_enter.enter_function();
+                Ok(JsValue::undefined())
+            },
+        )
     };
-    ctx.register_global_callable(
-        boa_engine::js_string!("__nucleus_dbg_enter"),
-        0,
-        enter_func,
-    ).map_err(|e| NucleusError::Script(format!("Failed registering __nucleus_dbg_enter: {e}")))?;
+    ctx.register_global_callable(boa_engine::js_string!("__nucleus_dbg_enter"), 0, enter_func)
+        .map_err(|e| {
+            NucleusError::Script(format!("Failed registering __nucleus_dbg_enter: {e}"))
+        })?;
 
     let ctrl_exit = controller;
     let exit_func = unsafe {
-        NativeFunction::from_closure(move |_this: &JsValue, _args: &[JsValue], _ctx: &mut Context| -> JsResult<JsValue> {
-            ctrl_exit.exit_function();
-            Ok(JsValue::undefined())
-        })
+        NativeFunction::from_closure(
+            move |_this: &JsValue, _args: &[JsValue], _ctx: &mut Context| -> JsResult<JsValue> {
+                ctrl_exit.exit_function();
+                Ok(JsValue::undefined())
+            },
+        )
     };
-    ctx.register_global_callable(
-        boa_engine::js_string!("__nucleus_dbg_exit"),
-        0,
-        exit_func,
-    ).map_err(|e| NucleusError::Script(format!("Failed registering __nucleus_dbg_exit: {e}")))?;
+    ctx.register_global_callable(boa_engine::js_string!("__nucleus_dbg_exit"), 0, exit_func)
+        .map_err(|e| NucleusError::Script(format!("Failed registering __nucleus_dbg_exit: {e}")))?;
 
     Ok(())
 }

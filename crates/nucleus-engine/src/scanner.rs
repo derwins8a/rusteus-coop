@@ -91,9 +91,7 @@ impl DiskScanner {
             }
 
             // Game name matches file stem (moderate confidence)
-            if !config.game_name.is_empty()
-                && config.game_name.to_lowercase() == file_stem
-            {
+            if !config.game_name.is_empty() && config.game_name.to_lowercase() == file_stem {
                 score = score.max(70);
             }
 
@@ -115,7 +113,10 @@ impl DiskScanner {
             }
 
             if score > 0 {
-                if best.as_ref().map_or(true, |(_, _, best_score)| score > *best_score) {
+                if best
+                    .as_ref()
+                    .map_or(true, |(_, _, best_score)| score > *best_score)
+                {
                     best = Some((guid.clone(), config.game_name.clone(), score));
                 }
             }
@@ -135,13 +136,10 @@ impl DiskScanner {
         }
 
         // Sort: matched handlers first, then alphabetical
-        found.sort_by(|a, b| {
-            b.match_score
-                .cmp(&a.match_score)
-                .then(a.name.cmp(&b.name))
-        });
+        found.sort_by(|a, b| b.match_score.cmp(&a.match_score).then(a.name.cmp(&b.name)));
 
-        info!("DiskScanner: found {} executables ({} with handler matches)",
+        info!(
+            "DiskScanner: found {} executables ({} with handler matches)",
             found.len(),
             found.iter().filter(|g| g.handler_guid.is_some()).count()
         );
@@ -198,13 +196,17 @@ impl DiskScanner {
                             continue;
                         }
 
-                        let (handler_guid, handler_name, match_score) = match self.match_handler(&path) {
-                            Some((guid, name, score)) => {
-                                debug!("DiskScanner: matched '{}' -> handler '{}' (score {})", stem, name, score);
-                                (Some(guid), Some(name), score)
-                            }
-                            None => (None, None, 0),
-                        };
+                        let (handler_guid, handler_name, match_score) =
+                            match self.match_handler(&path) {
+                                Some((guid, name, score)) => {
+                                    debug!(
+                                        "DiskScanner: matched '{}' -> handler '{}' (score {})",
+                                        stem, name, score
+                                    );
+                                    (Some(guid), Some(name), score)
+                                }
+                                None => (None, None, 0),
+                            };
 
                         found.push(FoundGame {
                             name: stem,
@@ -235,10 +237,18 @@ impl DiskScanner {
                         root.join("Games"),
                         root.join("GOG Games"),
                         root.join("Epic Games"),
-                        root.join("Program Files (x86)").join("Steam").join("steamapps").join("common"),
-                        root.join("Program Files").join("Steam").join("steamapps").join("common"),
+                        root.join("Program Files (x86)")
+                            .join("Steam")
+                            .join("steamapps")
+                            .join("common"),
+                        root.join("Program Files")
+                            .join("Steam")
+                            .join("steamapps")
+                            .join("common"),
                         root.join("SteamLibrary").join("steamapps").join("common"),
-                        root.join("Program Files (x86)").join("GOG Galaxy").join("Games"),
+                        root.join("Program Files (x86)")
+                            .join("GOG Galaxy")
+                            .join("Games"),
                         root.join("Program Files").join("Epic Games"),
                         root.join("XboxGames"),
                     ];
@@ -257,8 +267,17 @@ impl DiskScanner {
             if let Ok(home) = std::env::var("HOME") {
                 let home_path = PathBuf::from(home);
                 let candidates = [
-                    home_path.join(".steam").join("steam").join("steamapps").join("common"),
-                    home_path.join(".local").join("share").join("Steam").join("steamapps").join("common"),
+                    home_path
+                        .join(".steam")
+                        .join("steam")
+                        .join("steamapps")
+                        .join("common"),
+                    home_path
+                        .join(".local")
+                        .join("share")
+                        .join("Steam")
+                        .join("steamapps")
+                        .join("common"),
                     home_path.join(".local").join("share").join("applications"),
                     PathBuf::from("/usr/games"),
                     PathBuf::from("/opt"),
@@ -313,7 +332,8 @@ mod tests {
 
     #[test]
     fn test_disk_scanner_finds_executables() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_scan_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_scan_{}", std::process::id()));
         let game_sub = temp_dir.join("MyGame").join("Binaries");
         std::fs::create_dir_all(&game_sub).unwrap();
 
@@ -335,7 +355,8 @@ mod tests {
 
     #[test]
     fn test_disk_scanner_handler_matching() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_match_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_match_{}", std::process::id()));
         let game_dir = temp_dir.join("Portal 2");
         std::fs::create_dir_all(&game_dir).unwrap();
 
@@ -370,7 +391,10 @@ mod tests {
         let matched = matched.unwrap();
         assert_eq!(matched.handler_guid, Some("portal2-guid".to_string()));
         assert_eq!(matched.handler_name, Some("Portal 2".to_string()));
-        assert!(matched.match_score >= 90, "Score should be high for exact exe name match");
+        assert!(
+            matched.match_score >= 90,
+            "Score should be high for exact exe name match"
+        );
 
         // The unmatched one should have no handler
         let unmatched = found.iter().find(|g| g.exe_path == other_exe);

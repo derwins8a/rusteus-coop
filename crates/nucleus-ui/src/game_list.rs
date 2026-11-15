@@ -3,13 +3,13 @@
 //! Renders the library of discovered or manually added games with cover art,
 //! search filtering, and sorting options.
 
-use gpui::prelude::*;
-use gpui::*;
 use crate::models::{HandlerItem, LibrarySortDirection, LibrarySortOption};
 use crate::nefos::*;
 use crate::theme;
 use crate::window::MainWindow;
 use crate::{Icon, IconName};
+use gpui::prelude::*;
+use gpui::*;
 
 /// State and layout representation for the game catalog view.
 #[derive(Clone, Default)]
@@ -633,13 +633,16 @@ mod tests {
 
         // Filter: "ready to launch"
         let q_filter = "ready to launch".to_lowercase();
-        let ready: Vec<&HandlerItem> = handlers.iter().filter(|h| {
-            if q_filter.contains("ready") || q_filter.contains("installed") {
-                h.is_installed
-            } else {
-                true
-            }
-        }).collect();
+        let ready: Vec<&HandlerItem> = handlers
+            .iter()
+            .filter(|h| {
+                if q_filter.contains("ready") || q_filter.contains("installed") {
+                    h.is_installed
+                } else {
+                    true
+                }
+            })
+            .collect();
 
         assert_eq!(ready.len(), 1);
         assert_eq!(ready[0].guid, "l4d2");

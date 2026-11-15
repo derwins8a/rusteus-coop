@@ -3,10 +3,10 @@
 //! Stores playtime, last played timestamp, favorite status, icon path,
 //! and game-specific options matching `Nucleus.Gaming.Coop.GameMetaInfo`.
 
+use nucleus_common::error::NucleusResult;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::NucleusResult;
 
 /// Individual game entry in `%USERPROFILE%\NucleusCoop\metaInfo.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -93,9 +93,7 @@ impl GameMetaInfoEntry {
     /// Formats last played matching C# `GetLastPlayed`: date part only or `...` if none.
     pub fn display_last_played(&self) -> String {
         match self.last_played_at.as_deref() {
-            Some(s) if !s.trim().is_empty() => {
-                s.split_whitespace().next().unwrap_or(s).to_string()
-            }
+            Some(s) if !s.trim().is_empty() => s.split_whitespace().next().unwrap_or(s).to_string(),
             _ => "...".to_string(),
         }
     }
@@ -135,7 +133,9 @@ impl MetaInfoStore {
 
         if path.exists() {
             if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(entries) = serde_json::from_str::<HashMap<String, GameMetaInfoEntry>>(&content) {
+                if let Ok(entries) =
+                    serde_json::from_str::<HashMap<String, GameMetaInfoEntry>>(&content)
+                {
                     tracing::info!("Loaded {} entry/entries from {:?}", entries.len(), path);
                     store.entries = entries;
                 }
@@ -153,7 +153,11 @@ impl MetaInfoStore {
 
         let json_str = serde_json::to_string_pretty(&self.entries)?;
         std::fs::write(&self.path, json_str)?;
-        tracing::info!("Saved {} metaInfo entries to {:?}", self.entries.len(), self.path);
+        tracing::info!(
+            "Saved {} metaInfo entries to {:?}",
+            self.entries.len(),
+            self.path
+        );
         Ok(())
     }
 
@@ -179,16 +183,18 @@ impl MetaInfoStore {
         };
 
         let insert_key = matched_key.unwrap_or_else(|| key.to_string());
-        self.entries.entry(insert_key).or_insert_with(|| GameMetaInfoEntry {
-            save_profile: Some(true),
-            disable_profiles: Some(false),
-            keep_sym_link: Some(false),
-            favorite: Some(false),
-            first_launch: Some(true),
-            check_update: Some(true),
-            steam_language: Some("App Setting".to_string()),
-            ..Default::default()
-        })
+        self.entries
+            .entry(insert_key)
+            .or_insert_with(|| GameMetaInfoEntry {
+                save_profile: Some(true),
+                disable_profiles: Some(false),
+                keep_sym_link: Some(false),
+                favorite: Some(false),
+                first_launch: Some(true),
+                check_update: Some(true),
+                steam_language: Some("App Setting".to_string()),
+                ..Default::default()
+            })
     }
 
     /// Records accumulated playtime and current timestamp matching C# formatting.
@@ -280,7 +286,8 @@ mod tests {
 
     #[test]
     fn test_meta_info_store_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_test_metainfo_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_test_metainfo_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&temp_dir);
         let path = temp_dir.join("metaInfo.json");
 
@@ -290,7 +297,10 @@ mod tests {
         store.save().unwrap();
 
         let loaded = MetaInfoStore::load_from_path(&path);
-        let entry = loaded.find_entry("slime rancher 2").map(|(_, e)| e).unwrap();
+        let entry = loaded
+            .find_entry("slime rancher 2")
+            .map(|(_, e)| e)
+            .unwrap();
         assert_eq!(entry.play_time_seconds(), 120);
         assert_eq!(entry.favorite, Some(true));
         assert_eq!(entry.display_last_played(), "10/23/2026");

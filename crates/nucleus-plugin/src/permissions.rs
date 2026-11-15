@@ -1,12 +1,12 @@
 //! Security permissions vault, SHA-256 tamper validation, and filesystem confinement.
 
+use crate::manifest::PluginPermission;
+use nucleus_common::error::NucleusResult;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use nucleus_common::error::NucleusResult;
-use crate::manifest::PluginPermission;
 
 /// Persisted user capability grants for a specific plugin binary version.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -109,7 +109,8 @@ impl PermissionStore {
         required_permissions: &[PluginPermission],
         current_binary_sha256: &str,
     ) -> bool {
-        self.missing_permissions(plugin_id, current_binary_sha256, required_permissions).is_empty()
+        self.missing_permissions(plugin_id, current_binary_sha256, required_permissions)
+            .is_empty()
     }
 
     /// Verifies that a target path is strictly confined within the allowed root directory,
@@ -117,7 +118,9 @@ impl PermissionStore {
     pub fn is_path_confined(root: &Path, target: &Path) -> bool {
         let clean_root = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
         let clean_target = if target.exists() {
-            target.canonicalize().unwrap_or_else(|_| target.to_path_buf())
+            target
+                .canonicalize()
+                .unwrap_or_else(|_| target.to_path_buf())
         } else {
             // For not-yet-created target files, check parent canonicalization
             if let Some(parent) = target.parent() {

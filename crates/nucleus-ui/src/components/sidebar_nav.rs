@@ -7,8 +7,8 @@ use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, px, AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Pixels, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement, ParentElement,
+    Pixels, StatefulInteractiveElement, Styled, Window, div, px,
 };
 
 use crate::models::ActiveTab;
@@ -220,57 +220,58 @@ impl CouchSidebarNav {
 
         // Navigation items for the 4 tabs
         let on_tab = self.on_tab_click;
-        let nav_items = div()
-            .flex()
-            .flex_col()
-            .p_2()
-            .gap_1()
-            .children(tabs.into_iter().enumerate().map(|(idx, (tab, label, icon))| {
-                let is_active = self.active_tab == tab;
-                let mut tab_btn = div()
-                    .id(("sidebar-tab", idx))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .when(is_collapsed, |this| {
-                        this.justify_center().py_2p5().px_0()
-                    })
-                    .when(!is_collapsed, |this| {
-                        this.gap_3().px_3().py_2()
-                    })
-                    .rounded_md()
-                    .when(is_active, |this| {
-                        this.bg(theme::accent())
-                            .text_color(theme::text_on_accent())
-                            .font_weight(FontWeight::SEMIBOLD)
-                    })
-                    .when(!is_active, |this| {
-                        this.text_color(theme::text_muted())
-                            .hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
-                    });
+        let nav_items =
+            div()
+                .flex()
+                .flex_col()
+                .p_2()
+                .gap_1()
+                .children(
+                    tabs.into_iter()
+                        .enumerate()
+                        .map(|(idx, (tab, label, icon))| {
+                            let is_active = self.active_tab == tab;
+                            let mut tab_btn = div()
+                                .id(("sidebar-tab", idx))
+                                .cursor_pointer()
+                                .flex()
+                                .items_center()
+                                .when(is_collapsed, |this| this.justify_center().py_2p5().px_0())
+                                .when(!is_collapsed, |this| this.gap_3().px_3().py_2())
+                                .rounded_md()
+                                .when(is_active, |this| {
+                                    this.bg(theme::accent())
+                                        .text_color(theme::text_on_accent())
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                })
+                                .when(!is_active, |this| {
+                                    this.text_color(theme::text_muted()).hover(|s| {
+                                        s.bg(theme::bg_hover()).text_color(theme::text_primary())
+                                    })
+                                });
 
-                if let Some(ref cb) = on_tab {
-                    let cb = cb.clone();
-                    tab_btn = tab_btn.on_click(move |_ev, win, cx| {
-                        cb(tab, win, cx);
-                    });
-                }
+                            if let Some(ref cb) = on_tab {
+                                let cb = cb.clone();
+                                tab_btn = tab_btn.on_click(move |_ev, win, cx| {
+                                    cb(tab, win, cx);
+                                });
+                            }
 
-                tab_btn = tab_btn.child(
-                    Icon::new(icon).size_4().text_color(if is_active {
-                        theme::text_on_accent()
-                    } else {
-                        theme::text_muted()
-                    }),
+                            tab_btn =
+                                tab_btn.child(Icon::new(icon).size_4().text_color(if is_active {
+                                    theme::text_on_accent()
+                                } else {
+                                    theme::text_muted()
+                                }));
+                            if !is_collapsed {
+                                tab_btn = tab_btn.child(div().text_sm().child(label));
+                            } else {
+                                tab_btn = tab_btn.tooltip(crate::make_tooltip(tab.label()));
+                            }
+
+                            tab_btn
+                        }),
                 );
-                if !is_collapsed {
-                    tab_btn = tab_btn.child(div().text_sm().child(label));
-                } else {
-                    tab_btn = tab_btn.tooltip(crate::make_tooltip(tab.label()));
-                }
-
-                tab_btn
-            }));
 
         // Bottom section: Gamepad status dot (green if count > 0, warning otherwise) + Gamepads count text + Handler count text.
         let status_dot = div()

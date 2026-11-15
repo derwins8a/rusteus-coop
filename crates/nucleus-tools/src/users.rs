@@ -1,12 +1,13 @@
 //! User profile isolation, save synchronization, and Windows Explorer shell folder redirection.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::file_util;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 /// Subkey for Windows Explorer User Shell Folders under HKEY_CURRENT_USER.
-pub const USER_SHELL_FOLDERS_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders";
+pub const USER_SHELL_FOLDERS_KEY: &str =
+    r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders";
 /// Name of the registry value controlling the user's Documents folder.
 pub const PERSONAL_VALUE_NAME: &str = "Personal";
 
@@ -63,10 +64,19 @@ impl PlayerEnvironment {
 
     /// Applies the player's isolated directory paths to the target environment variables map.
     pub fn apply_to_env(&self, env: &mut HashMap<String, String>) {
-        env.insert("USERPROFILE".to_string(), self.root.to_string_lossy().to_string());
+        env.insert(
+            "USERPROFILE".to_string(),
+            self.root.to_string_lossy().to_string(),
+        );
         env.insert("HOMEPATH".to_string(), self.home_path.clone());
-        env.insert("APPDATA".to_string(), self.app_data_roaming.to_string_lossy().to_string());
-        env.insert("LOCALAPPDATA".to_string(), self.app_data_local.to_string_lossy().to_string());
+        env.insert(
+            "APPDATA".to_string(),
+            self.app_data_roaming.to_string_lossy().to_string(),
+        );
+        env.insert(
+            "LOCALAPPDATA".to_string(),
+            self.app_data_local.to_string_lossy().to_string(),
+        );
     }
 }
 
@@ -202,7 +212,11 @@ impl UsersTool {
         Self::copy_user_profile_config(
             &real_user_dir,
             &player_env.root.parent().unwrap_or(&player_env.root),
-            player_env.root.file_name().and_then(|n| n.to_str()).unwrap_or_default(),
+            player_env
+                .root
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default(),
             relative_path,
             force_overwrite,
         )
@@ -215,7 +229,9 @@ impl UsersTool {
         force_overwrite: bool,
     ) -> NucleusResult<PathBuf> {
         let real_docs = dirs::document_dir().unwrap_or_else(|| {
-            dirs::home_dir().map(|h| h.join("Documents")).unwrap_or_default()
+            dirs::home_dir()
+                .map(|h| h.join("Documents"))
+                .unwrap_or_default()
         });
         let src_path = real_docs.join(relative_path);
         let dest_path = player_env.documents.join(relative_path);
@@ -389,7 +405,10 @@ impl UsersTool {
         }
         #[cfg(not(windows))]
         {
-            Ok(Self::get_mock_registry_value(key_subpath, PERSONAL_VALUE_NAME))
+            Ok(Self::get_mock_registry_value(
+                key_subpath,
+                PERSONAL_VALUE_NAME,
+            ))
         }
     }
 
@@ -419,8 +438,7 @@ impl UsersTool {
     pub(crate) fn restore_personal_folder_internal(
         key_subpath: &str,
         original_value: Option<&str>,
-        #[cfg(windows)]
-        original_type: Option<winreg::enums::RegType>,
+        #[cfg(windows)] original_type: Option<winreg::enums::RegType>,
         backup_file: Option<&Path>,
     ) -> NucleusResult<()> {
         let mut restored = false;
@@ -479,17 +497,26 @@ impl UsersTool {
             let output = std::process::Command::new("reg.exe")
                 .args(["export", &full_key, &output_path.to_string_lossy(), "/y"])
                 .output()
-                .map_err(|e| NucleusError::Platform(format!("Failed to spawn reg.exe export: {}", e)))?;
+                .map_err(|e| {
+                    NucleusError::Platform(format!("Failed to spawn reg.exe export: {}", e))
+                })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                tracing::warn!("reg.exe export of '{}' returned warning: {}", full_key, stderr.trim());
+                tracing::warn!(
+                    "reg.exe export of '{}' returned warning: {}",
+                    full_key,
+                    stderr.trim()
+                );
             }
         }
 
         #[cfg(not(windows))]
         {
-            let dummy_content = format!("Windows Registry Editor Version 5.00\n\n[HKEY_CURRENT_USER\\{}]\n", key_subpath);
+            let dummy_content = format!(
+                "Windows Registry Editor Version 5.00\n\n[HKEY_CURRENT_USER\\{}]\n",
+                key_subpath
+            );
             let _ = std::fs::write(output_path, dummy_content);
         }
 
@@ -510,11 +537,17 @@ impl UsersTool {
             let output = std::process::Command::new("reg.exe")
                 .args(["import", &reg_path.to_string_lossy()])
                 .output()
-                .map_err(|e| NucleusError::Platform(format!("Failed to spawn reg.exe import: {}", e)))?;
+                .map_err(|e| {
+                    NucleusError::Platform(format!("Failed to spawn reg.exe import: {}", e))
+                })?;
 
             if !output.status.success() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                tracing::warn!("reg.exe import of '{:?}' returned warning: {}", reg_path, stderr.trim());
+                tracing::warn!(
+                    "reg.exe import of '{:?}' returned warning: {}",
+                    reg_path,
+                    stderr.trim()
+                );
             }
         }
 
@@ -537,7 +570,10 @@ impl UsersTool {
         let val_str = match raw.vtype {
             winreg::enums::REG_SZ | winreg::enums::REG_EXPAND_SZ => {
                 let u16_slice: &[u16] = unsafe {
-                    std::slice::from_raw_parts(raw.bytes.as_ptr() as *const u16, raw.bytes.len() / 2)
+                    std::slice::from_raw_parts(
+                        raw.bytes.as_ptr() as *const u16,
+                        raw.bytes.len() / 2,
+                    )
                 };
                 let mut s = String::from_utf16_lossy(u16_slice);
                 if s.ends_with('\0') {
@@ -558,25 +594,32 @@ impl UsersTool {
         vtype: winreg::enums::RegType,
     ) -> NucleusResult<()> {
         let hkcu = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
-        let (key, _) = hkcu
-            .create_subkey(sub_key)
-            .map_err(|e| NucleusError::Platform(format!("Failed to create/open registry key {}: {}", sub_key, e)))?;
+        let (key, _) = hkcu.create_subkey(sub_key).map_err(|e| {
+            NucleusError::Platform(format!(
+                "Failed to create/open registry key {}: {}",
+                sub_key, e
+            ))
+        })?;
 
         if vtype == winreg::enums::REG_EXPAND_SZ {
             let mut utf16: Vec<u16> = value.encode_utf16().collect();
             utf16.push(0);
-            let bytes = unsafe {
-                std::slice::from_raw_parts(utf16.as_ptr() as *const u8, utf16.len() * 2)
-            };
+            let bytes =
+                unsafe { std::slice::from_raw_parts(utf16.as_ptr() as *const u8, utf16.len() * 2) };
             let reg_val = winreg::RegValue {
                 vtype: winreg::enums::REG_EXPAND_SZ,
                 bytes: bytes.to_vec(),
             };
-            key.set_raw_value(value_name, &reg_val)
-                .map_err(|e| NucleusError::Platform(format!("Failed to set REG_EXPAND_SZ value {}: {}", value_name, e)))?;
+            key.set_raw_value(value_name, &reg_val).map_err(|e| {
+                NucleusError::Platform(format!(
+                    "Failed to set REG_EXPAND_SZ value {}: {}",
+                    value_name, e
+                ))
+            })?;
         } else {
-            key.set_value(value_name, &value)
-                .map_err(|e| NucleusError::Platform(format!("Failed to set string value {}: {}", value_name, e)))?;
+            key.set_value(value_name, &value).map_err(|e| {
+                NucleusError::Platform(format!("Failed to set string value {}: {}", value_name, e))
+            })?;
         }
         Ok(())
     }
@@ -584,13 +627,18 @@ impl UsersTool {
     #[cfg(not(windows))]
     fn get_mock_registry_value(sub_key: &str, value_name: &str) -> Option<String> {
         let store = MOCK_REGISTRY.lock().ok()?;
-        store.get(&(sub_key.to_string(), value_name.to_string())).cloned()
+        store
+            .get(&(sub_key.to_string(), value_name.to_string()))
+            .cloned()
     }
 
     #[cfg(not(windows))]
     fn set_mock_registry_value(sub_key: &str, value_name: &str, value: &str) {
         if let Ok(mut store) = MOCK_REGISTRY.lock() {
-            store.insert((sub_key.to_string(), value_name.to_string()), value.to_string());
+            store.insert(
+                (sub_key.to_string(), value_name.to_string()),
+                value.to_string(),
+            );
         }
     }
 
@@ -653,10 +701,7 @@ impl UsersTool {
 
     /// Deletes all files within `base_dir` and its subdirectories matching any of the specified patterns.
     /// Strips read-only attributes before deletion if necessary.
-    pub fn delete_files_in_directory(
-        base_dir: &Path,
-        patterns: &[String],
-    ) -> NucleusResult<usize> {
+    pub fn delete_files_in_directory(base_dir: &Path, patterns: &[String]) -> NucleusResult<usize> {
         if !base_dir.exists() || patterns.is_empty() {
             return Ok(0);
         }
@@ -804,7 +849,8 @@ mod tests {
 
     #[test]
     fn test_copy_profile_config() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_users_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_users_test_{}", std::process::id()));
         let real_dir = temp_dir.join("real");
         let isolated_dir = temp_dir.join("isolated");
 
@@ -818,7 +864,8 @@ mod tests {
             "Player1",
             "game/config.ini",
             true,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(dest.exists());
         let content = file_util::read_text_file(&dest).unwrap();
@@ -830,7 +877,10 @@ mod tests {
     #[test]
     fn test_player_environment_hierarchy_and_env_vars() {
         let env = UsersTool::create_player_environment("TestPlayer").unwrap();
-        assert!(env.root.ends_with("NucleusCoop\\TestPlayer") || env.root.ends_with("NucleusCoop/TestPlayer"));
+        assert!(
+            env.root.ends_with("NucleusCoop\\TestPlayer")
+                || env.root.ends_with("NucleusCoop/TestPlayer")
+        );
         assert!(env.documents.ends_with("Documents"));
         assert!(env.app_data_roaming.ends_with("Roaming"));
         assert!(env.app_data_local.ends_with("Local"));
@@ -842,9 +892,18 @@ mod tests {
 
         let mut vars = HashMap::new();
         env.apply_to_env(&mut vars);
-        assert_eq!(vars.get("USERPROFILE").unwrap(), &env.root.to_string_lossy().to_string());
-        assert_eq!(vars.get("APPDATA").unwrap(), &env.app_data_roaming.to_string_lossy().to_string());
-        assert_eq!(vars.get("LOCALAPPDATA").unwrap(), &env.app_data_local.to_string_lossy().to_string());
+        assert_eq!(
+            vars.get("USERPROFILE").unwrap(),
+            &env.root.to_string_lossy().to_string()
+        );
+        assert_eq!(
+            vars.get("APPDATA").unwrap(),
+            &env.app_data_roaming.to_string_lossy().to_string()
+        );
+        assert_eq!(
+            vars.get("LOCALAPPDATA").unwrap(),
+            &env.app_data_local.to_string_lossy().to_string()
+        );
         assert!(vars.contains_key("HOMEPATH"));
     }
 
@@ -863,7 +922,8 @@ mod tests {
 
     #[test]
     fn test_delete_files_in_config_path_and_purging() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_purge_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_purge_test_{}", std::process::id()));
         let root = temp_dir.join("NucleusCoop").join("Player1");
         let docs = root.join("Documents");
         let roaming = root.join("AppData").join("Roaming");
@@ -911,12 +971,17 @@ mod tests {
 
     #[test]
     fn test_transfer_nucleus_user_account_profiles() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_transfer_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_transfer_test_{}", std::process::id()));
         let p1_dir = temp_dir.join("Player1");
         let p2_dir = temp_dir.join("Player2");
 
         let p1_save = p1_dir.join("Documents").join("game").join("save.dat");
-        let p1_cfg = p1_dir.join("AppData").join("Local").join("game").join("prefs.json");
+        let p1_cfg = p1_dir
+            .join("AppData")
+            .join("Local")
+            .join("game")
+            .join("prefs.json");
         file_util::write_text_file(&p1_save, "player1_save_data").unwrap();
         file_util::write_text_file(&p1_cfg, "{\"volume\": 80}").unwrap();
 
@@ -924,12 +989,22 @@ mod tests {
         assert_eq!(count, 2);
 
         let p2_save = p2_dir.join("Documents").join("game").join("save.dat");
-        let p2_cfg = p2_dir.join("AppData").join("Local").join("game").join("prefs.json");
+        let p2_cfg = p2_dir
+            .join("AppData")
+            .join("Local")
+            .join("game")
+            .join("prefs.json");
 
         assert!(p2_save.exists());
         assert!(p2_cfg.exists());
-        assert_eq!(file_util::read_text_file(&p2_save).unwrap(), "player1_save_data");
-        assert_eq!(file_util::read_text_file(&p2_cfg).unwrap(), "{\"volume\": 80}");
+        assert_eq!(
+            file_util::read_text_file(&p2_save).unwrap(),
+            "player1_save_data"
+        );
+        assert_eq!(
+            file_util::read_text_file(&p2_cfg).unwrap(),
+            "{\"volume\": 80}"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -937,7 +1012,8 @@ mod tests {
     #[test]
     fn test_personal_folder_redirection_guard_and_restore() {
         let test_key = r"Software\NucleusCoopUnitTest\User Shell Folders";
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_reg_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_reg_test_{}", std::process::id()));
         let backup_dir = temp_dir.join("backup");
         let isolated_docs = temp_dir.join("Player1").join("Documents");
         file_util::ensure_dir(&isolated_docs).unwrap();
@@ -950,11 +1026,16 @@ mod tests {
                 PERSONAL_VALUE_NAME,
                 "%USERPROFILE%\\Documents",
                 winreg::enums::REG_EXPAND_SZ,
-            ).unwrap();
+            )
+            .unwrap();
         }
         #[cfg(not(windows))]
         {
-            UsersTool::set_mock_registry_value(test_key, PERSONAL_VALUE_NAME, "%USERPROFILE%\\Documents");
+            UsersTool::set_mock_registry_value(
+                test_key,
+                PERSONAL_VALUE_NAME,
+                "%USERPROFILE%\\Documents",
+            );
         }
 
         // 2. Redirect with RAII guard
@@ -963,19 +1044,22 @@ mod tests {
                 test_key,
                 &isolated_docs,
                 Some(&backup_dir),
-            ).unwrap();
+            )
+            .unwrap();
 
             assert_eq!(guard.original_value(), Some("%USERPROFILE%\\Documents"));
 
             // Check redirected value
             #[cfg(windows)]
             {
-                let (cur_val, _) = UsersTool::get_winreg_value(test_key, PERSONAL_VALUE_NAME).unwrap();
+                let (cur_val, _) =
+                    UsersTool::get_winreg_value(test_key, PERSONAL_VALUE_NAME).unwrap();
                 assert_eq!(cur_val, isolated_docs.to_string_lossy());
             }
             #[cfg(not(windows))]
             {
-                let cur_val = UsersTool::get_mock_registry_value(test_key, PERSONAL_VALUE_NAME).unwrap();
+                let cur_val =
+                    UsersTool::get_mock_registry_value(test_key, PERSONAL_VALUE_NAME).unwrap();
                 assert_eq!(cur_val, isolated_docs.to_string_lossy());
             }
             // Guard dropped here, triggering automatic restore
@@ -984,7 +1068,8 @@ mod tests {
         // 3. Verify it was restored back to original
         #[cfg(windows)]
         {
-            let (restored_val, _) = UsersTool::get_winreg_value(test_key, PERSONAL_VALUE_NAME).unwrap();
+            let (restored_val, _) =
+                UsersTool::get_winreg_value(test_key, PERSONAL_VALUE_NAME).unwrap();
             assert_eq!(restored_val, "%USERPROFILE%\\Documents");
 
             // Clean up test key
@@ -993,7 +1078,8 @@ mod tests {
         }
         #[cfg(not(windows))]
         {
-            let restored_val = UsersTool::get_mock_registry_value(test_key, PERSONAL_VALUE_NAME).unwrap();
+            let restored_val =
+                UsersTool::get_mock_registry_value(test_key, PERSONAL_VALUE_NAME).unwrap();
             assert_eq!(restored_val, "%USERPROFILE%\\Documents");
         }
 

@@ -4,18 +4,20 @@ use std::path::PathBuf;
 use windows::Win32::Foundation::{CloseHandle, HANDLE, STILL_ACTIVE, WAIT_OBJECT_0, WAIT_TIMEOUT};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
 };
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
-use windows::Win32::System::Memory::{VirtualProtectEx, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS};
+use windows::Win32::System::Memory::{
+    PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, VirtualProtectEx,
+};
 use windows::Win32::System::Threading::{
-    CreateProcessW, GetExitCodeProcess, OpenProcess, QueryFullProcessImageNameW, SetPriorityClass,
-    SetProcessAffinityMask, TerminateProcess, WaitForSingleObject, ABOVE_NORMAL_PRIORITY_CLASS,
-    BELOW_NORMAL_PRIORITY_CLASS, CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT, HIGH_PRIORITY_CLASS,
-    IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS, PROCESS_CREATION_FLAGS, PROCESS_INFORMATION,
-    PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SET_INFORMATION,
-    PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE, PROCESS_VM_OPERATION,
-    PROCESS_VM_WRITE, REALTIME_PRIORITY_CLASS, STARTUPINFOW,
+    ABOVE_NORMAL_PRIORITY_CLASS, BELOW_NORMAL_PRIORITY_CLASS, CREATE_SUSPENDED,
+    CREATE_UNICODE_ENVIRONMENT, CreateProcessW, GetExitCodeProcess, HIGH_PRIORITY_CLASS,
+    IDLE_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS, OpenProcess, PROCESS_CREATION_FLAGS,
+    PROCESS_INFORMATION, PROCESS_NAME_FORMAT, PROCESS_QUERY_LIMITED_INFORMATION,
+    PROCESS_SET_INFORMATION, PROCESS_SUSPEND_RESUME, PROCESS_SYNCHRONIZE, PROCESS_TERMINATE,
+    PROCESS_VM_OPERATION, PROCESS_VM_WRITE, QueryFullProcessImageNameW, REALTIME_PRIORITY_CLASS,
+    STARTUPINFOW, SetPriorityClass, SetProcessAffinityMask, TerminateProcess, WaitForSingleObject,
 };
 
 use nucleus_common::error::{NucleusError, NucleusResult};
@@ -38,7 +40,11 @@ impl ProcessManager for WindowsProcessManager {
         self.start_process_extended(config, false)
     }
 
-    fn start_process_extended(&self, config: &ProcessConfig, suspended: bool) -> NucleusResult<ProcessHandle> {
+    fn start_process_extended(
+        &self,
+        config: &ProcessConfig,
+        suspended: bool,
+    ) -> NucleusResult<ProcessHandle> {
         let exe_str = config.exe_path.to_string_lossy();
         let mut cmd_str = format!("\"{}\"", exe_str);
         for arg in &config.args {
@@ -53,13 +59,24 @@ impl ProcessManager for WindowsProcessManager {
 
         let work_dir_buf: Option<Vec<u16>> = if let Some(ref dir) = config.working_dir {
             if !dir.as_os_str().is_empty() {
-                Some(dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect())
+                Some(
+                    dir.as_os_str()
+                        .encode_wide()
+                        .chain(std::iter::once(0))
+                        .collect(),
+                )
             } else {
                 None
             }
         } else if let Some(parent) = config.exe_path.parent() {
             if !parent.as_os_str().is_empty() {
-                Some(parent.as_os_str().encode_wide().chain(std::iter::once(0)).collect())
+                Some(
+                    parent
+                        .as_os_str()
+                        .encode_wide()
+                        .chain(std::iter::once(0))
+                        .collect(),
+                )
             } else {
                 None
             }
@@ -67,7 +84,10 @@ impl ProcessManager for WindowsProcessManager {
             None
         };
 
-        let lp_current_dir = work_dir_buf.as_ref().map(|v| v.as_ptr()).unwrap_or(std::ptr::null());
+        let lp_current_dir = work_dir_buf
+            .as_ref()
+            .map(|v| v.as_ptr())
+            .unwrap_or(std::ptr::null());
 
         // Environment block: double-null terminated block of UTF-16 "KEY=VALUE\0" strings
         let mut env_block: Vec<u16> = Vec::new();
@@ -291,7 +311,9 @@ impl ProcessManager for WindowsProcessManager {
                     let target_clean = name.trim_end_matches(".exe");
                     let current_clean = proc_name.trim_end_matches(".exe");
 
-                    if current_clean.eq_ignore_ascii_case(target_clean) || proc_name.eq_ignore_ascii_case(name) {
+                    if current_clean.eq_ignore_ascii_case(target_clean)
+                        || proc_name.eq_ignore_ascii_case(name)
+                    {
                         results.push(ProcessInfo {
                             pid: entry.th32ProcessID,
                             name: proc_name,
@@ -321,13 +343,21 @@ impl ProcessManager for WindowsProcessManager {
             } else if wait_res == WAIT_TIMEOUT {
                 Ok(false)
             } else {
-                Err(NucleusError::Platform("WaitForSingleObject failed".to_string()))
+                Err(NucleusError::Platform(
+                    "WaitForSingleObject failed".to_string(),
+                ))
             }
         }
     }
 
     fn suspend_process(&self, pid: u32) -> NucleusResult<()> {
-        unsafe { call_nt_process(pid, windows::core::s!("NtSuspendProcess"), "NtSuspendProcess") }
+        unsafe {
+            call_nt_process(
+                pid,
+                windows::core::s!("NtSuspendProcess"),
+                "NtSuspendProcess",
+            )
+        }
     }
 
     fn resume_process(&self, pid: u32) -> NucleusResult<()> {
@@ -335,7 +365,11 @@ impl ProcessManager for WindowsProcessManager {
     }
 }
 
-unsafe fn call_nt_process(pid: u32, proc_name: windows::core::PCSTR, name_str: &str) -> NucleusResult<()> {
+unsafe fn call_nt_process(
+    pid: u32,
+    proc_name: windows::core::PCSTR,
+    name_str: &str,
+) -> NucleusResult<()> {
     unsafe {
         let handle = OpenProcess(PROCESS_SUSPEND_RESUME, false, pid)
             .map_err(|e| NucleusError::Platform(format!("OpenProcess failed: {e}")))?;
@@ -344,7 +378,9 @@ unsafe fn call_nt_process(pid: u32, proc_name: windows::core::PCSTR, name_str: &
             Ok(h) => h,
             Err(e) => {
                 let _ = CloseHandle(handle);
-                return Err(NucleusError::Platform(format!("Failed to get ntdll handle: {e}")));
+                return Err(NucleusError::Platform(format!(
+                    "Failed to get ntdll handle: {e}"
+                )));
             }
         };
 
@@ -356,7 +392,9 @@ unsafe fn call_nt_process(pid: u32, proc_name: windows::core::PCSTR, name_str: &
             }
             None => {
                 let _ = CloseHandle(handle);
-                return Err(NucleusError::Platform(format!("{name_str} not found in ntdll.dll")));
+                return Err(NucleusError::Platform(format!(
+                    "{name_str} not found in ntdll.dll"
+                )));
             }
         };
 
@@ -398,7 +436,9 @@ mod tests {
         config.exe_path = PathBuf::from("cmd.exe");
         config.args = vec!["/c".to_string(), "timeout".to_string(), "2".to_string()];
 
-        let handle = mgr.start_process_extended(&config, true).expect("Failed to start process suspended");
+        let handle = mgr
+            .start_process_extended(&config, true)
+            .expect("Failed to start process suspended");
         assert!(mgr.is_process_running(handle.pid));
 
         // Test writing process memory
@@ -408,9 +448,8 @@ mod tests {
         let _ = write_res;
 
         // Resume and wait
-        mgr.resume_process(handle.pid).expect("Failed to resume process");
+        mgr.resume_process(handle.pid)
+            .expect("Failed to resume process");
         let _ = mgr.kill_process(handle.pid);
     }
 }
-
-

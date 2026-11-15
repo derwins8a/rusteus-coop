@@ -28,7 +28,12 @@ pub struct DpiScalingTool;
 
 impl DpiScalingTool {
     /// Adjusts viewport dimensions (width, height) according to the specified DPI mode and scale factor.
-    pub fn calculate_viewport(width: i32, height: i32, dpi_scale: f64, mode: DpiMode) -> (i32, i32) {
+    pub fn calculate_viewport(
+        width: i32,
+        height: i32,
+        dpi_scale: f64,
+        mode: DpiMode,
+    ) -> (i32, i32) {
         if dpi_scale <= 0.0 || (dpi_scale - 1.0).abs() < f64::EPSILON {
             return (width, height);
         }
@@ -48,11 +53,7 @@ impl DpiScalingTool {
 
     /// Converts Windows standard DPI dots (e.g. 96, 120, 144, 192) into a scale multiplier.
     pub fn dpi_to_scale_factor(dpi: u32) -> f64 {
-        if dpi == 0 {
-            1.0
-        } else {
-            dpi as f64 / 96.0
-        }
+        if dpi == 0 { 1.0 } else { dpi as f64 / 96.0 }
     }
 }
 

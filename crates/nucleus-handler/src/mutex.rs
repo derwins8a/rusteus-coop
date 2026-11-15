@@ -51,7 +51,14 @@ impl MutexManager {
         max_wait: std::time::Duration,
         poll_interval: std::time::Duration,
     ) -> NucleusResult<usize> {
-        Self::wait_and_kill_matching_mutexes_typed(platform_mutex, pid, mutex_patterns, "Mutant", max_wait, poll_interval)
+        Self::wait_and_kill_matching_mutexes_typed(
+            platform_mutex,
+            pid,
+            mutex_patterns,
+            "Mutant",
+            max_wait,
+            poll_interval,
+        )
     }
 
     /// Polls a process for matching mutexes of a specific type and terminates them as soon as they appear,
@@ -94,4 +101,3 @@ impl MutexManager {
         Ok(total_killed)
     }
 }
-

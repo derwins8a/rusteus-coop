@@ -2,8 +2,8 @@
 //!
 //! Provides platform-agnostic checking and requesting of elevated (administrator/root) privileges.
 
-use std::path::Path;
 use nucleus_common::error::NucleusResult;
+use std::path::Path;
 
 /// Trait defining privilege elevation inspection and elevated process execution.
 pub trait ElevationManager: Send + Sync {

@@ -1,9 +1,9 @@
 //! Global application settings and user preferences.
 
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Global application configuration and preferences.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -437,7 +437,9 @@ impl AppSettings {
 
     /// Retrieves the player nickname for slot `player_index` (0-based).
     pub fn get_player_nickname(&self, player_index: usize) -> String {
-        if player_index < self.player_nicknames.len() && !self.player_nicknames[player_index].is_empty() {
+        if player_index < self.player_nicknames.len()
+            && !self.player_nicknames[player_index].is_empty()
+        {
             self.player_nicknames[player_index].clone()
         } else {
             format!("Player{}", player_index + 1)
@@ -447,14 +449,17 @@ impl AppSettings {
     /// Sets the player nickname for slot `player_index` (0-based).
     pub fn set_player_nickname(&mut self, player_index: usize, nickname: impl Into<String>) {
         if player_index >= self.player_nicknames.len() {
-            self.player_nicknames.resize(player_index + 1, String::new());
+            self.player_nicknames
+                .resize(player_index + 1, String::new());
         }
         self.player_nicknames[player_index] = nickname.into();
     }
 
     /// Retrieves the Steam ID for slot `player_index` (0-based).
     pub fn get_player_steam_id(&self, player_index: usize) -> String {
-        if player_index < self.player_steam_ids.len() && !self.player_steam_ids[player_index].is_empty() {
+        if player_index < self.player_steam_ids.len()
+            && !self.player_steam_ids[player_index].is_empty()
+        {
             self.player_steam_ids[player_index].clone()
         } else {
             format!("765611980000000{:02}", player_index + 1)
@@ -464,7 +469,8 @@ impl AppSettings {
     /// Sets the Steam ID for slot `player_index` (0-based).
     pub fn set_player_steam_id(&mut self, player_index: usize, steam_id: impl Into<String>) {
         if player_index >= self.player_steam_ids.len() {
-            self.player_steam_ids.resize(player_index + 1, String::new());
+            self.player_steam_ids
+                .resize(player_index + 1, String::new());
         }
         self.player_steam_ids[player_index] = steam_id.into();
     }
@@ -481,7 +487,8 @@ impl AppSettings {
     /// Sets the assigned audio device for an instance index (0-based).
     pub fn set_audio_instance(&mut self, instance_index: usize, device: impl Into<String>) {
         if instance_index >= self.audio_instances.len() {
-            self.audio_instances.resize(instance_index + 1, "Default".to_string());
+            self.audio_instances
+                .resize(instance_index + 1, "Default".to_string());
         }
         self.audio_instances[instance_index] = device.into();
     }
@@ -499,7 +506,13 @@ impl AppSettings {
 
         for (idx, part) in parts.iter().enumerate() {
             let lower = part.to_lowercase();
-            if idx < parts.len() - 1 || lower == "ctrl" || lower == "control" || lower == "alt" || lower == "menu" || lower == "shift" {
+            if idx < parts.len() - 1
+                || lower == "ctrl"
+                || lower == "control"
+                || lower == "alt"
+                || lower == "menu"
+                || lower == "shift"
+            {
                 match lower.as_str() {
                     "ctrl" | "control" => modifier |= 1,
                     "alt" | "menu" => modifier |= 2,
@@ -684,11 +697,18 @@ impl AppSettings {
             "stop" => self.hotkey_stop = Self::cycle_modifier(&self.hotkey_stop),
             "topmost" => self.hotkey_topmost = Self::cycle_modifier(&self.hotkey_topmost),
             "set_focus" => self.hotkey_set_focus = Self::cycle_modifier(&self.hotkey_set_focus),
-            "reset_windows" => self.hotkey_reset_windows = Self::cycle_modifier(&self.hotkey_reset_windows),
+            "reset_windows" => {
+                self.hotkey_reset_windows = Self::cycle_modifier(&self.hotkey_reset_windows)
+            }
             "cutscenes" => self.hotkey_cutscenes = Self::cycle_modifier(&self.hotkey_cutscenes),
             "switch" => self.hotkey_switch = Self::cycle_modifier(&self.hotkey_switch),
-            "shortcuts_reminder" => self.hotkey_shortcuts_reminder = Self::cycle_modifier(&self.hotkey_shortcuts_reminder),
-            "merger_switch" => self.hotkey_merger_switch = Self::cycle_modifier(&self.hotkey_merger_switch),
+            "shortcuts_reminder" => {
+                self.hotkey_shortcuts_reminder =
+                    Self::cycle_modifier(&self.hotkey_shortcuts_reminder)
+            }
+            "merger_switch" => {
+                self.hotkey_merger_switch = Self::cycle_modifier(&self.hotkey_merger_switch)
+            }
             "couch_osd" => self.hotkey_couch_osd = Self::cycle_modifier(&self.hotkey_couch_osd),
             _ => {}
         }
@@ -701,11 +721,17 @@ impl AppSettings {
             "stop" => self.hotkey_stop = Self::cycle_key(&self.hotkey_stop),
             "topmost" => self.hotkey_topmost = Self::cycle_key(&self.hotkey_topmost),
             "set_focus" => self.hotkey_set_focus = Self::cycle_key(&self.hotkey_set_focus),
-            "reset_windows" => self.hotkey_reset_windows = Self::cycle_key(&self.hotkey_reset_windows),
+            "reset_windows" => {
+                self.hotkey_reset_windows = Self::cycle_key(&self.hotkey_reset_windows)
+            }
             "cutscenes" => self.hotkey_cutscenes = Self::cycle_key(&self.hotkey_cutscenes),
             "switch" => self.hotkey_switch = Self::cycle_key(&self.hotkey_switch),
-            "shortcuts_reminder" => self.hotkey_shortcuts_reminder = Self::cycle_key(&self.hotkey_shortcuts_reminder),
-            "merger_switch" => self.hotkey_merger_switch = Self::cycle_key(&self.hotkey_merger_switch),
+            "shortcuts_reminder" => {
+                self.hotkey_shortcuts_reminder = Self::cycle_key(&self.hotkey_shortcuts_reminder)
+            }
+            "merger_switch" => {
+                self.hotkey_merger_switch = Self::cycle_key(&self.hotkey_merger_switch)
+            }
             "couch_osd" => self.hotkey_couch_osd = Self::cycle_key(&self.hotkey_couch_osd),
             _ => {}
         }

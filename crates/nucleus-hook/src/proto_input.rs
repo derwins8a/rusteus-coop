@@ -570,11 +570,9 @@ pub type FnSetControllerIndex =
 pub type FnSetUseDinputRedirection =
     unsafe extern "C" fn(instance_handle: u32, use_redirection: bool);
 pub type FnSetUseOpenXinput = unsafe extern "C" fn(instance_handle: u32, use_open_xinput: bool);
-pub type FnSetShowCursorWhenImageUpdated =
-    unsafe extern "C" fn(instance_handle: u32, enable: bool);
+pub type FnSetShowCursorWhenImageUpdated = unsafe extern "C" fn(instance_handle: u32, enable: bool);
 pub type FnSetPutMouseInsideWindow = unsafe extern "C" fn(instance_handle: u32, enable: bool);
-pub type FnSetDefaultTopLeftMouseBounds =
-    unsafe extern "C" fn(instance_handle: u32, enable: bool);
+pub type FnSetDefaultTopLeftMouseBounds = unsafe extern "C" fn(instance_handle: u32, enable: bool);
 pub type FnSetDefaultBottomRightMouseBounds =
     unsafe extern "C" fn(instance_handle: u32, enable: bool);
 pub type FnSetDontWaitWindowBorder = unsafe extern "C" fn(instance_handle: u32, enable: bool);
@@ -599,8 +597,7 @@ pub type FnDinputHookAlsoHooksGetDeviceState =
 pub type FnSetSetWindowPosSettings =
     unsafe extern "C" fn(instance_handle: u32, posx: i32, posy: i32, width: i32, height: i32);
 pub type FnSetSetWindowPosDontResize = unsafe extern "C" fn(instance_handle: u32, enable: bool);
-pub type FnSetSetWindowPosDontReposition =
-    unsafe extern "C" fn(instance_handle: u32, enable: bool);
+pub type FnSetSetWindowPosDontReposition = unsafe extern "C" fn(instance_handle: u32, enable: bool);
 pub type FnSetCreateSingleHIDName = unsafe extern "C" fn(instance_handle: u32, name: *const u16);
 pub type FnSetCursorClipOptions =
     unsafe extern "C" fn(instance_handle: u32, use_fake_clip_cursor: bool);
@@ -612,8 +609,7 @@ pub type FnSetRawInputBypass = unsafe extern "C" fn(instance_handle: u32, enable
 pub type FnSetMoveWindowSettings =
     unsafe extern "C" fn(instance_handle: u32, posx: i32, posy: i32, width: i32, height: i32);
 pub type FnSetMoveWindowDontResize = unsafe extern "C" fn(instance_handle: u32, enable: bool);
-pub type FnSetMoveWindowDontReposition =
-    unsafe extern "C" fn(instance_handle: u32, enable: bool);
+pub type FnSetMoveWindowDontReposition = unsafe extern "C" fn(instance_handle: u32, enable: bool);
 pub type FnSetAdjustWindowRectSettings =
     unsafe extern "C" fn(instance_handle: u32, posx: i32, posy: i32, width: i32, height: i32);
 
@@ -718,8 +714,8 @@ impl ProtoInputLoader {
         #[cfg(windows)]
         {
             use std::os::windows::ffi::OsStrExt;
-            use windows::core::{PCSTR, PCWSTR};
             use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+            use windows::core::{PCSTR, PCWSTR};
 
             let wide_path: Vec<u16> = path
                 .as_os_str()
@@ -729,10 +725,7 @@ impl ProtoInputLoader {
 
             // SAFETY: Loading DLL dynamically with absolute verified path.
             let module = unsafe { LoadLibraryW(PCWSTR(wide_path.as_ptr())) }.map_err(|e| {
-                NucleusError::Platform(format!(
-                    "Failed to load ProtoInput DLL '{:?}': {}",
-                    path, e
-                ))
+                NucleusError::Platform(format!("Failed to load ProtoInput DLL '{:?}': {}", path, e))
             })?;
 
             // Helper macro to resolve exported symbols.
@@ -985,10 +978,7 @@ impl ProtoInputLoader {
     }
 
     /// Searches standard directories for the appropriate loader DLL based on bitness.
-    pub fn find_and_load(
-        base_dir: Option<&Path>,
-        bitness: ProcessBitness,
-    ) -> NucleusResult<Self> {
+    pub fn find_and_load(base_dir: Option<&Path>, bitness: ProcessBitness) -> NucleusResult<Self> {
         let dll_filename = match bitness {
             ProcessBitness::X86 => "ProtoInputLoader32.dll",
             ProcessBitness::X64 => "ProtoInputLoader64.dll",
@@ -998,9 +988,10 @@ impl ProtoInputLoader {
             base_dir.map(|d| d.join(dll_filename)),
             base_dir.map(|d| d.join("utils").join("ProtoInput").join(dll_filename)),
             base_dir.map(|d| d.join("ProtoInput").join(dll_filename)),
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|d| d.join("utils").join("ProtoInput").join(dll_filename))),
+            std::env::current_exe().ok().and_then(|p| {
+                p.parent()
+                    .map(|d| d.join("utils").join("ProtoInput").join(dll_filename))
+            }),
             Some(PathBuf::from("utils").join("ProtoInput").join(dll_filename)),
             Some(PathBuf::from(dll_filename)),
         ];
@@ -1027,11 +1018,7 @@ impl ProtoInputLoader {
 
     // Direct C-ABI invocations with safe ergonomic wrappers
 
-    pub fn remote_load_library_inject_runtime(
-        &self,
-        pid: u32,
-        dll_folder_path: &str,
-    ) -> u32 {
+    pub fn remote_load_library_inject_runtime(&self, pid: u32, dll_folder_path: &str) -> u32 {
         let wide = to_wide_null(dll_folder_path);
         // SAFETY: Calling into loaded ProtoInputLoader DLL with valid null-terminated wide string.
         unsafe { (self.funcs.remote_load_library_inject_runtime)(pid, wide.as_ptr()) }
@@ -1043,11 +1030,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.easy_hook_inject_runtime)(pid, wide.as_ptr()) }
     }
 
-    pub fn easy_hook_stealth_inject_runtime(
-        &self,
-        pid: u32,
-        dll_folder_path: &str,
-    ) -> u32 {
+    pub fn easy_hook_stealth_inject_runtime(&self, pid: u32, dll_folder_path: &str) -> u32 {
         let wide = to_wide_null(dll_folder_path);
         // SAFETY: Calling into loaded ProtoInputLoader DLL with valid null-terminated wide string.
         unsafe { (self.funcs.easy_hook_stealth_inject_runtime)(pid, wide.as_ptr()) }
@@ -1088,20 +1071,12 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.uninstall_hook)(instance_handle, hook as u32) }
     }
 
-    pub fn enable_message_filter(
-        &self,
-        instance_handle: u32,
-        filter: ProtoMessageFilterIDs,
-    ) {
+    pub fn enable_message_filter(&self, instance_handle: u32, filter: ProtoMessageFilterIDs) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.enable_message_filter)(instance_handle, filter as u32) }
     }
 
-    pub fn disable_message_filter(
-        &self,
-        instance_handle: u32,
-        filter: ProtoMessageFilterIDs,
-    ) {
+    pub fn disable_message_filter(&self, instance_handle: u32, filter: ProtoMessageFilterIDs) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.disable_message_filter)(instance_handle, filter as u32) }
     }
@@ -1192,11 +1167,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.set_draw_fake_cursor_fix)(instance_handle, enable) }
     }
 
-    pub fn set_external_freeze_fake_input(
-        &self,
-        instance_handle: u32,
-        enable_freeze: bool,
-    ) {
+    pub fn set_external_freeze_fake_input(&self, instance_handle: u32, enable_freeze: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_external_freeze_fake_input)(instance_handle, enable_freeze) }
     }
@@ -1211,14 +1182,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.add_selected_keyboard_handle)(instance_handle, keyboard_handle) }
     }
 
-    pub fn set_controller_index(
-        &self,
-        instance_handle: u32,
-        c1: u32,
-        c2: u32,
-        c3: u32,
-        c4: u32,
-    ) {
+    pub fn set_controller_index(&self, instance_handle: u32, c1: u32, c2: u32, c3: u32, c4: u32) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_controller_index)(instance_handle, c1, c2, c3, c4) }
     }
@@ -1233,11 +1197,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.set_use_open_xinput)(instance_handle, use_open_xinput) }
     }
 
-    pub fn set_show_cursor_when_image_updated(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_show_cursor_when_image_updated(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_show_cursor_when_image_updated)(instance_handle, enable) }
     }
@@ -1247,20 +1207,12 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.set_put_mouse_inside_window)(instance_handle, enable) }
     }
 
-    pub fn set_default_top_left_mouse_bounds(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_default_top_left_mouse_bounds(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_default_top_left_mouse_bounds)(instance_handle, enable) }
     }
 
-    pub fn set_default_bottom_right_mouse_bounds(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_default_bottom_right_mouse_bounds(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_default_bottom_right_mouse_bounds)(instance_handle, enable) }
     }
@@ -1317,11 +1269,7 @@ impl ProtoInputLoader {
         }
     }
 
-    pub fn dinput_hook_also_hooks_get_device_state(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn dinput_hook_also_hooks_get_device_state(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.dinput_hook_also_hooks_get_device_state)(instance_handle, enable) }
     }
@@ -1336,30 +1284,16 @@ impl ProtoInputLoader {
     ) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe {
-            (self.funcs.set_set_window_pos_settings)(
-                instance_handle,
-                posx,
-                posy,
-                width,
-                height,
-            )
+            (self.funcs.set_set_window_pos_settings)(instance_handle, posx, posy, width, height)
         }
     }
 
-    pub fn set_set_window_pos_dont_resize(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_set_window_pos_dont_resize(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_set_window_pos_dont_resize)(instance_handle, enable) }
     }
 
-    pub fn set_set_window_pos_dont_reposition(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_set_window_pos_dont_reposition(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_set_window_pos_dont_reposition)(instance_handle, enable) }
     }
@@ -1370,11 +1304,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.set_create_single_hid_name)(instance_handle, wide.as_ptr()) }
     }
 
-    pub fn set_cursor_clip_options(
-        &self,
-        instance_handle: u32,
-        use_fake_clip_cursor: bool,
-    ) {
+    pub fn set_cursor_clip_options(&self, instance_handle: u32, use_fake_clip_cursor: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_cursor_clip_options)(instance_handle, use_fake_clip_cursor) }
     }
@@ -1403,11 +1333,7 @@ impl ProtoInputLoader {
     ) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe {
-            (self.funcs.set_toggle_fake_cursor_visibility_shortcut)(
-                instance_handle,
-                enabled,
-                vkey,
-            )
+            (self.funcs.set_toggle_fake_cursor_visibility_shortcut)(instance_handle, enabled, vkey)
         }
     }
 
@@ -1425,15 +1351,7 @@ impl ProtoInputLoader {
         height: i32,
     ) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
-        unsafe {
-            (self.funcs.set_move_window_settings)(
-                instance_handle,
-                posx,
-                posy,
-                width,
-                height,
-            )
-        }
+        unsafe { (self.funcs.set_move_window_settings)(instance_handle, posx, posy, width, height) }
     }
 
     pub fn set_move_window_dont_resize(&self, instance_handle: u32, enable: bool) {
@@ -1441,11 +1359,7 @@ impl ProtoInputLoader {
         unsafe { (self.funcs.set_move_window_dont_resize)(instance_handle, enable) }
     }
 
-    pub fn set_move_window_dont_reposition(
-        &self,
-        instance_handle: u32,
-        enable: bool,
-    ) {
+    pub fn set_move_window_dont_reposition(&self, instance_handle: u32, enable: bool) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe { (self.funcs.set_move_window_dont_reposition)(instance_handle, enable) }
     }
@@ -1460,13 +1374,7 @@ impl ProtoInputLoader {
     ) {
         // SAFETY: Calling into loaded ProtoInputLoader DLL.
         unsafe {
-            (self.funcs.set_adjust_window_rect_settings)(
-                instance_handle,
-                posx,
-                posy,
-                width,
-                height,
-            )
+            (self.funcs.set_adjust_window_rect_settings)(instance_handle, posx, posy, width, height)
         }
     }
 }
@@ -1508,8 +1416,8 @@ impl ProtoInputUtil {
         #[cfg(windows)]
         {
             use std::os::windows::ffi::OsStrExt;
-            use windows::core::{PCSTR, PCWSTR};
             use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+            use windows::core::{PCSTR, PCWSTR};
 
             let wide_path: Vec<u16> = path
                 .as_os_str()
@@ -1575,10 +1483,7 @@ impl ProtoInputUtil {
         }
     }
 
-    pub fn find_and_load(
-        base_dir: Option<&Path>,
-        bitness: ProcessBitness,
-    ) -> NucleusResult<Self> {
+    pub fn find_and_load(base_dir: Option<&Path>, bitness: ProcessBitness) -> NucleusResult<Self> {
         let dll_filename = match bitness {
             ProcessBitness::X86 => "ProtoInputUtilDynamic32.dll",
             ProcessBitness::X64 => "ProtoInputUtilDynamic64.dll",
@@ -1588,9 +1493,10 @@ impl ProtoInputUtil {
             base_dir.map(|d| d.join(dll_filename)),
             base_dir.map(|d| d.join("utils").join("ProtoInput").join(dll_filename)),
             base_dir.map(|d| d.join("ProtoInput").join(dll_filename)),
-            std::env::current_exe()
-                .ok()
-                .and_then(|p| p.parent().map(|d| d.join("utils").join("ProtoInput").join(dll_filename))),
+            std::env::current_exe().ok().and_then(|p| {
+                p.parent()
+                    .map(|d| d.join("utils").join("ProtoInput").join(dll_filename))
+            }),
             Some(PathBuf::from("utils").join("ProtoInput").join(dll_filename)),
             Some(PathBuf::from(dll_filename)),
         ];
@@ -1672,14 +1578,16 @@ impl Drop for ProtoInputUtil {
 pub fn detect_process_bitness(pid: u32) -> NucleusResult<ProcessBitness> {
     #[cfg(windows)]
     {
-        use windows::Win32::Foundation::{CloseHandle, BOOL};
+        use windows::Win32::Foundation::{BOOL, CloseHandle};
         use windows::Win32::System::Threading::{
             IsWow64Process, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
         };
 
         // SAFETY: OpenProcess called with limited query rights.
         let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }
-            .map_err(|e| NucleusError::Platform(format!("Failed to open process {}: {}", pid, e)))?;
+            .map_err(|e| {
+                NucleusError::Platform(format!("Failed to open process {}: {}", pid, e))
+            })?;
 
         let mut is_wow64 = BOOL(0);
         // SAFETY: IsWow64Process called with valid process handle and out-parameter.
@@ -1748,11 +1656,17 @@ impl ProtoInputRuntime {
             ProcessBitness::X64 => &self.loader_x64,
         };
 
-        if let Some(loader) = lock.read().map_err(|e| NucleusError::Platform(e.to_string()))?.as_ref() {
+        if let Some(loader) = lock
+            .read()
+            .map_err(|e| NucleusError::Platform(e.to_string()))?
+            .as_ref()
+        {
             return Ok(Arc::clone(loader));
         }
 
-        let mut write_guard = lock.write().map_err(|e| NucleusError::Platform(e.to_string()))?;
+        let mut write_guard = lock
+            .write()
+            .map_err(|e| NucleusError::Platform(e.to_string()))?;
         if let Some(loader) = write_guard.as_ref() {
             return Ok(Arc::clone(loader));
         }
@@ -1764,20 +1678,23 @@ impl ProtoInputRuntime {
     }
 
     /// Obtains or lazily initializes the `ProtoInputUtil` for the given bitness.
-    pub fn util_for_bitness(
-        &self,
-        bitness: ProcessBitness,
-    ) -> NucleusResult<Arc<ProtoInputUtil>> {
+    pub fn util_for_bitness(&self, bitness: ProcessBitness) -> NucleusResult<Arc<ProtoInputUtil>> {
         let lock = match bitness {
             ProcessBitness::X86 => &self.util_x86,
             ProcessBitness::X64 => &self.util_x64,
         };
 
-        if let Some(util) = lock.read().map_err(|e| NucleusError::Platform(e.to_string()))?.as_ref() {
+        if let Some(util) = lock
+            .read()
+            .map_err(|e| NucleusError::Platform(e.to_string()))?
+            .as_ref()
+        {
             return Ok(Arc::clone(util));
         }
 
-        let mut write_guard = lock.write().map_err(|e| NucleusError::Platform(e.to_string()))?;
+        let mut write_guard = lock
+            .write()
+            .map_err(|e| NucleusError::Platform(e.to_string()))?;
         if let Some(util) = write_guard.as_ref() {
             return Ok(Arc::clone(util));
         }
@@ -1815,12 +1732,8 @@ impl ProtoInputRuntime {
             .loader_for_bitness(ProcessBitness::X64)
             .or_else(|_| self.loader_for_bitness(ProcessBitness::X86))?;
 
-        let (instance_handle, pid) = loader.easy_hook_inject_startup(
-            exe_str,
-            cmd_line,
-            flags,
-            &normalized_dll_str,
-        );
+        let (instance_handle, pid) =
+            loader.easy_hook_inject_startup(exe_str, cmd_line, flags, &normalized_dll_str);
 
         if instance_handle == 0 {
             return Err(NucleusError::Platform(
@@ -1855,9 +1768,7 @@ impl ProtoInputRuntime {
             InjectMethod::RemoteLoad => {
                 loader.remote_load_library_inject_runtime(pid, &normalized_dll_str)
             }
-            InjectMethod::EasyHook => {
-                loader.easy_hook_inject_runtime(pid, &normalized_dll_str)
-            }
+            InjectMethod::EasyHook => loader.easy_hook_inject_runtime(pid, &normalized_dll_str),
             InjectMethod::EasyHookStealth => {
                 loader.easy_hook_stealth_inject_runtime(pid, &normalized_dll_str)
             }
@@ -1920,10 +1831,7 @@ impl ProtoInputRuntime {
             loader.install_hook(instance_handle, ProtoHookIDs::CursorVisibilityState);
         }
 
-        loader.set_cursor_clip_options(
-            instance_handle,
-            config.clip_cursor_hook_creates_fake_clip,
-        );
+        loader.set_cursor_clip_options(instance_handle, config.clip_cursor_hook_creates_fake_clip);
         if config.clip_cursor_hook {
             loader.install_hook(instance_handle, ProtoHookIDs::ClipCursor);
         }
@@ -2020,10 +1928,7 @@ impl ProtoInputRuntime {
             loader.enable_message_filter(instance_handle, ProtoMessageFilterIDs::WindowActivate);
         }
         if config.window_activate_app_filter {
-            loader.enable_message_filter(
-                instance_handle,
-                ProtoMessageFilterIDs::WindowActivateApp,
-            );
+            loader.enable_message_filter(instance_handle, ProtoMessageFilterIDs::WindowActivateApp);
         }
         if config.mouse_wheel_filter {
             loader.enable_message_filter(instance_handle, ProtoMessageFilterIDs::MouseWheel);
@@ -2032,10 +1937,7 @@ impl ProtoInputRuntime {
             loader.enable_message_filter(instance_handle, ProtoMessageFilterIDs::MouseButton);
         }
         if config.keyboard_button_filter {
-            loader.enable_message_filter(
-                instance_handle,
-                ProtoMessageFilterIDs::KeyboardButton,
-            );
+            loader.enable_message_filter(instance_handle, ProtoMessageFilterIDs::KeyboardButton);
         }
 
         loader.set_move_window_dont_resize(
@@ -2247,14 +2149,7 @@ impl ProtoInput {
 
             // In Windows, when targeting by HWND or broadcast:
             let hwnd = HWND(pid as usize as _);
-            let res = unsafe {
-                PostMessageW(
-                    hwnd,
-                    message,
-                    WPARAM(wparam),
-                    LPARAM(lparam),
-                )
-            };
+            let res = unsafe { PostMessageW(hwnd, message, WPARAM(wparam), LPARAM(lparam)) };
             if res.is_ok() {
                 Ok(())
             } else {
@@ -2381,8 +2276,8 @@ mod tests {
         // Test with byte array layout: in memory, Data1, Data2, Data3 are little-endian
         let bytes: [u8; 16] = [
             0x33, 0x22, 0x11, 0x00, // Data1 = 0x00112233
-            0x55, 0x44,             // Data2 = 0x4455
-            0x77, 0x66,             // Data3 = 0x6677
+            0x55, 0x44, // Data2 = 0x4455
+            0x77, 0x66, // Data3 = 0x6677
             0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, // Data4
         ];
         let byte_fields = guid_bytes_to_dinput_fields(&bytes);

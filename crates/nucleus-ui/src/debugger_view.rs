@@ -1,13 +1,13 @@
 //! Handler step-by-step runtime debugger and variable inspector view.
 
-use std::sync::Arc;
+use crate::components::badge::{CouchTag, TagTone};
+use crate::components::button::{CouchButton, CouchButtonSize};
+use crate::theme;
 use gpui::prelude::*;
 use gpui::*;
 use gpui_kit_assets::IconName;
 use nucleus_debug::protocol::{Breakpoint, DebugLaunchMode, PipelineStage};
-use crate::components::badge::{CouchTag, TagTone};
-use crate::components::button::{CouchButton, CouchButtonSize};
-use crate::theme;
+use std::sync::Arc;
 
 /// Presentation state for the debugger panel view.
 #[derive(Debug, Clone)]

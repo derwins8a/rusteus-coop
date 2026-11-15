@@ -1,8 +1,8 @@
 //! File system operations and utilities.
 
+use crate::error::{NucleusError, NucleusResult};
 use std::fs;
 use std::path::{Path, PathBuf};
-use crate::error::{NucleusError, NucleusResult};
 
 /// Copies all contents from source directory to destination directory.
 pub fn copy_directory(src: &Path, dst: &Path, recursive: bool) -> NucleusResult<()> {
@@ -131,7 +131,11 @@ pub fn find_line_number(text: &str, pattern: &str, mode: crate::types::SearchMod
 
 /// Finds the 1-based line number in a file matching `pattern` according to `mode`.
 /// Returns -1 if not found.
-pub fn find_line_number_in_file(path: &Path, pattern: &str, mode: crate::types::SearchMode) -> NucleusResult<i32> {
+pub fn find_line_number_in_file(
+    path: &Path,
+    pattern: &str,
+    mode: crate::types::SearchMode,
+) -> NucleusResult<i32> {
     let content = read_text_file(path)?;
     Ok(find_line_number(&content, pattern, mode))
 }
@@ -193,7 +197,12 @@ pub fn remove_lines_matching_pattern(
 }
 
 /// Modifies or appends a key-value pair under a specific section in an INI file.
-pub fn modify_ini_value(file_path: &Path, section: &str, key: &str, value: &str) -> NucleusResult<()> {
+pub fn modify_ini_value(
+    file_path: &Path,
+    section: &str,
+    key: &str,
+    value: &str,
+) -> NucleusResult<()> {
     let content = if file_path.exists() {
         read_text_file(file_path)?
     } else {
@@ -236,7 +245,10 @@ pub fn modify_ini_value(file_path: &Path, section: &str, key: &str, value: &str)
         lines.push(format!("{}={}", key.trim(), value.trim()));
     } else if !key_updated {
         // Insert under the section
-        lines.insert(section_end_index, format!("{}={}", key.trim(), value.trim()));
+        lines.insert(
+            section_end_index,
+            format!("{}={}", key.trim(), value.trim()),
+        );
     }
 
     let updated = lines.join("\r\n");
@@ -246,7 +258,12 @@ pub fn modify_ini_value(file_path: &Path, section: &str, key: &str, value: &str)
 
 /// Modifies or appends a key-value pair in a Source Engine configuration file (*.cfg).
 /// Lines are formatted as `key "value"` or `"key" "value"`.
-pub fn modify_cfg_value(file_path: &Path, section: &str, key: &str, value: &str) -> NucleusResult<()> {
+pub fn modify_cfg_value(
+    file_path: &Path,
+    section: &str,
+    key: &str,
+    value: &str,
+) -> NucleusResult<()> {
     let content = if file_path.exists() {
         read_text_file(file_path)?
     } else {
@@ -385,7 +402,12 @@ pub fn change_xml_attribute_value(
                 // Insert attribute before closing slash or bracket
                 let trimmed = tag_body.trim_end();
                 if trimmed.ends_with('/') {
-                    format!("{} {}=\"{}\" /", &trimmed[..trimmed.len() - 1].trim_end(), attr_name, attr_value)
+                    format!(
+                        "{} {}=\"{}\" /",
+                        &trimmed[..trimmed.len() - 1].trim_end(),
+                        attr_name,
+                        attr_value
+                    )
                 } else {
                     format!("{} {}=\"{}\"", trimmed, attr_name, attr_value)
                 }
@@ -423,8 +445,12 @@ pub fn change_xml_node_value(
     let close_tag = format!("</{}>", tag_name);
 
     if let (Some(open_pos), Some(close_pos)) = (
-        content.to_ascii_lowercase().find(&open_tag.to_ascii_lowercase()),
-        content.to_ascii_lowercase().find(&close_tag.to_ascii_lowercase()),
+        content
+            .to_ascii_lowercase()
+            .find(&open_tag.to_ascii_lowercase()),
+        content
+            .to_ascii_lowercase()
+            .find(&close_tag.to_ascii_lowercase()),
     ) {
         if let Some(tag_body_end) = content[open_pos..].find('>') {
             let value_start = open_pos + tag_body_end + 1;
@@ -439,14 +465,14 @@ pub fn change_xml_node_value(
     Ok(())
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_file_write_read() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_test_{}", std::process::id()));
         ensure_dir(&temp_dir).unwrap();
         let file_path = temp_dir.join("test.txt");
 
@@ -459,7 +485,8 @@ mod tests {
 
     #[test]
     fn test_backup_and_restore() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_backup_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_backup_{}", std::process::id()));
         let backup_dir = temp_dir.join("backups");
         ensure_dir(&temp_dir).unwrap();
 
@@ -480,7 +507,8 @@ mod tests {
 
     #[test]
     fn test_find_files_recursive() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_find_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_find_{}", std::process::id()));
         let sub_dir = temp_dir.join("subfolder");
         ensure_dir(&sub_dir).unwrap();
 
@@ -500,13 +528,23 @@ mod tests {
 
     #[test]
     fn test_find_and_replace_lines() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_lines_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_lines_{}", std::process::id()));
         ensure_dir(&temp_dir).unwrap();
         let cfg_file = temp_dir.join("test.cfg");
 
-        write_text_file(&cfg_file, "ScreenMode = 0\r\nScreenWidth = 800\r\nScreenHeight = 600").unwrap();
+        write_text_file(
+            &cfg_file,
+            "ScreenMode = 0\r\nScreenWidth = 800\r\nScreenHeight = 600",
+        )
+        .unwrap();
 
-        let line_num = find_line_number_in_file(&cfg_file, "ScreenWidth =", crate::types::SearchMode::StartsWith).unwrap();
+        let line_num = find_line_number_in_file(
+            &cfg_file,
+            "ScreenWidth =",
+            crate::types::SearchMode::StartsWith,
+        )
+        .unwrap();
         assert_eq!(line_num, 2);
 
         replace_lines_in_file(&cfg_file, &[(2, "ScreenWidth = 1920".to_string())]).unwrap();
@@ -522,11 +560,16 @@ mod tests {
 
     #[test]
     fn test_modify_ini_value() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_ini_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_ini_{}", std::process::id()));
         ensure_dir(&temp_dir).unwrap();
         let ini_file = temp_dir.join("config.ini");
 
-        write_text_file(&ini_file, "[DISPLAY]\r\nResolution=800x600\r\nFullScreen=ON").unwrap();
+        write_text_file(
+            &ini_file,
+            "[DISPLAY]\r\nResolution=800x600\r\nFullScreen=ON",
+        )
+        .unwrap();
 
         modify_ini_value(&ini_file, "DISPLAY", "Resolution", "1920x1080").unwrap();
         modify_ini_value(&ini_file, "DISPLAY", "FullScreen", "OFF").unwrap();
@@ -552,7 +595,8 @@ mod tests {
 
     #[test]
     fn test_change_xml_attribute_and_node_value() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_common_xml_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_common_xml_{}", std::process::id()));
         ensure_dir(&temp_dir).unwrap();
         let xml_file = temp_dir.join("hardware_settings.xml");
 
@@ -578,5 +622,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-
-

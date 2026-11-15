@@ -21,7 +21,10 @@ fn test_configure_overlay_window_invalid_handle() {
     let rect = Rect::new(0, 0, 1920, 1080);
     // Configuring an invalid window handle should return an error
     let res = mgr.configure_overlay_window(WindowHandle::INVALID, &rect);
-    assert!(res.is_err(), "configuring invalid window handle should fail");
+    assert!(
+        res.is_err(),
+        "configuring invalid window handle should fail"
+    );
 }
 
 #[test]
@@ -35,12 +38,12 @@ fn test_restore_game_focus_invalid_handle() {
 #[cfg(windows)]
 #[test]
 fn test_configure_overlay_window_real_window() {
-    use windows::core::PCWSTR;
     use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongW, RegisterClassW, GWL_EXSTYLE,
-        WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+        CreateWindowExW, DefWindowProcW, DestroyWindow, GWL_EXSTYLE, GetWindowLongW,
+        RegisterClassW, WNDCLASSW, WS_EX_LAYERED, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
     };
+    use windows::core::PCWSTR;
 
     unsafe extern "system" fn test_wndproc(
         hwnd: HWND,

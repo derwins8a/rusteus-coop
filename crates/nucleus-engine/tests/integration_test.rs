@@ -1,10 +1,10 @@
-use std::path::PathBuf;
-use std::sync::Arc;
 use nucleus_common::file_util;
 use nucleus_engine::GameManager;
 use nucleus_input::InputManager;
 use nucleus_platform::PlatformServices;
 use nucleus_script::HandlerConfig;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Default)]
 struct TestPlatform;
@@ -51,7 +51,11 @@ impl PlatformServices for TestPlatform {
 #[test]
 fn test_end_to_end_game_discovery_and_profile_flow() {
     let temp_dir = std::env::temp_dir().join(format!("nucleus_e2e_{}", std::process::id()));
-    let game_dir = temp_dir.join("SteamLibrary").join("steamapps").join("common").join("Portal 2");
+    let game_dir = temp_dir
+        .join("SteamLibrary")
+        .join("steamapps")
+        .join("common")
+        .join("Portal 2");
     file_util::ensure_dir(&game_dir).unwrap();
 
     let exe_path = game_dir.join("portal2.exe");

@@ -1,9 +1,9 @@
 //! Game save slots manifest, sync modes, and atomic persistence.
 
+use nucleus_common::error::NucleusResult;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
-use nucleus_common::error::NucleusResult;
 
 /// Mode for synchronizing save slots between host/instances and slot backup repositories.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -45,7 +45,11 @@ pub struct SaveSlot {
 }
 
 impl SaveSlot {
-    pub fn new(slot_id: impl Into<String>, display_name: impl Into<String>, game_title: impl Into<String>) -> Self {
+    pub fn new(
+        slot_id: impl Into<String>,
+        display_name: impl Into<String>,
+        game_title: impl Into<String>,
+    ) -> Self {
         Self {
             slot_id: slot_id.into(),
             display_name: display_name.into(),
@@ -194,14 +198,21 @@ mod tests {
 
     #[test]
     fn test_slugify() {
-        assert_eq!(GameSaveSlotsManifest::slugify("Co-op Run #1 / P1"), "co-op-run-1-p1");
-        assert_eq!(GameSaveSlotsManifest::slugify("Left 4 Dead 2"), "left-4-dead-2");
+        assert_eq!(
+            GameSaveSlotsManifest::slugify("Co-op Run #1 / P1"),
+            "co-op-run-1-p1"
+        );
+        assert_eq!(
+            GameSaveSlotsManifest::slugify("Left 4 Dead 2"),
+            "left-4-dead-2"
+        );
         assert_eq!(GameSaveSlotsManifest::slugify("!!!"), "default");
     }
 
     #[test]
     fn test_manifest_crud_and_atomic_save() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_saves_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_saves_test_{}", std::process::id()));
         let guid = "test-game-guid-123";
 
         let mut manifest = GameSaveSlotsManifest {

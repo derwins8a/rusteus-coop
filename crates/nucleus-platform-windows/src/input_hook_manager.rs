@@ -18,7 +18,7 @@ impl WindowsInputHookManager {
 }
 
 use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_ACTIVATE, WM_SETFOCUS, WA_ACTIVE};
+use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WA_ACTIVE, WM_ACTIVATE, WM_SETFOCUS};
 
 impl InputHookManager for WindowsInputHookManager {
     fn inject_hook_dll(&self, pid: u32, dll_path: &Path) -> NucleusResult<()> {
@@ -40,4 +40,3 @@ impl InputHookManager for WindowsInputHookManager {
         Ok(())
     }
 }
-

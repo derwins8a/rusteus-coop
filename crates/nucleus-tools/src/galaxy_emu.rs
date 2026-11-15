@@ -1,10 +1,10 @@
 //! Nemirtingas GOG Galaxy offline emulator configuration and DLL deployment.
 
-use std::fs;
-use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// JSON configuration format for `NemirtingasGalaxyEmu.json`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -66,12 +66,32 @@ impl GalaxyEmuTool {
         let x64_src = galaxy_utils_dir.join("x64").join("Galaxy64.dll");
         let x64_fallback = galaxy_utils_dir.join("Galaxy64.dll");
 
-        let src_86 = if x86_src.exists() { Some(x86_src) } else if x86_fallback.exists() { Some(x86_fallback) } else { None };
-        let src_64 = if x64_src.exists() { Some(x64_src) } else if x64_fallback.exists() { Some(x64_fallback) } else { None };
+        let src_86 = if x86_src.exists() {
+            Some(x86_src)
+        } else if x86_fallback.exists() {
+            Some(x86_fallback)
+        } else {
+            None
+        };
+        let src_64 = if x64_src.exists() {
+            Some(x64_src)
+        } else if x64_fallback.exists() {
+            Some(x64_fallback)
+        } else {
+            None
+        };
 
         let mut found_any = false;
         if game_root_dir.exists() {
-            Self::scan_and_deploy_recursive(game_root_dir, game_root_dir, instance_dir, &src_86, &src_64, &mut deployed, &mut found_any)?;
+            Self::scan_and_deploy_recursive(
+                game_root_dir,
+                game_root_dir,
+                instance_dir,
+                &src_86,
+                &src_64,
+                &mut deployed,
+                &mut found_any,
+            )?;
         }
 
         // If no existing Galaxy DLL was found in game tree, deploy to instance root
@@ -109,7 +129,15 @@ impl GalaxyEmuTool {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_dir() {
-                Self::scan_and_deploy_recursive(&path, root_dir, instance_dir, src_86, src_64, deployed, found_any)?;
+                Self::scan_and_deploy_recursive(
+                    &path,
+                    root_dir,
+                    instance_dir,
+                    src_86,
+                    src_64,
+                    deployed,
+                    found_any,
+                )?;
             } else if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
                 let lower = file_name.to_ascii_lowercase();
                 let is_x64 = lower == "galaxy64.dll";
@@ -117,7 +145,10 @@ impl GalaxyEmuTool {
 
                 if is_x64 || is_x86 {
                     *found_any = true;
-                    let rel_folder = path.parent().and_then(|p| p.strip_prefix(root_dir).ok()).unwrap_or(Path::new(""));
+                    let rel_folder = path
+                        .parent()
+                        .and_then(|p| p.strip_prefix(root_dir).ok())
+                        .unwrap_or(Path::new(""));
                     let dest_folder = instance_dir.join(rel_folder);
                     let _ = file_util::ensure_dir(&dest_folder);
                     let dest_file = dest_folder.join(file_name);
@@ -202,13 +233,15 @@ mod tests {
 
     #[test]
     fn test_galaxy_emu_setup_and_deploy() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_galaxy_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_galaxy_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
 
         let utils_dir = temp_dir.join("utils");
         let galaxy_utils_x64 = utils_dir.join("NemirtingasGalaxyEmu").join("x64");
         file_util::ensure_dir(&galaxy_utils_x64).unwrap();
-        file_util::write_text_file(&galaxy_utils_x64.join("Galaxy64.dll"), "GALAXY64_BYTES").unwrap();
+        file_util::write_text_file(&galaxy_utils_x64.join("Galaxy64.dll"), "GALAXY64_BYTES")
+            .unwrap();
 
         let game_root = temp_dir.join("GameRoot");
         let game_bin = game_root.join("bin").join("x64");
@@ -217,13 +250,9 @@ mod tests {
 
         let instance_dir = temp_dir.join("Instance0");
 
-        let settings_path = GalaxyEmuTool::setup_galaxy_emu(
-            &instance_dir,
-            0,
-            "Player1",
-            Some("french"),
-            None,
-        ).unwrap();
+        let settings_path =
+            GalaxyEmuTool::setup_galaxy_emu(&instance_dir, 0, "Player1", Some("french"), None)
+                .unwrap();
 
         assert!(settings_path.exists());
         let read_json = file_util::read_text_file(&settings_path).unwrap();
@@ -231,11 +260,15 @@ mod tests {
         assert!(read_json.contains("\"galaxyid\": 14601386556348241"));
         assert!(instance_dir.join("NemirtingasGalaxyEmu.json").exists());
 
-        let deployed = GalaxyEmuTool::deploy_dlls(&game_root, &instance_dir, &utils_dir, true).unwrap();
+        let deployed =
+            GalaxyEmuTool::deploy_dlls(&game_root, &instance_dir, &utils_dir, true).unwrap();
         assert_eq!(deployed.len(), 1);
         let deployed_dll = instance_dir.join("bin").join("x64").join("Galaxy64.dll");
         assert!(deployed_dll.exists());
-        assert_eq!(file_util::read_text_file(&deployed_dll).unwrap(), "GALAXY64_BYTES");
+        assert_eq!(
+            file_util::read_text_file(&deployed_dll).unwrap(),
+            "GALAXY64_BYTES"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

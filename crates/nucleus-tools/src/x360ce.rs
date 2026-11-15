@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::{Path, PathBuf};
 
 /// Tool for generating x360ce.ini configuration files and deploying xinput / dinput
 /// wrappers to remap DirectInput controllers to virtual Xbox 360 gamepads.
@@ -304,7 +304,8 @@ mod tests {
 
     #[test]
     fn test_x360ce_setup_multi_and_copy_instance0() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_x360ce_multi_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_x360ce_multi_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let utils_dir = temp_dir.join("utils");
         let x360_utils = utils_dir.join("x360ce");
@@ -320,14 +321,18 @@ mod tests {
         // Setup Instance0 with 2 players
         let ini0 = X360ceTool::setup_x360ce_multi(
             &inst0,
-            &["11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"],
+            &[
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+            ],
             &utils_dir,
             true,
             &["dinput8.dll"],
             true,
             0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(ini0.exists());
         assert!(inst0.join("dinput8.dll").exists());
         let dinput_content = file_util::read_text_file(&inst0.join("dinput8.dll")).unwrap();
@@ -336,14 +341,18 @@ mod tests {
         // Setup Instance1 carrying over from Instance0 with players 3 & 4
         let ini1 = X360ceTool::setup_x360ce_multi(
             &inst1,
-            &["33333333-3333-3333-3333-333333333333", "44444444-4444-4444-4444-444444444444"],
+            &[
+                "33333333-3333-3333-3333-333333333333",
+                "44444444-4444-4444-4444-444444444444",
+            ],
             &utils_dir,
             true,
             &["dinput8.dll"],
             true,
             1,
             Some(&inst0),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(ini1.exists());
         assert!(inst1.join("dinput8.dll").exists());
 

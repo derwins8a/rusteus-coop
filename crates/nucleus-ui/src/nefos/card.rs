@@ -5,8 +5,8 @@
 //! seamless child embedding, and interactive hover elevation.
 
 use gpui::{
-    div, AnyElement, ElementId, FontWeight, InteractiveElement, IntoElement,
-    ParentElement, Pixels, SharedString, Styled,
+    AnyElement, ElementId, FontWeight, InteractiveElement, IntoElement, ParentElement, Pixels,
+    SharedString, Styled, div,
 };
 use smallvec::SmallVec;
 
@@ -171,7 +171,8 @@ impl NefosCard {
 
     /// Converts the card builder into a type-erased `AnyElement`.
     pub fn into_any_element(self) -> AnyElement {
-        let has_header = self.title.is_some() || self.description.is_some() || self.header_action.is_some();
+        let has_header =
+            self.title.is_some() || self.description.is_some() || self.header_action.is_some();
         let has_footer = self.footer.is_some();
 
         let mut card = div()
@@ -195,10 +196,7 @@ impl NefosCard {
                 } else {
                     (theme::bg_panel(), theme::border_color())
                 };
-                card = card
-                    .bg(bg)
-                    .border_1()
-                    .border_color(border);
+                card = card.bg(bg).border_1().border_color(border);
             }
             NefosCardVariant::Elevated => {
                 let (bg, border) = if self.selected {
@@ -206,11 +204,7 @@ impl NefosCard {
                 } else {
                     (theme::bg_elevated(), theme::border_color())
                 };
-                card = card
-                    .bg(bg)
-                    .border_1()
-                    .border_color(border)
-                    .shadow_md();
+                card = card.bg(bg).border_1().border_color(border).shadow_md();
             }
             NefosCardVariant::Outline => {
                 let border = if self.selected {
@@ -218,9 +212,7 @@ impl NefosCard {
                 } else {
                     theme::border_color()
                 };
-                card = card
-                    .border_1()
-                    .border_color(border);
+                card = card.border_1().border_color(border);
             }
             NefosCardVariant::Glass => {
                 let border = if self.selected {
@@ -236,7 +228,10 @@ impl NefosCard {
         }
 
         if self.hover_elevate {
-            card = card.hover(|s| s.border_color(theme::border_focus()).bg(theme::bg_panel_hover()));
+            card = card.hover(|s| {
+                s.border_color(theme::border_focus())
+                    .bg(theme::bg_panel_hover())
+            });
         }
 
         let has_children = !self.children.is_empty();
@@ -268,9 +263,8 @@ impl NefosCard {
             header_div = header_div.child(title_col);
 
             if let Some(action) = self.header_action {
-                header_div = header_div.child(
-                    div().flex().items_center().flex_shrink_0().child(action),
-                );
+                header_div =
+                    header_div.child(div().flex().items_center().flex_shrink_0().child(action));
             }
 
             card = card.child(header_div);
@@ -301,7 +295,10 @@ impl NefosCard {
                 .mt_auto();
 
             if self.paddings && (has_header || has_children) {
-                footer_div = footer_div.pt_3().border_t_1().border_color(theme::border_subtle());
+                footer_div = footer_div
+                    .pt_3()
+                    .border_t_1()
+                    .border_color(theme::border_subtle());
             }
 
             footer_div = footer_div.child(f);

@@ -22,13 +22,20 @@ pub struct WindowSetup;
 
 impl WindowSetup {
     /// Finds the primary window handle for a given process ID.
-    pub fn find_window_by_pid(win_mgr: &dyn WindowManager, pid: u32) -> NucleusResult<Option<usize>> {
+    pub fn find_window_by_pid(
+        win_mgr: &dyn WindowManager,
+        pid: u32,
+    ) -> NucleusResult<Option<usize>> {
         let handles = win_mgr.find_windows_by_process(pid)?;
         Ok(handles.first().map(|h| h.0 as usize))
     }
 
     /// Positions and resizes the specified window to the assigned bounds.
-    pub fn apply_bounds(win_mgr: &dyn WindowManager, hwnd: usize, bounds: WindowBounds) -> NucleusResult<()> {
+    pub fn apply_bounds(
+        win_mgr: &dyn WindowManager,
+        hwnd: usize,
+        bounds: WindowBounds,
+    ) -> NucleusResult<()> {
         Self::apply_bounds_ext(win_mgr, hwnd, bounds, false)
     }
 
@@ -55,7 +62,11 @@ impl WindowSetup {
         orig_width: i32,
         orig_height: i32,
     ) -> WindowBounds {
-        if orig_width <= 0 || orig_height <= 0 || target_bounds.width <= 0 || target_bounds.height <= 0 {
+        if orig_width <= 0
+            || orig_height <= 0
+            || target_bounds.width <= 0
+            || target_bounds.height <= 0
+        {
             return target_bounds;
         }
 
@@ -164,8 +175,12 @@ impl WindowSetup {
         };
 
         match chosen_mode {
-            SplitMode::Horizontal => Self::calculate_regular_grid(screen, player_count, 1, player_count),
-            SplitMode::Vertical => Self::calculate_regular_grid(screen, 1, player_count, player_count),
+            SplitMode::Horizontal => {
+                Self::calculate_regular_grid(screen, player_count, 1, player_count)
+            }
+            SplitMode::Vertical => {
+                Self::calculate_regular_grid(screen, 1, player_count, player_count)
+            }
             SplitMode::Grid4 => Self::calculate_regular_grid(screen, 2, 2, player_count),
             SplitMode::Grid6 => Self::calculate_regular_grid(screen, 2, 3, player_count),
             SplitMode::Grid8 => Self::calculate_regular_grid(screen, 2, 4, player_count),
@@ -177,9 +192,24 @@ impl WindowSetup {
                 let h = screen.height / 2;
                 let w = screen.width / 2;
                 vec![
-                    WindowBounds { x: screen.x, y: screen.y, width: screen.width, height: h },
-                    WindowBounds { x: screen.x, y: screen.y + h, width: w, height: h },
-                    WindowBounds { x: screen.x + w, y: screen.y + h, width: w, height: h },
+                    WindowBounds {
+                        x: screen.x,
+                        y: screen.y,
+                        width: screen.width,
+                        height: h,
+                    },
+                    WindowBounds {
+                        x: screen.x,
+                        y: screen.y + h,
+                        width: w,
+                        height: h,
+                    },
+                    WindowBounds {
+                        x: screen.x + w,
+                        y: screen.y + h,
+                        width: w,
+                        height: h,
+                    },
                 ]
                 .into_iter()
                 .take(player_count)
@@ -189,9 +219,24 @@ impl WindowSetup {
                 let h = screen.height / 2;
                 let w = screen.width / 2;
                 vec![
-                    WindowBounds { x: screen.x, y: screen.y, width: w, height: h },
-                    WindowBounds { x: screen.x + w, y: screen.y, width: w, height: h },
-                    WindowBounds { x: screen.x, y: screen.y + h, width: screen.width, height: h },
+                    WindowBounds {
+                        x: screen.x,
+                        y: screen.y,
+                        width: w,
+                        height: h,
+                    },
+                    WindowBounds {
+                        x: screen.x + w,
+                        y: screen.y,
+                        width: w,
+                        height: h,
+                    },
+                    WindowBounds {
+                        x: screen.x,
+                        y: screen.y + h,
+                        width: screen.width,
+                        height: h,
+                    },
                 ]
                 .into_iter()
                 .take(player_count)
@@ -284,69 +329,236 @@ mod tests {
 
     #[test]
     fn test_calculate_splits() {
-        let screen = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
 
         // 2 players Auto -> Vertical
         let splits2 = WindowSetup::calculate_splits(screen, 2, SplitMode::Auto);
         assert_eq!(splits2.len(), 2);
-        assert_eq!(splits2[0], WindowBounds { x: 0, y: 0, width: 960, height: 1080 });
-        assert_eq!(splits2[1], WindowBounds { x: 960, y: 0, width: 960, height: 1080 });
+        assert_eq!(
+            splits2[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 960,
+                height: 1080
+            }
+        );
+        assert_eq!(
+            splits2[1],
+            WindowBounds {
+                x: 960,
+                y: 0,
+                width: 960,
+                height: 1080
+            }
+        );
 
         // 2 players Horizontal
         let splits2_h = WindowSetup::calculate_splits(screen, 2, SplitMode::Horizontal);
-        assert_eq!(splits2_h[0], WindowBounds { x: 0, y: 0, width: 1920, height: 540 });
-        assert_eq!(splits2_h[1], WindowBounds { x: 0, y: 540, width: 1920, height: 540 });
+        assert_eq!(
+            splits2_h[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits2_h[1],
+            WindowBounds {
+                x: 0,
+                y: 540,
+                width: 1920,
+                height: 540
+            }
+        );
 
         // 4 players Auto -> Grid4
         let splits4 = WindowSetup::calculate_splits(screen, 4, SplitMode::Auto);
         assert_eq!(splits4.len(), 4);
-        assert_eq!(splits4[0], WindowBounds { x: 0, y: 0, width: 960, height: 540 });
-        assert_eq!(splits4[3], WindowBounds { x: 960, y: 540, width: 960, height: 540 });
+        assert_eq!(
+            splits4[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 960,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits4[3],
+            WindowBounds {
+                x: 960,
+                y: 540,
+                width: 960,
+                height: 540
+            }
+        );
 
         // 3 players TopOneBottomTwo
         let splits3 = WindowSetup::calculate_splits(screen, 3, SplitMode::TopOneBottomTwo);
         assert_eq!(splits3.len(), 3);
-        assert_eq!(splits3[0], WindowBounds { x: 0, y: 0, width: 1920, height: 540 });
-        assert_eq!(splits3[1], WindowBounds { x: 0, y: 540, width: 960, height: 540 });
-        assert_eq!(splits3[2], WindowBounds { x: 960, y: 540, width: 960, height: 540 });
+        assert_eq!(
+            splits3[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits3[1],
+            WindowBounds {
+                x: 0,
+                y: 540,
+                width: 960,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits3[2],
+            WindowBounds {
+                x: 960,
+                y: 540,
+                width: 960,
+                height: 540
+            }
+        );
 
         // 6 players Grid6 (2 rows x 3 cols: cell width 640, height 540)
         let splits6 = WindowSetup::calculate_splits(screen, 6, SplitMode::Grid6);
         assert_eq!(splits6.len(), 6);
-        assert_eq!(splits6[0], WindowBounds { x: 0, y: 0, width: 640, height: 540 });
-        assert_eq!(splits6[1], WindowBounds { x: 640, y: 0, width: 640, height: 540 });
-        assert_eq!(splits6[2], WindowBounds { x: 1280, y: 0, width: 640, height: 540 });
-        assert_eq!(splits6[3], WindowBounds { x: 0, y: 540, width: 640, height: 540 });
-        assert_eq!(splits6[5], WindowBounds { x: 1280, y: 540, width: 640, height: 540 });
+        assert_eq!(
+            splits6[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 640,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits6[1],
+            WindowBounds {
+                x: 640,
+                y: 0,
+                width: 640,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits6[2],
+            WindowBounds {
+                x: 1280,
+                y: 0,
+                width: 640,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits6[3],
+            WindowBounds {
+                x: 0,
+                y: 540,
+                width: 640,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits6[5],
+            WindowBounds {
+                x: 1280,
+                y: 540,
+                width: 640,
+                height: 540
+            }
+        );
 
         // 8 players Grid8 (2 rows x 4 cols: cell width 480, height 540)
         let splits8 = WindowSetup::calculate_splits(screen, 8, SplitMode::Grid8);
         assert_eq!(splits8.len(), 8);
-        assert_eq!(splits8[0], WindowBounds { x: 0, y: 0, width: 480, height: 540 });
-        assert_eq!(splits8[7], WindowBounds { x: 1440, y: 540, width: 480, height: 540 });
+        assert_eq!(
+            splits8[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 480,
+                height: 540
+            }
+        );
+        assert_eq!(
+            splits8[7],
+            WindowBounds {
+                x: 1440,
+                y: 540,
+                width: 480,
+                height: 540
+            }
+        );
 
         // 16 players Grid16 (4 rows x 4 cols: cell width 480, height 270)
         let splits16 = WindowSetup::calculate_splits(screen, 16, SplitMode::Grid16);
         assert_eq!(splits16.len(), 16);
-        assert_eq!(splits16[0], WindowBounds { x: 0, y: 0, width: 480, height: 270 });
-        assert_eq!(splits16[15], WindowBounds { x: 1440, y: 810, width: 480, height: 270 });
+        assert_eq!(
+            splits16[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 480,
+                height: 270
+            }
+        );
+        assert_eq!(
+            splits16[15],
+            WindowBounds {
+                x: 1440,
+                y: 810,
+                width: 480,
+                height: 270
+            }
+        );
 
         // CustomGrid (3 rows x 2 cols, 5 players)
-        let splits_custom = WindowSetup::calculate_splits(
-            screen,
-            5,
-            SplitMode::CustomGrid { rows: 3, cols: 2 },
-        );
+        let splits_custom =
+            WindowSetup::calculate_splits(screen, 5, SplitMode::CustomGrid { rows: 3, cols: 2 });
         assert_eq!(splits_custom.len(), 5);
-        assert_eq!(splits_custom[0], WindowBounds { x: 0, y: 0, width: 960, height: 360 });
-        assert_eq!(splits_custom[4], WindowBounds { x: 0, y: 720, width: 960, height: 360 });
+        assert_eq!(
+            splits_custom[0],
+            WindowBounds {
+                x: 0,
+                y: 0,
+                width: 960,
+                height: 360
+            }
+        );
+        assert_eq!(
+            splits_custom[4],
+            WindowBounds {
+                x: 0,
+                y: 720,
+                width: 960,
+                height: 360
+            }
+        );
     }
 
     #[test]
     fn test_apply_aspect_ratio_correction() {
         // Monitor is 16:9 (1920x1080)
         // Target slot is vertical split (960x1080)
-        let slot = WindowBounds { x: 0, y: 0, width: 960, height: 1080 };
+        let slot = WindowBounds {
+            x: 0,
+            y: 0,
+            width: 960,
+            height: 1080,
+        };
         let corrected = WindowSetup::apply_aspect_ratio_correction(slot, 1920, 1080);
         assert_eq!(corrected.width, 960);
         assert_eq!(corrected.height, 540);
@@ -354,7 +566,12 @@ mod tests {
         assert_eq!(corrected.y, 270); // Centered vertically (1080 - 540) / 2 = 270
 
         // Target slot is horizontal split (1920x540)
-        let slot_h = WindowBounds { x: 0, y: 0, width: 1920, height: 540 };
+        let slot_h = WindowBounds {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 540,
+        };
         let corrected_h = WindowSetup::apply_aspect_ratio_correction(slot_h, 1920, 1080);
         assert_eq!(corrected_h.width, 960);
         assert_eq!(corrected_h.height, 540);
@@ -364,17 +581,32 @@ mod tests {
 
     #[test]
     fn test_split_mode_from_layout_name() {
-        assert_eq!(split_mode_from_name("Fullscreen (1 Player)"), SplitMode::Auto);
+        assert_eq!(
+            split_mode_from_name("Fullscreen (1 Player)"),
+            SplitMode::Auto
+        );
         assert_eq!(split_mode_from_name("1x1"), SplitMode::Auto);
         assert_eq!(split_mode_from_name("single"), SplitMode::Auto);
-        assert_eq!(SplitMode::from_layout_name("1x2 (Stacked)"), SplitMode::Horizontal);
+        assert_eq!(
+            SplitMode::from_layout_name("1x2 (Stacked)"),
+            SplitMode::Horizontal
+        );
         assert_eq!(split_mode_from_name("horizontal"), SplitMode::Horizontal);
-        assert_eq!(split_mode_from_name("2x1 (Side-by-Side)"), SplitMode::Vertical);
+        assert_eq!(
+            split_mode_from_name("2x1 (Side-by-Side)"),
+            SplitMode::Vertical
+        );
         assert_eq!(split_mode_from_name("vertical"), SplitMode::Vertical);
-        assert_eq!(split_mode_from_name("Top 1 / Bottom 2"), SplitMode::TopOneBottomTwo);
+        assert_eq!(
+            split_mode_from_name("Top 1 / Bottom 2"),
+            SplitMode::TopOneBottomTwo
+        );
         assert_eq!(split_mode_from_name("top1"), SplitMode::TopOneBottomTwo);
         assert_eq!(split_mode_from_name("3-way"), SplitMode::TopOneBottomTwo);
-        assert_eq!(split_mode_from_name("Top 2 / Bottom 1"), SplitMode::TopTwoBottomOne);
+        assert_eq!(
+            split_mode_from_name("Top 2 / Bottom 1"),
+            SplitMode::TopTwoBottomOne
+        );
         assert_eq!(split_mode_from_name("toptwo"), SplitMode::TopTwoBottomOne);
         assert_eq!(split_mode_from_name("2x2 (Grid)"), SplitMode::Grid4);
         assert_eq!(split_mode_from_name("quad"), SplitMode::Grid4);
@@ -388,4 +620,3 @@ mod tests {
         assert_eq!(split_mode_from_name("Auto"), SplitMode::Auto);
     }
 }
-

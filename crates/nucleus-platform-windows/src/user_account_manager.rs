@@ -28,9 +28,10 @@ impl UserAccountManager for WindowsUserAccountManager {
         if status.success() {
             Ok(())
         } else {
-            Err(nucleus_common::error::NucleusError::Platform(
-                format!("Failed to create user '{}'", username),
-            ))
+            Err(nucleus_common::error::NucleusError::Platform(format!(
+                "Failed to create user '{}'",
+                username
+            )))
         }
     }
 
@@ -42,9 +43,10 @@ impl UserAccountManager for WindowsUserAccountManager {
         if status.success() {
             Ok(())
         } else {
-            Err(nucleus_common::error::NucleusError::Platform(
-                format!("Failed to delete user '{}'", username),
-            ))
+            Err(nucleus_common::error::NucleusError::Platform(format!(
+                "Failed to delete user '{}'",
+                username
+            )))
         }
     }
 
@@ -62,7 +64,6 @@ impl UserAccountManager for WindowsUserAccountManager {
         _password: &str,
         config: &ProcessConfig,
     ) -> NucleusResult<ProcessHandle> {
-
         // Fallback or runas
         let mut cmd = std::process::Command::new(&config.exe_path);
         cmd.args(&config.args);
@@ -78,4 +79,3 @@ impl UserAccountManager for WindowsUserAccountManager {
         Ok(PathBuf::from(format!("{}\\Users\\{}", base, username)))
     }
 }
-

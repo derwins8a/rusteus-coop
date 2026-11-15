@@ -1,13 +1,13 @@
 //! Package inspection, validation, and safe extraction for `.nucplugin` and `.nucaddon` archives.
 
+use sha2::{Digest, Sha256};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use sha2::{Digest, Sha256};
 use zip::ZipArchive;
 
-use nucleus_common::error::{NucleusError, NucleusResult};
 use crate::manifest::PluginManifest;
+use nucleus_common::error::{NucleusError, NucleusResult};
 
 /// Result of inspecting a plugin package archive without extracting it.
 #[derive(Debug, Clone)]
@@ -51,14 +51,17 @@ impl PluginPackager {
         let mut entries = Vec::new();
 
         for i in 0..zip.len() {
-            let mut entry = zip.by_index(i)
+            let mut entry = zip
+                .by_index(i)
                 .map_err(|e| NucleusError::Plugin(format!("Failed reading zip entry: {e}")))?;
             let raw_name = entry.name().to_string();
             entries.push(raw_name.clone());
 
             let clean_name = raw_name.replace('\\', "/");
             let file_name = clean_name.split('/').last().unwrap_or("");
-            if (file_name == "plugin.toml" || file_name == "addon.toml") && manifest_content.is_none() {
+            if (file_name == "plugin.toml" || file_name == "addon.toml")
+                && manifest_content.is_none()
+            {
                 let mut buf = String::new();
                 entry.read_to_string(&mut buf)?;
                 manifest_content = Some(buf);
@@ -67,7 +70,8 @@ impl PluginPackager {
 
         let raw_manifest = manifest_content.ok_or_else(|| {
             NucleusError::Plugin(
-                "Package does not contain a valid 'plugin.toml' or 'addon.toml' manifest".to_string(),
+                "Package does not contain a valid 'plugin.toml' or 'addon.toml' manifest"
+                    .to_string(),
             )
         })?;
 
@@ -81,10 +85,14 @@ impl PluginPackager {
     }
 
     /// Safely extracts an archive into `destination_dir` with strict zip-slip protection.
-    pub fn extract_package(archive_path: &Path, destination_dir: &Path) -> NucleusResult<PackageInspection> {
+    pub fn extract_package(
+        archive_path: &Path,
+        destination_dir: &Path,
+    ) -> NucleusResult<PackageInspection> {
         let inspection = Self::inspect_package(archive_path)?;
         fs::create_dir_all(destination_dir)?;
-        let canonical_target = destination_dir.canonicalize()
+        let canonical_target = destination_dir
+            .canonicalize()
             .map_err(|e| NucleusError::Io(e))?;
 
         let file = File::open(archive_path)?;
@@ -92,7 +100,8 @@ impl PluginPackager {
             .map_err(|e| NucleusError::Plugin(format!("Failed to open zip archive: {e}")))?;
 
         for i in 0..zip.len() {
-            let mut entry = zip.by_index(i)
+            let mut entry = zip
+                .by_index(i)
                 .map_err(|e| NucleusError::Plugin(format!("Failed reading zip index {i}: {e}")))?;
 
             let raw_name = entry.name().replace('\\', "/");
@@ -153,7 +162,8 @@ mod tests {
         let mut buf = std::io::Cursor::new(Vec::new());
         {
             let mut writer = ZipWriter::new(&mut buf);
-            let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
             writer.start_file("plugin.toml", options).unwrap();
             writer.write_all(manifest_str.as_bytes()).unwrap();
@@ -179,7 +189,8 @@ entrypoint = "main.js"
 "#;
         let test_zip = create_test_zip(manifest, &[("main.js", b"console.log('hi');")]);
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_pkg_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_pkg_test_{}", std::process::id()));
         let zip_path = temp_dir.join("test.nucplugin");
         let extract_dir = temp_dir.join("extracted");
 
@@ -211,7 +222,8 @@ entrypoint = "evil.js"
         let mut buf = std::io::Cursor::new(Vec::new());
         {
             let mut writer = ZipWriter::new(&mut buf);
-            let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+            let options =
+                SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
             writer.start_file("plugin.toml", options).unwrap();
             writer.write_all(manifest.as_bytes()).unwrap();
@@ -223,7 +235,8 @@ entrypoint = "evil.js"
         }
         let malicious_zip = buf.into_inner();
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_pkg_slip_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_pkg_slip_{}", std::process::id()));
         let zip_path = temp_dir.join("evil.nucplugin");
         let extract_dir = temp_dir.join("extracted");
 

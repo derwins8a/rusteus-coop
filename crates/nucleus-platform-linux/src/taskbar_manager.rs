@@ -18,10 +18,14 @@ impl LinuxTaskbarManager {
 
 impl TaskbarManager for LinuxTaskbarManager {
     fn hide(&self) -> NucleusResult<()> {
-        Err(NucleusError::Unsupported("Taskbar toggle not supported on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Taskbar toggle not supported on Linux".into(),
+        ))
     }
 
     fn show(&self) -> NucleusResult<()> {
-        Err(NucleusError::Unsupported("Taskbar toggle not supported on Linux".into()))
+        Err(NucleusError::Unsupported(
+            "Taskbar toggle not supported on Linux".into(),
+        ))
     }
 }

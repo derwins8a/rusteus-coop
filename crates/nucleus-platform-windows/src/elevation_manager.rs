@@ -3,17 +3,17 @@
 //! Uses `OpenProcessToken` / `TokenElevation` to check UAC elevation status,
 //! and `ShellExecuteExW` with verb `"runas"` to prompt for elevation.
 
-use std::path::Path;
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_platform::ElevationManager;
-use windows::core::{HSTRING, PCWSTR};
+use std::path::Path;
 use windows::Win32::Foundation::CloseHandle;
-use windows::Win32::Security::{GetTokenInformation, TokenElevation, TOKEN_ELEVATION, TOKEN_QUERY};
+use windows::Win32::Security::{GetTokenInformation, TOKEN_ELEVATION, TOKEN_QUERY, TokenElevation};
 use windows::Win32::System::Threading::{
-    GetCurrentProcess, GetExitCodeProcess, OpenProcessToken, WaitForSingleObject, INFINITE,
+    GetCurrentProcess, GetExitCodeProcess, INFINITE, OpenProcessToken, WaitForSingleObject,
 };
-use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+use windows::Win32::UI::Shell::{SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW};
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOW;
+use windows::core::{HSTRING, PCWSTR};
 
 /// Concrete Windows elevation manager.
 #[derive(Default, Debug, Clone)]
@@ -65,7 +65,11 @@ impl ElevationManager for WindowsElevationManager {
 
         let mut info = SHELLEXECUTEINFOW {
             cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
-            fMask: if wait { SEE_MASK_NOCLOSEPROCESS } else { Default::default() },
+            fMask: if wait {
+                SEE_MASK_NOCLOSEPROCESS
+            } else {
+                Default::default()
+            },
             hwnd: Default::default(),
             lpVerb: PCWSTR(verb.as_ptr()),
             lpFile: PCWSTR(file.as_ptr()),
@@ -98,7 +102,8 @@ impl ElevationManager for WindowsElevationManager {
 
     fn ensure_symlink_support(&self) -> NucleusResult<bool> {
         // 1. Quick probe: test if unprivileged symlink creation works right now
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_sym_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_sym_test_{}", std::process::id()));
         let test_src = temp_dir.join("src.tmp");
         let test_dst = temp_dir.join("dst.tmp");
         let _ = std::fs::create_dir_all(&temp_dir);
@@ -117,28 +122,46 @@ impl ElevationManager for WindowsElevationManager {
             return Ok(true);
         }
 
-        tracing::info!("Unprivileged symlinks disabled. Invoking elevator.exe to enable Windows Developer Mode symlink support...");
+        tracing::info!(
+            "Unprivileged symlinks disabled. Invoking elevator.exe to enable Windows Developer Mode symlink support..."
+        );
 
         let candidate_paths = [
-            std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("elevator.exe"))),
-            std::env::current_exe().ok().and_then(|p| p.parent().map(|d| d.join("utils").join("elevator.exe"))),
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.join("elevator.exe"))),
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|d| d.join("utils").join("elevator.exe"))),
             Some(std::path::PathBuf::from("elevator.exe")),
             Some(std::path::PathBuf::from("utils").join("elevator.exe")),
-            Some(std::path::PathBuf::from(r"C:\Games\NucleusCoop242\utils\elevator.exe")),
-            Some(std::path::PathBuf::from(r"C:\Games\NucleusCoop242\elevator.exe")),
+            Some(std::path::PathBuf::from(
+                r"C:\Games\NucleusCoop242\utils\elevator.exe",
+            )),
+            Some(std::path::PathBuf::from(
+                r"C:\Games\NucleusCoop242\elevator.exe",
+            )),
         ];
 
         for opt_path in candidate_paths.into_iter().flatten() {
             if opt_path.exists() {
-                println!("[Elevation] Invoking elevator at {:?} to enable symlink support...", opt_path);
+                println!(
+                    "[Elevation] Invoking elevator at {:?} to enable symlink support...",
+                    opt_path
+                );
                 let res = self.run_elevated(&opt_path, &["enable-symlinks"], None, true);
                 match res {
                     Ok(Some(0)) | Ok(None) => {
-                        println!("[Elevation] Elevator successfully enabled Windows Developer Mode symlinks!");
+                        println!(
+                            "[Elevation] Elevator successfully enabled Windows Developer Mode symlinks!"
+                        );
                         return Ok(true);
                     }
                     Ok(Some(code)) => {
-                        tracing::warn!("Elevator exited with code {}: UAC was declined or failed", code);
+                        tracing::warn!(
+                            "Elevator exited with code {}: UAC was declined or failed",
+                            code
+                        );
                     }
                     Err(e) => {
                         tracing::warn!("Elevator run failed: {}", e);

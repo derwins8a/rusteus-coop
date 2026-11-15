@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::{Path, PathBuf};
 
 /// Configuration options for patching or generating `XInputPlus.ini`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,7 +144,11 @@ impl XInputPlusTool {
                     if trimmed.starts_with("EnableX2Dinput=") {
                         lines.push(format!(
                             "EnableX2Dinput={}",
-                            if options.enable_x2dinput { "True" } else { "False" }
+                            if options.enable_x2dinput {
+                                "True"
+                            } else {
+                                "False"
+                            }
                         ));
                     } else {
                         lines.push(line.to_string());
@@ -282,7 +286,8 @@ impl XInputPlusTool {
             enable_x2dinput: has_dinput,
             controller_indices,
         };
-        let patched_ini = Self::patch_or_generate_xinput_plus_ini(template_content.as_deref(), &ini_options);
+        let patched_ini =
+            Self::patch_or_generate_xinput_plus_ini(template_content.as_deref(), &ini_options);
         let ini_path = instance_dir.join("XInputPlus.ini");
         file_util::write_text_file(&ini_path, &patched_ini)?;
         deployed_files.push(ini_path);
@@ -326,21 +331,65 @@ impl XInputPlusTool {
             options.window_y,
             options.res_width,
             options.res_height,
-            if options.fix_resolution { "True" } else { "False" },
-            if options.fix_position { "True" } else { "False" },
+            if options.fix_resolution {
+                "True"
+            } else {
+                "False"
+            },
+            if options.fix_position {
+                "True"
+            } else {
+                "False"
+            },
             if options.clip_mouse { "True" } else { "False" },
-            if options.reroute_input { "True" } else { "False" },
+            if options.reroute_input {
+                "True"
+            } else {
+                "False"
+            },
             options.reroute_joystick_template,
-            if options.enable_mkb_input { "True" } else { "False" },
-            if options.is_keyboard_player { "True" } else { "False" },
-            if options.block_input_events { "True" } else { "False" },
-            if options.block_mouse_events { "True" } else { "False" },
-            if options.block_keyboard_events { "True" } else { "False" },
-            if options.xinput_enabled { "True" } else { "False" },
+            if options.enable_mkb_input {
+                "True"
+            } else {
+                "False"
+            },
+            if options.is_keyboard_player {
+                "True"
+            } else {
+                "False"
+            },
+            if options.block_input_events {
+                "True"
+            } else {
+                "False"
+            },
+            if options.block_mouse_events {
+                "True"
+            } else {
+                "False"
+            },
+            if options.block_keyboard_events {
+                "True"
+            } else {
+                "False"
+            },
+            if options.xinput_enabled {
+                "True"
+            } else {
+                "False"
+            },
             options.xinput_player_id,
-            if options.dinput_enabled { "True" } else { "False" },
+            if options.dinput_enabled {
+                "True"
+            } else {
+                "False"
+            },
             options.dinput_guid,
-            if options.dinput_force_disable { "True" } else { "False" },
+            if options.dinput_force_disable {
+                "True"
+            } else {
+                "False"
+            },
         )
     }
 
@@ -373,7 +422,11 @@ impl XInputPlusTool {
             // Search arch dir, then root custom dll dir
             let src1 = arch_dir.join(target_dll);
             let src2 = custom_dll_dir.join(target_dll);
-            let fallback_name = if is_64bit { "xinput1_3_x64.dll" } else { "xinput1_3.dll" };
+            let fallback_name = if is_64bit {
+                "xinput1_3_x64.dll"
+            } else {
+                "xinput1_3.dll"
+            };
             let src3 = arch_dir.join(fallback_name);
             let src4 = custom_dll_dir.join(fallback_name);
 
@@ -433,7 +486,8 @@ mod tests {
 
     #[test]
     fn test_xinput_plus_setup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_xinput_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_xinput_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let utils_dir = temp_dir.join("utils");
         let arch_dir = utils_dir.join("XInputPlus").join("x64");
@@ -450,7 +504,8 @@ mod tests {
             true,
             &["xinput1_3.dll"],
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(deployed.len(), 2); // dll + ini
         assert!(deployed[0].exists());

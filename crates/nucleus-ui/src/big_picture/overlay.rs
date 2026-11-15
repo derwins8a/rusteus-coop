@@ -333,9 +333,8 @@ impl InGameOsdState {
     /// Starts the 2-step Drop-Out Player flow if at least 2 players are active.
     pub fn open_drop_out(&mut self, summoner_slot: Option<usize>) -> bool {
         if self.active_players.len() <= 1 {
-            self.action_error = Some(
-                "Only 1 active player — use End Game Session to exit.".to_string(),
-            );
+            self.action_error =
+                Some("Only 1 active player — use End Game Session to exit.".to_string());
             return false;
         }
         let focused_idx = summoner_slot
@@ -436,7 +435,7 @@ pub fn summoner_focus_color(summoner_slot: Option<usize>) -> Hsla {
         Some(1) => hsla(210.0 / 360.0, 0.9, 0.6, 1.0), // Blue (Player 2)
         Some(2) => hsla(38.0 / 360.0, 0.95, 0.55, 1.0), // Amber (Player 3)
         Some(3) => hsla(270.0 / 360.0, 0.85, 0.65, 1.0), // Purple (Player 4)
-        _ => theme::accent(),                           // Emerald / Host Default (Player 1)
+        _ => theme::accent(),                          // Emerald / Host Default (Player 1)
     }
 }
 
@@ -552,9 +551,7 @@ pub fn confirm_drop_in_layout(
             nickname: format!("Player {}", next_slot + 1),
             device_label: assignment.to_string(),
         });
-        win.in_game_osd
-            .active_players
-            .sort_by_key(|p| p.slot_idx);
+        win.in_game_osd.active_players.sort_by_key(|p| p.slot_idx);
         Ok(next_slot)
     };
 
@@ -634,7 +631,10 @@ pub fn confirm_drop_out_layout(
 
 /// Renders the fullscreen 10-foot Couch In-Game OSD overlay on top of active split-screen viewports.
 pub fn render_in_game_osd(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
-    let game_title = win.selected_game.as_deref().unwrap_or("Active Game Session");
+    let game_title = win
+        .selected_game
+        .as_deref()
+        .unwrap_or("Active Game Session");
     let is_frozen = win.in_game_osd.is_frozen;
     let input_locked = win.in_game_osd.input_locked;
     let selected_idx = win.in_game_osd.selected_index;
@@ -749,7 +749,13 @@ pub fn render_in_game_osd(win: &MainWindow, cx: &mut Context<MainWindow>) -> Any
                         } else if win.in_game_osd.sub_view == OsdSubView::GameGuide {
                             render_game_guide_view(win, summoner_color, cx)
                         } else {
-                            render_image2_actions_menu(win, is_frozen, selected_idx, summoner_color, cx)
+                            render_image2_actions_menu(
+                                win,
+                                is_frozen,
+                                selected_idx,
+                                summoner_color,
+                                cx,
+                            )
                         }),
                 ),
         )
@@ -861,13 +867,7 @@ fn render_overlay_top_bar(
                         .bg(summoner_color.opacity(0.14))
                         .border_1()
                         .border_color(summoner_color)
-                        .child(
-                            div()
-                                .w_2()
-                                .h_2()
-                                .rounded_full()
-                                .bg(summoner_color),
-                        )
+                        .child(div().w_2().h_2().rounded_full().bg(summoner_color))
                         .child(
                             div()
                                 .text_xs()
@@ -891,7 +891,11 @@ fn render_overlay_top_bar(
                         .bg(theme::warning().opacity(0.14))
                         .border_1()
                         .border_color(theme::warning())
-                        .child(Icon::new(IconName::Pause).size_3p5().text_color(theme::warning()))
+                        .child(
+                            Icon::new(IconName::Pause)
+                                .size_3p5()
+                                .text_color(theme::warning()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -910,7 +914,11 @@ fn render_overlay_top_bar(
                         .bg(theme::success().opacity(0.14))
                         .border_1()
                         .border_color(theme::success())
-                        .child(Icon::new(IconName::Lock).size_3p5().text_color(theme::success()))
+                        .child(
+                            Icon::new(IconName::Lock)
+                                .size_3p5()
+                                .text_color(theme::success()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -929,7 +937,11 @@ fn render_overlay_top_bar(
                         .bg(theme::accent().opacity(0.14))
                         .border_1()
                         .border_color(theme::accent())
-                        .child(Icon::new(IconName::Play).size_3p5().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Play)
+                                .size_3p5()
+                                .text_color(theme::accent()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -957,7 +969,11 @@ fn render_overlay_top_bar(
                             this.set_osd_visible(false);
                             cx.notify();
                         }))
-                        .child(Icon::new(IconName::X).size_3p5().text_color(theme::text_muted()))
+                        .child(
+                            Icon::new(IconName::X)
+                                .size_3p5()
+                                .text_color(theme::text_muted()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -976,10 +992,18 @@ fn render_osd_hero_card(
     _summoner_color: Hsla,
     _cx: &mut Context<MainWindow>,
 ) -> AnyElement {
-    let game_title = win.selected_game.as_deref().unwrap_or("Active Game Session");
+    let game_title = win
+        .selected_game
+        .as_deref()
+        .unwrap_or("Active Game Session");
     let elapsed = win.in_game_osd.elapsed_seconds;
     let time_str = format_duration_hhmmss(elapsed);
-    let player_count = win.in_game_osd.active_players.len().max(win.player_count).max(1);
+    let player_count = win
+        .in_game_osd
+        .active_players
+        .len()
+        .max(win.player_count)
+        .max(1);
     let layout_name = if !win.in_game_osd.current_layout.is_empty() {
         &win.in_game_osd.current_layout
     } else {
@@ -1037,13 +1061,7 @@ fn render_osd_hero_card(
                         .bg(theme::bg_dark().opacity(0.85))
                         .border_1()
                         .border_color(theme::accent().opacity(0.6))
-                        .child(
-                            div()
-                                .w_2p5()
-                                .h_2p5()
-                                .rounded_full()
-                                .bg(theme::accent()),
-                        )
+                        .child(div().w_2p5().h_2p5().rounded_full().bg(theme::accent()))
                         .child(
                             div()
                                 .text_xs()
@@ -1105,12 +1123,7 @@ fn render_osd_hero_card(
                 ),
         )
         // Divider
-        .child(
-            div()
-                .w_full()
-                .h_px()
-                .bg(theme::border_subtle()),
-        )
+        .child(div().w_full().h_px().bg(theme::border_subtle()))
         // Connected Players Status Dots
         .child(
             div()
@@ -1132,13 +1145,7 @@ fn render_osd_hero_card(
                                 .flex()
                                 .items_center()
                                 .gap_2p5()
-                                .child(
-                                    div()
-                                        .w_2p5()
-                                        .h_2p5()
-                                        .rounded_full()
-                                        .bg(dot_color),
-                                )
+                                .child(div().w_2p5().h_2p5().rounded_full().bg(dot_color))
                                 .child(
                                     div()
                                         .text_xs()
@@ -1180,7 +1187,12 @@ fn render_image2_actions_menu(
         )
     };
 
-    let active_player_count = win.in_game_osd.active_players.len().max(win.player_count).max(1);
+    let active_player_count = win
+        .in_game_osd
+        .active_players
+        .len()
+        .max(win.player_count)
+        .max(1);
 
     div()
         .id("osd-actions-container")
@@ -2168,11 +2180,11 @@ fn render_actions_menu(
                             } else {
                                 theme::bg_subtle()
                             })
-                            .child(
-                                Icon::new(*icon)
-                                    .size_4()
-                                    .text_color(if is_selected { summoner_color } else { theme::text_muted() }),
-                            ),
+                            .child(Icon::new(*icon).size_4().text_color(if is_selected {
+                                summoner_color
+                            } else {
+                                theme::text_muted()
+                            })),
                     )
                     .child(
                         div()
@@ -2272,13 +2284,7 @@ fn render_player_slots_strip(win: &MainWindow, cx: &mut Context<MainWindow>) -> 
                         .flex()
                         .items_center()
                         .gap_2()
-                        .child(
-                            div()
-                                .w_2p5()
-                                .h_2p5()
-                                .rounded_full()
-                                .bg(slot_color),
-                        )
+                        .child(div().w_2p5().h_2p5().rounded_full().bg(slot_color))
                         .child(
                             div()
                                 .flex()
@@ -2435,15 +2441,13 @@ where
                                 .flex()
                                 .items_center()
                                 .gap_2p5()
-                                .child(
-                                    Icon::new(layout_preview_icon(layout))
-                                        .size_4()
-                                        .text_color(if is_focused {
-                                            summoner_color
-                                        } else {
-                                            theme::text_muted()
-                                        }),
-                                )
+                                .child(Icon::new(layout_preview_icon(layout)).size_4().text_color(
+                                    if is_focused {
+                                        summoner_color
+                                    } else {
+                                        theme::text_muted()
+                                    },
+                                ))
                                 .child(
                                     div()
                                         .text_xs()
@@ -2564,7 +2568,9 @@ fn render_drop_in_submodal(
                                         .text_xs()
                                         .font_weight(FontWeight::MEDIUM)
                                         .text_color(summoner_color)
-                                        .child("Press any button on an unassigned controller to join"),
+                                        .child(
+                                            "Press any button on an unassigned controller to join",
+                                        ),
                                 ),
                         ),
                 )
@@ -2619,13 +2625,13 @@ fn render_drop_in_submodal(
                                             .flex()
                                             .items_center()
                                             .gap_2p5()
-                                            .child(
-                                                Icon::new(icon).size_4().text_color(if is_focused {
+                                            .child(Icon::new(icon).size_4().text_color(
+                                                if is_focused {
                                                     summoner_color
                                                 } else {
                                                     theme::text_muted()
-                                                }),
-                                            )
+                                                },
+                                            ))
                                             .child(
                                                 div()
                                                     .text_xs()
@@ -2650,28 +2656,23 @@ fn render_drop_in_submodal(
                         )),
                 )
                 .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_end()
-                        .pt_1()
-                        .child(
-                            div()
-                                .id("btn-cancel-dropin")
-                                .px_4()
-                                .py_2()
-                                .rounded_md()
-                                .cursor_pointer()
-                                .bg(theme::bg_hover())
-                                .text_xs()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(theme::text_primary())
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.in_game_osd.cancel_submodal();
-                                    cx.notify();
-                                }))
-                                .child("Cancel"),
-                        ),
+                    div().flex().items_center().justify_end().pt_1().child(
+                        div()
+                            .id("btn-cancel-dropin")
+                            .px_4()
+                            .py_2()
+                            .rounded_md()
+                            .cursor_pointer()
+                            .bg(theme::bg_hover())
+                            .text_xs()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::text_primary())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.in_game_osd.cancel_submodal();
+                                cx.notify();
+                            }))
+                            .child("Cancel"),
+                    ),
                 )
                 .into_any_element()
         }
@@ -2721,7 +2722,11 @@ fn render_drop_in_submodal(
             .bg(theme::bg_panel())
             .border_1()
             .border_color(summoner_color)
-            .child(Icon::new(IconName::Loader).size_5().text_color(summoner_color))
+            .child(
+                Icon::new(IconName::Loader)
+                    .size_5()
+                    .text_color(summoner_color),
+            )
             .child(
                 div()
                     .text_sm()
@@ -2886,28 +2891,23 @@ fn render_drop_out_submodal(
                         })),
                 )
                 .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_end()
-                        .pt_1()
-                        .child(
-                            div()
-                                .id("btn-cancel-dropout")
-                                .px_4()
-                                .py_2()
-                                .rounded_md()
-                                .cursor_pointer()
-                                .bg(theme::bg_hover())
-                                .text_xs()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(theme::text_primary())
-                                .on_click(cx.listener(|this, _, _, cx| {
-                                    this.in_game_osd.cancel_submodal();
-                                    cx.notify();
-                                }))
-                                .child("Cancel"),
-                        ),
+                    div().flex().items_center().justify_end().pt_1().child(
+                        div()
+                            .id("btn-cancel-dropout")
+                            .px_4()
+                            .py_2()
+                            .rounded_md()
+                            .cursor_pointer()
+                            .bg(theme::bg_hover())
+                            .text_xs()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::text_primary())
+                            .on_click(cx.listener(|this, _, _, cx| {
+                                this.in_game_osd.cancel_submodal();
+                                cx.notify();
+                            }))
+                            .child("Cancel"),
+                    ),
                 )
                 .into_any_element()
         }
@@ -2956,7 +2956,11 @@ fn render_drop_out_submodal(
             .bg(theme::bg_panel())
             .border_1()
             .border_color(summoner_color)
-            .child(Icon::new(IconName::Loader).size_5().text_color(summoner_color))
+            .child(
+                Icon::new(IconName::Loader)
+                    .size_5()
+                    .text_color(summoner_color),
+            )
             .child(
                 div()
                     .text_sm()
@@ -3050,13 +3054,7 @@ fn render_reassign_panel(
                                 .flex()
                                 .items_center()
                                 .gap_1p5()
-                                .child(
-                                    div()
-                                        .w_2()
-                                        .h_2()
-                                        .rounded_full()
-                                        .bg(slot_tint),
-                                )
+                                .child(div().w_2().h_2().rounded_full().bg(slot_tint))
                                 .child(
                                     div()
                                         .text_xs()
@@ -3095,14 +3093,16 @@ fn render_reassign_panel(
                 .max_h(px(160.0))
                 .overflow_y_scroll()
                 .children(if win.detected_devices_list.is_empty() {
-                    vec![div()
-                        .p_3()
-                        .rounded_md()
-                        .bg(theme::bg_subtle())
-                        .text_xs()
-                        .text_color(theme::text_muted())
-                        .child("No gamepads detected. Plug in replacement controller.")
-                        .into_any_element()]
+                    vec![
+                        div()
+                            .p_3()
+                            .rounded_md()
+                            .bg(theme::bg_subtle())
+                            .text_xs()
+                            .text_color(theme::text_muted())
+                            .child("No gamepads detected. Plug in replacement controller.")
+                            .into_any_element(),
+                    ]
                 } else {
                     win.detected_devices_list
                         .iter()
@@ -3139,15 +3139,13 @@ fn render_reassign_panel(
                                         .flex()
                                         .items_center()
                                         .gap_2()
-                                        .child(
-                                            Icon::new(IconName::Gamepad2)
-                                                .size_3p5()
-                                                .text_color(if is_chosen {
-                                                    summoner_color
-                                                } else {
-                                                    theme::text_muted()
-                                                }),
-                                        )
+                                        .child(Icon::new(IconName::Gamepad2).size_3p5().text_color(
+                                            if is_chosen {
+                                                summoner_color
+                                            } else {
+                                                theme::text_muted()
+                                            },
+                                        ))
                                         .child(
                                             div()
                                                 .text_xs()
@@ -3165,7 +3163,11 @@ fn render_reassign_panel(
                                         .flex()
                                         .items_center()
                                         .gap_1()
-                                        .child(Icon::new(IconName::Check).size_3().text_color(summoner_color))
+                                        .child(
+                                            Icon::new(IconName::Check)
+                                                .size_3()
+                                                .text_color(summoner_color),
+                                        )
                                         .child(
                                             div()
                                                 .text_xs()
@@ -3242,8 +3244,16 @@ fn render_overlay_bottom_bar(summoner_color: Hsla) -> AnyElement {
         .border_t_1()
         .border_color(theme::border_subtle())
         .child(render_couch_prompt("A", "Confirm Action", summoner_color))
-        .child(render_couch_prompt("B / Start", "Resume Session", summoner_color))
-        .child(render_couch_prompt("D-Pad / Arrows", "Navigate Menu", summoner_color))
+        .child(render_couch_prompt(
+            "B / Start",
+            "Resume Session",
+            summoner_color,
+        ))
+        .child(render_couch_prompt(
+            "D-Pad / Arrows",
+            "Navigate Menu",
+            summoner_color,
+        ))
         .into_any_element()
 }
 

@@ -1,13 +1,5 @@
 //! Main GameHandler implementation managing multi-instance game execution.
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use nucleus_common::error::{NucleusError, NucleusResult};
-use nucleus_platform::PlatformServices;
-use nucleus_script::{HandlerConfig, HandlerContext, ScriptEngine};
-use nucleus_tools::{
-    DevReorderTool, HexEditTool, Sdl2Tool, SteamEmuTool, X360ceTool, XInputPlusTool,
-};
 use crate::environment::EnvironmentSetup;
 use crate::hooks::HookManager;
 use crate::instance::InstanceSetup;
@@ -15,6 +7,14 @@ use crate::launch::ProcessLauncher;
 use crate::mutex::MutexManager;
 use crate::traits::IGameHandler;
 use crate::window::{WindowBounds, WindowSetup};
+use nucleus_common::error::{NucleusError, NucleusResult};
+use nucleus_platform::PlatformServices;
+use nucleus_script::{HandlerConfig, HandlerContext, ScriptEngine};
+use nucleus_tools::{
+    DevReorderTool, HexEditTool, Sdl2Tool, SteamEmuTool, X360ceTool, XInputPlusTool,
+};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Primary game handler orchestrator that controls the complete lifecycle of a split-screen session.
 pub struct GameHandler {
@@ -143,7 +143,10 @@ impl GameHandler {
     }
 
     /// Sets the Extension and Plugin manager.
-    pub fn with_extension_manager(mut self, mgr: Arc<parking_lot::Mutex<nucleus_plugin::ExtensionManager>>) -> Self {
+    pub fn with_extension_manager(
+        mut self,
+        mgr: Arc<parking_lot::Mutex<nucleus_plugin::ExtensionManager>>,
+    ) -> Self {
         self.extension_manager = Some(mgr);
         self
     }
@@ -191,10 +194,15 @@ impl GameHandler {
         }
 
         if self.auto_proceed_countdown {
-            tracing::info!("Auto-proceed countdown active: counting down 3s for prompt: {}", message);
+            tracing::info!(
+                "Auto-proceed countdown active: counting down 3s for prompt: {}",
+                message
+            );
             for sec in (1..=3).rev() {
                 if let Some(ref platform) = self.platform {
-                    platform.osd_manager().show(1000, &format!("{} (Continuing in {}s...)", message, sec));
+                    platform
+                        .osd_manager()
+                        .show(1000, &format!("{} (Continuing in {}s...)", message, sec));
                 }
                 std::thread::sleep(std::time::Duration::from_secs(1));
             }
@@ -315,24 +323,15 @@ impl GameHandler {
                     .map(|r| r.to_string_lossy().to_string())
             })
             .collect();
-        if rels.is_empty() {
-            None
-        } else {
-            Some(rels)
-        }
+        if rels.is_empty() { None } else { Some(rels) }
     }
 
     /// Applies paired K&M, ProtoInput, or Gamepad assignment metadata onto a slot's `HandlerContext`.
-    fn apply_device_assignment_to_ctx(
-        ctx: &mut HandlerContext,
-        slot_idx: usize,
-        assignment: &str,
-    ) {
+    fn apply_device_assignment_to_ctx(ctx: &mut HandlerContext, slot_idx: usize, assignment: &str) {
         if assignment.is_empty() {
             return;
         }
-        if assignment.contains("Keyboard & Mouse (Paired)")
-            || assignment == "Keyboard & Mouse Slot"
+        if assignment.contains("Keyboard & Mouse (Paired)") || assignment == "Keyboard & Mouse Slot"
         {
             ctx.is_keyboard_player = true;
             ctx.is_raw_keyboard = false;
@@ -467,7 +466,11 @@ impl GameHandler {
         let inst_folder = InstanceSetup::create_instance_folder(&self.staging_dir, slot_idx)?;
 
         if self.config.symlink_game || self.config.hardcopy_game || self.config.hardlink_game {
-            let mut file_exclusions = self.config.file_symlink_exclusions.clone().unwrap_or_default();
+            let mut file_exclusions = self
+                .config
+                .file_symlink_exclusions
+                .clone()
+                .unwrap_or_default();
             if self.config.hook_custom_dll_enabled {
                 file_exclusions.push("xinput1_3.dll".to_string());
                 file_exclusions.push("ncoop.ini".to_string());
@@ -518,20 +521,22 @@ impl GameHandler {
         }
 
         let exe_rel = self.exe_path.file_name().unwrap_or_default();
-        let inst_exe = if self.config.symlink_game || self.config.hardcopy_game || self.config.hardlink_game {
-            if !self.config.binaries_folder.is_empty() {
-                inst_folder.join(&self.config.binaries_folder).join(exe_rel)
+        let inst_exe =
+            if self.config.symlink_game || self.config.hardcopy_game || self.config.hardlink_game {
+                if !self.config.binaries_folder.is_empty() {
+                    inst_folder.join(&self.config.binaries_folder).join(exe_rel)
+                } else {
+                    inst_folder.join(exe_rel)
+                }
             } else {
-                inst_folder.join(exe_rel)
-            }
-        } else {
-            self.exe_path.clone()
-        };
-        let inst_exe_dir = if self.config.symlink_game || self.config.hardcopy_game || self.config.hardlink_game {
-            inst_exe.parent().unwrap_or(&inst_folder)
-        } else {
-            &inst_folder
-        };
+                self.exe_path.clone()
+            };
+        let inst_exe_dir =
+            if self.config.symlink_game || self.config.hardcopy_game || self.config.hardlink_game {
+                inst_exe.parent().unwrap_or(&inst_folder)
+            } else {
+                &inst_folder
+            };
 
         if self.config.use_goldberg {
             let steam_id = if self.config.steam_id.is_empty() {
@@ -596,7 +601,10 @@ impl GameHandler {
             }
             if let Some(ref custom_dlls) = self.config.dev_reorder_dlls {
                 let arch_folder = if is_64bit { "x64" } else { "x86" };
-                let src_dll = utils_dir.join("devreorder").join(arch_folder).join("dinput8.dll");
+                let src_dll = utils_dir
+                    .join("devreorder")
+                    .join(arch_folder)
+                    .join("dinput8.dll");
                 if src_dll.exists() {
                     for dll_name in custom_dlls {
                         let _ = nucleus_common::file_util::copy_file(
@@ -701,7 +709,8 @@ impl GameHandler {
                         let find = parts[1].as_bytes().to_vec();
                         let replace = parts[2].as_bytes().to_vec();
                         if find.len() == replace.len() {
-                            let _ = HexEditTool::patch_file(&target, &target, &find, &replace, true);
+                            let _ =
+                                HexEditTool::patch_file(&target, &target, &find, &replace, true);
                         }
                     }
                 } else if parts.len() == 2 {
@@ -710,7 +719,8 @@ impl GameHandler {
                         let find = parts[0].as_bytes().to_vec();
                         let replace = parts[1].as_bytes().to_vec();
                         if find.len() == replace.len() {
-                            let _ = HexEditTool::patch_file(&target, &target, &find, &replace, true);
+                            let _ =
+                                HexEditTool::patch_file(&target, &target, &find, &replace, true);
                         }
                     }
                 }
@@ -727,7 +737,8 @@ impl GameHandler {
                         let find = parts[1].as_bytes().to_vec();
                         let replace = parts[2].as_bytes().to_vec();
                         if find.len() == replace.len() {
-                            let _ = HexEditTool::patch_file(&target, &target, &find, &replace, true);
+                            let _ =
+                                HexEditTool::patch_file(&target, &target, &find, &replace, true);
                         }
                     }
                 }
@@ -870,7 +881,11 @@ impl GameHandler {
         }
         self.player_device_assignments[slot_idx] = device_assignment.to_string();
 
-        if self.config.symlink_game || self.config.symlink_exe || self.config.symlink_folders || self.config.hardlink_game {
+        if self.config.symlink_game
+            || self.config.symlink_exe
+            || self.config.symlink_folders
+            || self.config.hardlink_game
+        {
             if let Some(ref platform) = self.platform {
                 let _ = platform.elevation_manager().ensure_symlink_support();
             }
@@ -918,14 +933,23 @@ impl GameHandler {
     }
 
     /// Triggers configured AutoHotkey scripts matching the specified timing for a player instance.
-    pub fn trigger_ahk_scripts(&self, timing: nucleus_tools::autohotkey::AhkTiming, player_index: usize) {
+    pub fn trigger_ahk_scripts(
+        &self,
+        timing: nucleus_tools::autohotkey::AhkTiming,
+        player_index: usize,
+    ) {
         if player_index >= self.contexts.len() {
             return;
         }
 
         let ctx = self.contexts[player_index].clone();
         let inst_folder = PathBuf::from(&ctx.instance_folder);
-        let handler_folder = self.config.handler_folder.as_deref().map(PathBuf::from).unwrap_or_else(|| self.game_dir.clone());
+        let handler_folder = self
+            .config
+            .handler_folder
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| self.game_dir.clone());
 
         let prelude_vars = nucleus_tools::autohotkey::AhkPreludeVars {
             player_index,
@@ -946,9 +970,16 @@ impl GameHandler {
 
         // 1. Directives collected from Context.ImportAhkFile and Context.RunAhkCode
         for directive in &ctx.ahk_directives {
-            let dir_timing = match directive.timing.as_deref().map(|s| s.to_lowercase()).as_deref() {
+            let dir_timing = match directive
+                .timing
+                .as_deref()
+                .map(|s| s.to_lowercase())
+                .as_deref()
+            {
                 Some("immediate") => nucleus_tools::autohotkey::AhkTiming::Immediate,
-                Some("prelaunch") | Some("pre") | Some("before") => nucleus_tools::autohotkey::AhkTiming::PreLaunch,
+                Some("prelaunch") | Some("pre") | Some("before") => {
+                    nucleus_tools::autohotkey::AhkTiming::PreLaunch
+                }
                 _ => nucleus_tools::autohotkey::AhkTiming::PostWindow,
             };
 
@@ -956,7 +987,12 @@ impl GameHandler {
                 continue;
             }
 
-            let ver = match directive.version.as_deref().map(|s| s.to_lowercase()).as_deref() {
+            let ver = match directive
+                .version
+                .as_deref()
+                .map(|s| s.to_lowercase())
+                .as_deref()
+            {
                 Some("v1") | Some("1") => nucleus_tools::autohotkey::AhkVersion::V1,
                 Some("v2") | Some("2") => nucleus_tools::autohotkey::AhkVersion::V2,
                 _ => nucleus_tools::autohotkey::AhkVersion::Auto,
@@ -969,10 +1005,18 @@ impl GameHandler {
                     working_dir: inst_folder.clone(),
                 }
             } else {
-                match nucleus_tools::autohotkey::AhkManager::resolve_handler_ahk_file(&handler_folder, &inst_folder, &directive.content) {
+                match nucleus_tools::autohotkey::AhkManager::resolve_handler_ahk_file(
+                    &handler_folder,
+                    &inst_folder,
+                    &directive.content,
+                ) {
                     Ok(path) => nucleus_tools::autohotkey::AhkSource::File { path },
                     Err(e) => {
-                        tracing::warn!("Failed resolving AHK directive script '{}': {}", directive.content, e);
+                        tracing::warn!(
+                            "Failed resolving AHK directive script '{}': {}",
+                            directive.content,
+                            e
+                        );
                         continue;
                     }
                 }
@@ -995,7 +1039,13 @@ impl GameHandler {
         if self.config.use_autohotkey && self.config.autohotkey_timing == timing {
             if let Some(ref files) = self.config.autohotkey_files {
                 for (f_idx, rel_file) in files.iter().enumerate() {
-                    if let Ok(file_path) = nucleus_tools::autohotkey::AhkManager::resolve_handler_ahk_file(&handler_folder, &inst_folder, rel_file) {
+                    if let Ok(file_path) =
+                        nucleus_tools::autohotkey::AhkManager::resolve_handler_ahk_file(
+                            &handler_folder,
+                            &inst_folder,
+                            rel_file,
+                        )
+                    {
                         let spec = nucleus_tools::autohotkey::AhkLaunchSpec {
                             id: format!("global_file_{}_{}", f_idx, player_index),
                             source: nucleus_tools::autohotkey::AhkSource::File { path: file_path },
@@ -1030,11 +1080,7 @@ impl GameHandler {
     }
 
     /// Syncs player save slot via Ludusavi (restore before launch, or backup after stop).
-    pub fn sync_ludusavi_slot(
-        &self,
-        player_index: usize,
-        is_backup: bool,
-    ) -> NucleusResult<()> {
+    pub fn sync_ludusavi_slot(&self, player_index: usize, is_backup: bool) -> NucleusResult<()> {
         if !self.ludusavi_auto_sync || self.config.ludusavi_disabled {
             return Ok(());
         }
@@ -1044,7 +1090,11 @@ impl GameHandler {
             None => return Ok(()),
         };
 
-        let slot_id = match self.player_save_slots.get(player_index).and_then(|s| s.as_ref()) {
+        let slot_id = match self
+            .player_save_slots
+            .get(player_index)
+            .and_then(|s| s.as_ref())
+        {
             Some(id) => id,
             None => return Ok(()),
         };
@@ -1066,7 +1116,11 @@ impl GameHandler {
         };
         let backup_repo_dir = slots_root.join(&self.config.guid).join(slot_id);
 
-        let game_title = self.config.ludusavi_title.clone().unwrap_or_else(|| self.config.game_name.clone());
+        let game_title = self
+            .config
+            .ludusavi_title
+            .clone()
+            .unwrap_or_else(|| self.config.game_name.clone());
 
         let mut custom_files = self.config.ludusavi_paths.clone().unwrap_or_default();
         let instance_path = PathBuf::from(&ctx.instance_folder);
@@ -1090,10 +1144,18 @@ impl GameHandler {
         nucleus_tools::ludusavi_config::write_isolated_config(&config_dir, &target)?;
 
         if is_backup {
-            tracing::info!("Ludusavi: Backing up instance {} into slot '{}'", player_index, slot_id);
+            tracing::info!(
+                "Ludusavi: Backing up instance {} into slot '{}'",
+                player_index,
+                slot_id
+            );
             let _ = driver.backup_instance(&config_dir, &target, false);
         } else {
-            tracing::info!("Ludusavi: Restoring slot '{}' into instance {}", slot_id, player_index);
+            tracing::info!(
+                "Ludusavi: Restoring slot '{}' into instance {}",
+                slot_id,
+                player_index
+            );
             if target.backup_repo_dir.exists() {
                 let _ = driver.restore_instance(&config_dir, &target, false);
             }
@@ -1134,7 +1196,10 @@ impl IGameHandler for GameHandler {
         } else if let (Some(platform), Some(monitor_map)) =
             (&self.platform, &self.player_monitor_assignments)
         {
-            let displays = platform.display_manager().get_displays().unwrap_or_default();
+            let displays = platform
+                .display_manager()
+                .get_displays()
+                .unwrap_or_default();
             if !displays.is_empty() && monitor_map.len() == self.player_count {
                 let mut monitor_to_players: std::collections::BTreeMap<usize, Vec<usize>> =
                     std::collections::BTreeMap::new();
@@ -1170,7 +1235,11 @@ impl IGameHandler for GameHandler {
 
         let discovered_steam_paths = self.discover_steam_api_dll_paths();
 
-        if self.config.symlink_game || self.config.symlink_exe || self.config.symlink_folders || self.config.hardlink_game {
+        if self.config.symlink_game
+            || self.config.symlink_exe
+            || self.config.symlink_folders
+            || self.config.hardlink_game
+        {
             if let Some(ref platform) = self.platform {
                 let _ = platform.elevation_manager().ensure_symlink_support();
             }
@@ -1211,7 +1280,10 @@ impl IGameHandler for GameHandler {
                 self.prompt_user("Press OK when ready to launch the rest of the instances.");
             }
             if self.config.prompt_between_instances {
-                self.prompt_user(&format!("Press OK when ready to launch instance {}.", player_index + 1));
+                self.prompt_user(&format!(
+                    "Press OK when ready to launch instance {}.",
+                    player_index + 1
+                ));
             }
         }
 
@@ -1236,23 +1308,33 @@ impl IGameHandler for GameHandler {
             match nucleus_tools::users::UsersTool::create_player_environment(&player_nick) {
                 Ok(env) => {
                     if let Some(ref path) = self.config.user_profile_config_path {
-                        let _ = nucleus_tools::users::UsersTool::copy_user_profile_config_path(&env, path, false);
+                        let _ = nucleus_tools::users::UsersTool::copy_user_profile_config_path(
+                            &env, path, false,
+                        );
                     }
                     if let Some(ref path) = self.config.user_profile_save_path {
                         if !self.config.user_profile_save_path_no_copy {
-                            let _ = nucleus_tools::users::UsersTool::copy_user_profile_config_path(&env, path, false);
+                            let _ = nucleus_tools::users::UsersTool::copy_user_profile_config_path(
+                                &env, path, false,
+                            );
                         }
                     }
                     if let Some(ref path) = self.config.documents_config_path {
-                        let _ = nucleus_tools::users::UsersTool::copy_documents_path(&env, path, false);
+                        let _ =
+                            nucleus_tools::users::UsersTool::copy_documents_path(&env, path, false);
                     }
                     if let Some(ref path) = self.config.documents_save_path {
-                        let _ = nucleus_tools::users::UsersTool::copy_documents_path(&env, path, false);
+                        let _ =
+                            nucleus_tools::users::UsersTool::copy_documents_path(&env, path, false);
                     }
                     Some(env)
                 }
                 Err(err) => {
-                    tracing::warn!("Failed to create player environment for {}: {}", player_nick, err);
+                    tracing::warn!(
+                        "Failed to create player environment for {}: {}",
+                        player_nick,
+                        err
+                    );
                     None
                 }
             }
@@ -1267,18 +1349,25 @@ impl IGameHandler for GameHandler {
         {
             if let Some(ref env) = player_env {
                 let backup_dir = self.game_dir.join("utils").join("backup");
-                if let Ok(guard) = nucleus_tools::users::UsersTool::redirect_personal_folder(&env.documents, Some(&backup_dir)) {
+                if let Ok(guard) = nucleus_tools::users::UsersTool::redirect_personal_folder(
+                    &env.documents,
+                    Some(&backup_dir),
+                ) {
                     self.personal_folder_guard = Some(guard);
                 }
             }
         }
 
-        let env_vars = EnvironmentSetup::build_environment(player_index, app_id, player_env.as_ref());
+        let env_vars =
+            EnvironmentSetup::build_environment(player_index, app_id, player_env.as_ref());
 
         let args: Vec<String> = if ctx.start_arguments.is_empty() {
             Vec::new()
         } else {
-            ctx.start_arguments.split_whitespace().map(|s| s.to_string()).collect()
+            ctx.start_arguments
+                .split_whitespace()
+                .map(|s| s.to_string())
+                .collect()
         };
 
         // Before launching an instance, make sure all active sibling instances have had their single-instance mutexes killed
@@ -1292,7 +1381,9 @@ impl IGameHandler for GameHandler {
                         if let Some(prev_pid) = prev_ctx.process_id {
                             tracing::info!(
                                 "Ensuring mutexes killed for active player {} (PID {}) before launching player {}",
-                                prev_idx, prev_pid, player_index
+                                prev_idx,
+                                prev_pid,
+                                player_index
                             );
                             let _ = MutexManager::kill_matching_mutexes_typed(
                                 platform.mutex_manager(),
@@ -1324,7 +1415,10 @@ impl IGameHandler for GameHandler {
         }
 
         // Trigger PreLaunch AutoHotkey scripts & Ludusavi restore
-        self.trigger_ahk_scripts(nucleus_tools::autohotkey::AhkTiming::PreLaunch, player_index);
+        self.trigger_ahk_scripts(
+            nucleus_tools::autohotkey::AhkTiming::PreLaunch,
+            player_index,
+        );
         let _ = self.sync_ludusavi_slot(player_index, false);
 
         if let Some(ref mgr) = self.extension_manager {
@@ -1338,7 +1432,10 @@ impl IGameHandler for GameHandler {
         let pid = if let Some(ref ctrl) = self.debug_controller {
             ctrl.set_stage(nucleus_debug::protocol::PipelineStage::ProcessSpawn);
             if ctrl.is_dry_run() {
-                tracing::info!("DebugController dry-run mode: simulating process spawn for player {}", player_index);
+                tracing::info!(
+                    "DebugController dry-run mode: simulating process spawn for player {}",
+                    player_index
+                );
                 10000 + (player_index as u32)
             } else {
                 ProcessLauncher::launch_process(&exe, &args, Some(working_dir), &env_vars)?
@@ -1389,7 +1486,8 @@ impl IGameHandler for GameHandler {
                         pid,
                         endpoint_id
                     );
-                    let _ = nucleus_tools::audio::AudioRouter::route_process_audio(pid, endpoint_id);
+                    let _ =
+                        nucleus_tools::audio::AudioRouter::route_process_audio(pid, endpoint_id);
                 }
             }
         }
@@ -1415,13 +1513,23 @@ impl IGameHandler for GameHandler {
             // Pause before searching/grabbing window if configured (matching C# GenericGameHandler.cs:2265)
             if self.config.pause_between_process_grab > 0 {
                 let pause_secs = self.config.pause_between_process_grab as u64;
-                tracing::info!("Pausing for {} seconds before process grab for player {} (PID {})", pause_secs, player_index, pid);
+                tracing::info!(
+                    "Pausing for {} seconds before process grab for player {} (PID {})",
+                    pause_secs,
+                    player_index,
+                    pid
+                );
                 std::thread::sleep(std::time::Duration::from_secs(pause_secs));
             }
-            
+
             // Poll for the window to appear (games take time to initialize and create an HWND)
             // Left 4 Dead 2 and other 3D games take 10-30s to boot D3D and create the viewport
-            let mut found_hwnd = if self.debug_controller.as_ref().map(|c| c.is_dry_run()).unwrap_or(false) {
+            let mut found_hwnd = if self
+                .debug_controller
+                .as_ref()
+                .map(|c| c.is_dry_run())
+                .unwrap_or(false)
+            {
                 Some(0x10000 + player_index)
             } else {
                 None
@@ -1460,21 +1568,30 @@ impl IGameHandler for GameHandler {
             }
 
             if let Some(hwnd) = found_hwnd {
-                tracing::info!("Found window HWND {:#x} for player {} (PID {})", hwnd, player_index, pid);
+                tracing::info!(
+                    "Found window HWND {:#x} for player {} (PID {})",
+                    hwnd,
+                    player_index,
+                    pid
+                );
                 self.contexts[player_index].window_handle = Some(hwnd);
 
                 // Wait 1s for graphics context initialization (matching C# Thread.Sleep(1000))
                 std::thread::sleep(std::time::Duration::from_millis(1000));
 
-                if let Ok(rect) = win_mgr.get_window_rect(nucleus_common::types::WindowHandle(hwnd as u64)) {
+                if let Ok(rect) =
+                    win_mgr.get_window_rect(nucleus_common::types::WindowHandle(hwnd as u64))
+                {
                     if rect.width > 0 && rect.height > 0 {
                         self.contexts[player_index].orig_width = Some(rect.width);
                         self.contexts[player_index].orig_height = Some(rect.height);
                     }
                 }
                 if self.contexts[player_index].orig_width.is_none() {
-                    self.contexts[player_index].orig_width = Some(self.contexts[player_index].width);
-                    self.contexts[player_index].orig_height = Some(self.contexts[player_index].height);
+                    self.contexts[player_index].orig_width =
+                        Some(self.contexts[player_index].width);
+                    self.contexts[player_index].orig_height =
+                        Some(self.contexts[player_index].height);
                 }
 
                 let ctx = &self.contexts[player_index];
@@ -1490,22 +1607,29 @@ impl IGameHandler for GameHandler {
                     || ctx.keep_aspect_ratio;
 
                 if should_keep_aspect {
-                    let (orig_w, orig_h) = if self.config.keep_monitor_aspect_ratio || ctx.orig_width.is_none() {
-                        (ctx.monitor_width, ctx.monitor_height)
-                    } else if let (Some(w), Some(h)) = (ctx.orig_width, ctx.orig_height) {
-                        (w, h)
-                    } else {
-                        (ctx.monitor_width, ctx.monitor_height)
-                    };
+                    let (orig_w, orig_h) =
+                        if self.config.keep_monitor_aspect_ratio || ctx.orig_width.is_none() {
+                            (ctx.monitor_width, ctx.monitor_height)
+                        } else if let (Some(w), Some(h)) = (ctx.orig_width, ctx.orig_height) {
+                            (w, h)
+                        } else {
+                            (ctx.monitor_width, ctx.monitor_height)
+                        };
                     bounds = WindowSetup::apply_aspect_ratio_correction(bounds, orig_w, orig_h);
                 }
 
                 let _ = WindowSetup::make_borderless(win_mgr, hwnd);
 
                 // Support custom window styles (WindowStyleValues / ExtWindowStyleValues)
-                if self.config.window_style_values.is_some() || self.config.ext_window_style_values.is_some() {
+                if self.config.window_style_values.is_some()
+                    || self.config.ext_window_style_values.is_some()
+                {
                     let styles = self.config.window_style_values.as_deref().unwrap_or(&[]);
-                    let ext_styles = self.config.ext_window_style_values.as_deref().unwrap_or(&[]);
+                    let ext_styles = self
+                        .config
+                        .ext_window_style_values
+                        .as_deref()
+                        .unwrap_or(&[]);
                     let _ = win_mgr.apply_custom_window_styles(
                         nucleus_common::types::WindowHandle(hwnd as u64),
                         styles,
@@ -1514,7 +1638,12 @@ impl IGameHandler for GameHandler {
                 }
 
                 if !self.config.dont_reposition && !self.config.dont_resize {
-                    let _ = WindowSetup::apply_bounds_ext(win_mgr, hwnd, bounds, self.config.not_top_most);
+                    let _ = WindowSetup::apply_bounds_ext(
+                        win_mgr,
+                        hwnd,
+                        bounds,
+                        self.config.not_top_most,
+                    );
                     // 1000ms settle delay after applying window bounds before subsequent operations (parity with C# GenericGameHandler.cs:3203, 3207)
                     std::thread::sleep(std::time::Duration::from_millis(1000));
                 }
@@ -1522,7 +1651,8 @@ impl IGameHandler for GameHandler {
                 // C# parity: Set game window to HWND_TOPMOST unless NotTopMost is configured.
                 // If SetTopMostAtEnd is configured, this is deferred until all instances are launched.
                 if !self.config.not_top_most && !self.config.set_top_most_at_end {
-                    let _ = win_mgr.set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
+                    let _ =
+                        win_mgr.set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
                 }
 
                 // Hide taskbar if requested by handler
@@ -1537,7 +1667,10 @@ impl IGameHandler for GameHandler {
                 }
 
                 // Trigger AutoHotkey PostWindow scripts
-                self.trigger_ahk_scripts(nucleus_tools::autohotkey::AhkTiming::PostWindow, player_index);
+                self.trigger_ahk_scripts(
+                    nucleus_tools::autohotkey::AhkTiming::PostWindow,
+                    player_index,
+                );
 
                 // Dispatch Extension Lifecycle PostWindow Hook
                 if let Some(ref mgr) = self.extension_manager {
@@ -1549,7 +1682,11 @@ impl IGameHandler for GameHandler {
                     );
                 }
             } else {
-                tracing::warn!("Timeout waiting for window handle for player {} (PID {})", player_index, pid);
+                tracing::warn!(
+                    "Timeout waiting for window handle for player {} (PID {})",
+                    player_index,
+                    pid
+                );
             }
         }
 
@@ -1567,10 +1704,7 @@ impl IGameHandler for GameHandler {
         if !ctx.is_active {
             return Ok(false);
         }
-        if let (Some(pid), Some(ref platform)) = (
-            ctx.process_id,
-            self.platform.as_ref(),
-        ) {
+        if let (Some(pid), Some(ref platform)) = (ctx.process_id, self.platform.as_ref()) {
             let win_mgr = platform.window_manager();
             if let Ok(Some(hwnd)) = WindowSetup::find_window_by_pid(win_mgr, pid) {
                 let ctx = &self.contexts[player_index];
@@ -1586,19 +1720,25 @@ impl IGameHandler for GameHandler {
                     || ctx.keep_aspect_ratio;
 
                 if should_keep_aspect {
-                    let (orig_w, orig_h) = if self.config.keep_monitor_aspect_ratio || ctx.orig_width.is_none() {
-                        (ctx.monitor_width, ctx.monitor_height)
-                    } else if let (Some(w), Some(h)) = (ctx.orig_width, ctx.orig_height) {
-                        (w, h)
-                    } else {
-                        (ctx.monitor_width, ctx.monitor_height)
-                    };
+                    let (orig_w, orig_h) =
+                        if self.config.keep_monitor_aspect_ratio || ctx.orig_width.is_none() {
+                            (ctx.monitor_width, ctx.monitor_height)
+                        } else if let (Some(w), Some(h)) = (ctx.orig_width, ctx.orig_height) {
+                            (w, h)
+                        } else {
+                            (ctx.monitor_width, ctx.monitor_height)
+                        };
                     bounds = WindowSetup::apply_aspect_ratio_correction(bounds, orig_w, orig_h);
                 }
 
                 let _ = WindowSetup::make_borderless(win_mgr, hwnd);
                 if !self.config.dont_reposition && !self.config.dont_resize {
-                    let _ = WindowSetup::apply_bounds_ext(win_mgr, hwnd, bounds, self.config.not_top_most);
+                    let _ = WindowSetup::apply_bounds_ext(
+                        win_mgr,
+                        hwnd,
+                        bounds,
+                        self.config.not_top_most,
+                    );
                 }
                 return Ok(true);
             }
@@ -1613,15 +1753,21 @@ impl IGameHandler for GameHandler {
         let next_mode = match (active_count, current_mode) {
             (2, crate::window::SplitMode::Vertical) => crate::window::SplitMode::Horizontal,
             (2, crate::window::SplitMode::Horizontal) => crate::window::SplitMode::Vertical,
-            (3, crate::window::SplitMode::TopOneBottomTwo) => crate::window::SplitMode::TopTwoBottomOne,
-            (3, crate::window::SplitMode::TopTwoBottomOne) => crate::window::SplitMode::TopOneBottomTwo,
+            (3, crate::window::SplitMode::TopOneBottomTwo) => {
+                crate::window::SplitMode::TopTwoBottomOne
+            }
+            (3, crate::window::SplitMode::TopTwoBottomOne) => {
+                crate::window::SplitMode::TopOneBottomTwo
+            }
             (4, crate::window::SplitMode::Grid4) => crate::window::SplitMode::Horizontal,
             (4, crate::window::SplitMode::Horizontal) => crate::window::SplitMode::Vertical,
             (4, crate::window::SplitMode::Vertical) => crate::window::SplitMode::Grid4,
             (_, crate::window::SplitMode::Vertical) => crate::window::SplitMode::Horizontal,
             (_, crate::window::SplitMode::Horizontal) => crate::window::SplitMode::Grid4,
             (_, crate::window::SplitMode::Grid4) => crate::window::SplitMode::TopOneBottomTwo,
-            (_, crate::window::SplitMode::TopOneBottomTwo) => crate::window::SplitMode::TopTwoBottomOne,
+            (_, crate::window::SplitMode::TopOneBottomTwo) => {
+                crate::window::SplitMode::TopTwoBottomOne
+            }
             (_, _) => crate::window::SplitMode::Vertical,
         };
         self.split_mode = next_mode;
@@ -1725,7 +1871,8 @@ impl IGameHandler for GameHandler {
             // Cutscenes Mode ON: First active player fullscreen, hide/minimize other active instances
             if let Some(first_ctx) = self.contexts.get(first_active_idx) {
                 if let Some(hwnd) = first_ctx.window_handle {
-                    let _ = win_mgr.restore_window(nucleus_common::types::WindowHandle(hwnd as u64));
+                    let _ =
+                        win_mgr.restore_window(nucleus_common::types::WindowHandle(hwnd as u64));
                     let _ = WindowSetup::apply_bounds(
                         win_mgr,
                         hwnd,
@@ -1736,7 +1883,8 @@ impl IGameHandler for GameHandler {
                             height: primary_screen.height,
                         },
                     );
-                    let _ = win_mgr.set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
+                    let _ =
+                        win_mgr.set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
                 }
             }
 
@@ -1784,7 +1932,8 @@ impl IGameHandler for GameHandler {
                         continue;
                     }
                     if let Some(hwnd) = ctx.window_handle {
-                        let _ = win_mgr.set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
+                        let _ = win_mgr
+                            .set_topmost(nucleus_common::types::WindowHandle(hwnd as u64), true);
                     }
                 }
             }
@@ -1792,13 +1941,17 @@ impl IGameHandler for GameHandler {
                 let _ = platform.taskbar_manager().hide();
             }
             // Parity with C# GenericGameHandler/GameProfile: show Splitscreen Setup Finished notification
-            platform.osd_manager().show(1600, "Splitscreen Setup Finished");
+            platform
+                .osd_manager()
+                .show(1600, "Splitscreen Setup Finished");
         }
         Ok(())
     }
 
     fn stop(&mut self) -> NucleusResult<()> {
-        tracing::info!("GameHandler::stop: Starting session teardown sequence (parity with C# GenericGameHandler.End)...");
+        tracing::info!(
+            "GameHandler::stop: Starting session teardown sequence (parity with C# GenericGameHandler.End)..."
+        );
 
         // 0. Terminate all running AutoHotkey scripts & dispatch Plugin OnStop hook
         self.ahk_manager.stop_all();
@@ -1960,7 +2113,8 @@ impl IGameHandler for GameHandler {
             let _ = guard.restore();
         }
         let backup_dir = self.game_dir.join("utils").join("backup");
-        let _ = nucleus_tools::users::UsersTool::restore_user_shell_folders_from_backup(&backup_dir);
+        let _ =
+            nucleus_tools::users::UsersTool::restore_user_shell_folders_from_backup(&backup_dir);
         if let Some(ref platform) = self.platform {
             if let Some(reg) = platform.registry_manager() {
                 let _ = reg.delete_value("Software\\NucleusCoop", "SessionActive");
@@ -1990,7 +2144,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_lifecycle() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_handler_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_handler_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2009,7 +2164,9 @@ mod tests {
         let mut handler = GameHandler::new(config, game_dir, exe_path, staging_dir, 2);
 
         // Test preparation
-        handler.prepare_instances().expect("Failed to prepare instances");
+        handler
+            .prepare_instances()
+            .expect("Failed to prepare instances");
         assert_eq!(handler.contexts.len(), 2);
         assert_eq!(handler.instance_folders.len(), 2);
 
@@ -2018,18 +2175,25 @@ mod tests {
 
         // Check Goldberg deployment
         let goldberg_cfg_0 = handler.instance_folders[0].join("steam_settings");
-        assert!(goldberg_cfg_0.exists(), "Goldberg steam_settings should be created");
+        assert!(
+            goldberg_cfg_0.exists(),
+            "Goldberg steam_settings should be created"
+        );
 
         // Test teardown
         handler.stop().expect("Failed to stop handler");
-        assert!(!handler.instance_folders.iter().any(|f| f.exists()), "Instances should be cleaned up");
+        assert!(
+            !handler.instance_folders.iter().any(|f| f.exists()),
+            "Instances should be cleaned up"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_game_handler_tools_wiring() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_handler_tools_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_handler_tools_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2050,12 +2214,17 @@ mod tests {
         config.max_players = 2;
 
         let mut handler = GameHandler::new(config, game_dir, exe_path, staging_dir, 2);
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
 
         assert_eq!(handler.instance_folders.len(), 2);
         for folder in &handler.instance_folders {
             // Verify DevReorder
-            assert!(folder.join("devreorder.ini").exists(), "devreorder.ini must exist");
+            assert!(
+                folder.join("devreorder.ini").exists(),
+                "devreorder.ini must exist"
+            );
             let dev_content = std::fs::read_to_string(folder.join("devreorder.ini")).unwrap();
             assert!(dev_content.contains("[order]"));
             assert!(dev_content.contains("[hidden]"));
@@ -2069,7 +2238,10 @@ mod tests {
             assert!(folder.join("SDL2.ini").exists(), "SDL2.ini must exist");
 
             // Verify XInputPlus
-            assert!(folder.join("XInputPlus.ini").exists(), "XInputPlus.ini must exist");
+            assert!(
+                folder.join("XInputPlus.ini").exists(),
+                "XInputPlus.ini must exist"
+            );
             let xip_content = std::fs::read_to_string(folder.join("XInputPlus.ini")).unwrap();
             assert!(xip_content.contains("[Device]"));
 
@@ -2087,7 +2259,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_stop_teardown_parity() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_teardown_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_teardown_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2113,7 +2286,9 @@ mod tests {
         config.keep_symlink_on_exit = false;
 
         let mut handler = GameHandler::new(config, game_dir.clone(), exe_path, staging_dir, 1);
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
         assert_eq!(handler.instance_folders.len(), 1);
         let inst_folder = handler.instance_folders[0].clone();
         assert!(inst_folder.exists());
@@ -2122,22 +2297,35 @@ mod tests {
         handler.stop().expect("stop teardown failed");
 
         // Verify DeleteOnClose deleted the file
-        assert!(!del_file.exists(), "temp_config.tmp should have been deleted by DeleteOnClose");
+        assert!(
+            !del_file.exists(),
+            "temp_config.tmp should have been deleted by DeleteOnClose"
+        );
 
         // Verify _NUCLEUS_BACKUP restored original file
         let restored_file = game_dir.join("save.dat");
-        assert!(restored_file.exists(), "save.dat should have been restored from _NUCLEUS_BACKUP");
-        assert_eq!(std::fs::read(&restored_file).unwrap(), b"ORIGINAL_BACKUP_CONTENT");
+        assert!(
+            restored_file.exists(),
+            "save.dat should have been restored from _NUCLEUS_BACKUP"
+        );
+        assert_eq!(
+            std::fs::read(&restored_file).unwrap(),
+            b"ORIGINAL_BACKUP_CONTENT"
+        );
 
         // Verify instance folder was cleaned up
-        assert!(!inst_folder.exists(), "Instance folder should have been cleaned up on stop");
+        assert!(
+            !inst_folder.exists(),
+            "Instance folder should have been cleaned up on stop"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]
     fn test_game_handler_binaries_folder_subpath_preservation() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_binaries_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_binaries_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let bin_dir = game_dir.join("bin");
         let staging_dir = temp_dir.join("staging");
@@ -2153,13 +2341,20 @@ mod tests {
         config.binaries_folder = "bin".to_string();
         config.max_players = 2;
 
-        let mut handler = GameHandler::new(config, game_dir.clone(), exe_path.clone(), staging_dir, 2);
-        handler.prepare_instances().expect("prepare_instances failed");
+        let mut handler =
+            GameHandler::new(config, game_dir.clone(), exe_path.clone(), staging_dir, 2);
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
 
         assert_eq!(handler.instance_folders.len(), 2);
         for (i, folder) in handler.instance_folders.iter().enumerate() {
             let expected_exe = folder.join("bin").join("game.exe");
-            assert!(expected_exe.exists(), "game.exe must exist in preserved subpath {:?}", expected_exe);
+            assert!(
+                expected_exe.exists(),
+                "game.exe must exist in preserved subpath {:?}",
+                expected_exe
+            );
             assert_eq!(
                 PathBuf::from(&handler.contexts[i].exe_path),
                 expected_exe,
@@ -2173,7 +2368,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_hardcopy_standalone_staging() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_hardcopy_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_hardcopy_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2192,12 +2388,20 @@ mod tests {
         config.max_players = 1;
 
         let mut handler = GameHandler::new(config, game_dir.clone(), exe_path, staging_dir, 1);
-        handler.prepare_instances().expect("prepare_instances with standalone hardcopy must succeed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances with standalone hardcopy must succeed");
 
         assert_eq!(handler.instance_folders.len(), 1);
         let inst_folder = &handler.instance_folders[0];
-        assert!(inst_folder.join("game.exe").exists(), "game.exe must be copied");
-        assert!(inst_folder.join("config.cfg").exists(), "config.cfg must be copied");
+        assert!(
+            inst_folder.join("game.exe").exists(),
+            "game.exe must be copied"
+        );
+        assert!(
+            inst_folder.join("config.cfg").exists(),
+            "config.cfg must be copied"
+        );
 
         // Verify independent hardcopy: modifying instance file must not modify original
         std::fs::write(inst_folder.join("config.cfg"), b"modified_cfg_value").unwrap();
@@ -2213,7 +2417,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_staging_exclusions() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_excl_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_excl_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2234,10 +2439,15 @@ mod tests {
         config.max_players = 1;
 
         let mut handler = GameHandler::new(config, game_dir.clone(), exe_path, staging_dir, 1);
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
 
         let inst_folder = &handler.instance_folders[0];
-        assert!(inst_folder.join("allowed.dll").exists(), "allowed.dll should be linked");
+        assert!(
+            inst_folder.join("allowed.dll").exists(),
+            "allowed.dll should be linked"
+        );
         assert!(
             !inst_folder.join("xinput1_3.dll").exists(),
             "xinput1_3.dll must be excluded from link staging"
@@ -2257,7 +2467,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_keep_symlink_on_exit() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_keep_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_keep_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2273,7 +2484,9 @@ mod tests {
         config.max_players = 1;
 
         let mut handler = GameHandler::new(config, game_dir.clone(), exe_path, staging_dir, 1);
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
         let inst_folder = handler.instance_folders[0].clone();
         assert!(inst_folder.exists());
 
@@ -2281,7 +2494,10 @@ mod tests {
         handler.stop().expect("stop failed");
 
         // Verify folder is PRESERVED when keep_symlink_on_exit is true
-        assert!(inst_folder.exists(), "Instance folder must be preserved when keep_symlink_on_exit is true");
+        assert!(
+            inst_folder.exists(),
+            "Instance folder must be preserved when keep_symlink_on_exit is true"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -2290,7 +2506,8 @@ mod tests {
     fn test_game_handler_interactive_prompts() {
         use std::sync::Mutex;
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_prompt_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_prompt_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2327,7 +2544,9 @@ mod tests {
                 true
             }));
 
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
 
         // Player 0 launch: no prompt before launch
         let pid0 = handler.launch_instance(0).expect("launch player 0 failed");
@@ -2349,7 +2568,8 @@ mod tests {
 
     #[test]
     fn test_game_handler_multi_monitor_partitioning() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_multimon_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_multimon_test_{}", std::process::id()));
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
         std::fs::create_dir_all(&game_dir).unwrap();
@@ -2378,7 +2598,9 @@ mod tests {
         let mut handler = GameHandler::new(config, game_dir, exe_path, staging_dir, 4)
             .with_player_monitor_assignments(vec![0, 0, 1, 1]);
 
-        handler.prepare_instances().expect("prepare_instances failed");
+        handler
+            .prepare_instances()
+            .expect("prepare_instances failed");
         assert_eq!(handler.contexts.len(), 4);
 
         let _ = std::fs::remove_dir_all(&temp_dir);
@@ -2492,10 +2714,17 @@ mod tests {
                     .unwrap_or_default())
             }
             fn set_window_position(&self, handle: WindowHandle, rect: &Rect) -> NucleusResult<()> {
-                self.applied_bounds.lock().unwrap().push((handle.0, rect.clone()));
+                self.applied_bounds
+                    .lock()
+                    .unwrap()
+                    .push((handle.0, rect.clone()));
                 Ok(())
             }
-            fn set_window_style(&self, _handle: WindowHandle, _style: &WindowStyle) -> NucleusResult<()> {
+            fn set_window_style(
+                &self,
+                _handle: WindowHandle,
+                _style: &WindowStyle,
+            ) -> NucleusResult<()> {
                 Ok(())
             }
             fn set_topmost(&self, _handle: WindowHandle, _topmost: bool) -> NucleusResult<()> {
@@ -2541,13 +2770,28 @@ mod tests {
         #[derive(Default)]
         pub struct MockMutexMgr;
         impl MutexManager for MockMutexMgr {
-            fn kill_mutex(&self, _pid: u32, _mutex_name: &str, _mutex_type: &str) -> NucleusResult<bool> {
+            fn kill_mutex(
+                &self,
+                _pid: u32,
+                _mutex_name: &str,
+                _mutex_type: &str,
+            ) -> NucleusResult<bool> {
                 Ok(false)
             }
-            fn rename_mutex(&self, _pid: u32, _old_name: &str, _new_name: &str) -> NucleusResult<bool> {
+            fn rename_mutex(
+                &self,
+                _pid: u32,
+                _old_name: &str,
+                _new_name: &str,
+            ) -> NucleusResult<bool> {
                 Ok(false)
             }
-            fn find_mutex(&self, _pid: u32, _name: &str, _partial: bool) -> NucleusResult<Vec<String>> {
+            fn find_mutex(
+                &self,
+                _pid: u32,
+                _name: &str,
+                _partial: bool,
+            ) -> NucleusResult<Vec<String>> {
                 Ok(Vec::new())
             }
         }
@@ -2581,7 +2825,12 @@ mod tests {
             fn create_virtual_adapter(&self) -> NucleusResult<NetworkInterface> {
                 Err(NucleusError::Other("unused".into()))
             }
-            fn set_adapter_ip(&self, _adapter: &str, _ip: &str, _subnet: &str) -> NucleusResult<()> {
+            fn set_adapter_ip(
+                &self,
+                _adapter: &str,
+                _ip: &str,
+                _subnet: &str,
+            ) -> NucleusResult<()> {
                 Ok(())
             }
         }
@@ -2737,8 +2986,24 @@ mod tests {
         assert_eq!(
             pairs,
             vec![
-                (0, WindowBounds { x: 0, y: 0, width: 960, height: 1080 }),
-                (2, WindowBounds { x: 960, y: 0, width: 960, height: 1080 }),
+                (
+                    0,
+                    WindowBounds {
+                        x: 0,
+                        y: 0,
+                        width: 960,
+                        height: 1080
+                    }
+                ),
+                (
+                    2,
+                    WindowBounds {
+                        x: 960,
+                        y: 0,
+                        width: 960,
+                        height: 1080
+                    }
+                ),
             ]
         );
         assert_eq!(handler.contexts[0].pos_x, 0);
@@ -2760,7 +3025,8 @@ mod tests {
 
     #[test]
     fn test_drop_out_player_middle_slot_preserves_survivors_and_saves() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_dropout_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_dropout_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
@@ -2839,7 +3105,8 @@ mod tests {
 
     #[test]
     fn test_drop_in_player_reclaims_vacant_slot_and_runs_js_once() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_dropin_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_dropin_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let game_dir = temp_dir.join("game");
         let staging_dir = temp_dir.join("staging");
@@ -2865,8 +3132,8 @@ mod tests {
         config.game_name = "DropIn Test".to_string();
         config.max_players = 3;
 
-        let mut handler = GameHandler::new(config, game_dir, exe_path, staging_dir, 3)
-            .with_script_source(script);
+        let mut handler =
+            GameHandler::new(config, game_dir, exe_path, staging_dir, 3).with_script_source(script);
         handler.prepare_instances().unwrap();
 
         // Clear initial play markers & args so we prove drop_in executes Game.Play ONLY for reclaimed slot 1
@@ -2896,7 +3163,10 @@ mod tests {
         assert_eq!(handler.contexts[1].player_index, 1);
         assert_eq!(handler.contexts[1].player_id, 2);
         assert_eq!(handler.contexts[1].gamepad_id, 6);
-        assert_eq!(handler.contexts[1].start_arguments, "played_slot=1;players=3");
+        assert_eq!(
+            handler.contexts[1].start_arguments,
+            "played_slot=1;players=3"
+        );
         assert_eq!(handler.layout, "Top 1 / Bottom 2");
 
         // Verify Game.Play ran ONLY for slot 1
@@ -2921,11 +3191,10 @@ mod tests {
         assert_eq!(handler.contexts[2].height, 540);
 
         // At max_players (3), further drop-in must return error cleanly
-        let overflow = handler.drop_in_player("Gamepad #6", crate::window::SplitMode::Grid4, "2x2 (Grid)");
+        let overflow =
+            handler.drop_in_player("Gamepad #6", crate::window::SplitMode::Grid4, "2x2 (Grid)");
         assert!(overflow.is_err());
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-
-

@@ -1,10 +1,10 @@
 //! Game starter utilities for handling secondary launcher processes and launch coordination.
 
+use nucleus_common::error::{NucleusError, NucleusResult};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
-use nucleus_common::error::{NucleusError, NucleusResult};
 
 /// Specification for launching a game or helper instance.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,7 +117,11 @@ impl GameStarterTool {
 
         let mut cmd = Self::build_command(spec);
         let child = cmd.spawn().map_err(|e| {
-            NucleusError::Process(format!("Failed to spawn {}: {}", spec.executable.display(), e))
+            NucleusError::Process(format!(
+                "Failed to spawn {}: {}",
+                spec.executable.display(),
+                e
+            ))
         })?;
 
         Ok(child.id())
@@ -134,7 +138,10 @@ mod tests {
         let args = vec!["-windowed".to_string(), "-player 1".to_string()];
         let cmd_line = GameStarterTool::format_command_line(exe, &args);
 
-        assert_eq!(cmd_line, "\"C:\\Games\\My Game\\game.exe\" -windowed \"-player 1\"");
+        assert_eq!(
+            cmd_line,
+            "\"C:\\Games\\My Game\\game.exe\" -windowed \"-player 1\""
+        );
     }
 
     #[test]
@@ -145,8 +152,8 @@ mod tests {
 
     #[test]
     fn test_build_command() {
-        let spec = LaunchSpec::new("test.exe", vec!["--arg1".to_string()])
-            .with_env("TEST_VAR", "VALUE");
+        let spec =
+            LaunchSpec::new("test.exe", vec!["--arg1".to_string()]).with_env("TEST_VAR", "VALUE");
         let cmd = GameStarterTool::build_command(&spec);
         assert_eq!(cmd.get_program(), "test.exe");
     }

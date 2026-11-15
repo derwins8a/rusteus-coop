@@ -1,8 +1,8 @@
 //! Variable diffing, cycle-safe object formatting, and runtime state inspection.
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::protocol::InspectValue;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Classification of changes between two debugger snapshots.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,7 +27,11 @@ pub struct StateInspector;
 
 impl StateInspector {
     /// Recursively converts a serde_json::Value into an InspectValue with bounded depth.
-    pub fn format_json_value(name: &str, val: &serde_json::Value, max_depth: usize) -> InspectValue {
+    pub fn format_json_value(
+        name: &str,
+        val: &serde_json::Value,
+        max_depth: usize,
+    ) -> InspectValue {
         if max_depth == 0 {
             return InspectValue {
                 name: name.to_string(),
@@ -68,7 +72,9 @@ impl StateInspector {
                     .iter()
                     .enumerate()
                     .take(50) // limit array expansion to first 50 items
-                    .map(|(idx, item)| Self::format_json_value(&format!("[{idx}]"), item, max_depth - 1))
+                    .map(|(idx, item)| {
+                        Self::format_json_value(&format!("[{idx}]"), item, max_depth - 1)
+                    })
                     .collect();
 
                 InspectValue {
@@ -112,7 +118,9 @@ impl StateInspector {
         for after_val in after {
             let name = &after_val.name;
             if let Some(before_val) = before_map.get(name.as_str()) {
-                if before_val.summary != after_val.summary || before_val.type_name != after_val.type_name {
+                if before_val.summary != after_val.summary
+                    || before_val.type_name != after_val.type_name
+                {
                     diffs.push(VariableDiff {
                         name: name.clone(),
                         diff_kind: DiffKind::Modified {

@@ -1,8 +1,8 @@
-use std::path::PathBuf;
 use nucleus_ui::big_picture::hub::{
     CouchHubState, CouchOptionItem, CouchOptionsModalState, PathResolution,
     resolve_game_path_or_couch_prompt,
 };
+use std::path::PathBuf;
 
 #[test]
 fn test_couch_hub_fallback_prompts_desktop_mode() {
@@ -34,7 +34,10 @@ fn test_couch_hub_fallback_prompts_desktop_mode() {
 #[test]
 fn test_couch_hub_category_cycling() {
     let mut state = CouchHubState::new();
-    assert_eq!(state.categories, vec!["Popular", "Trending", "Recent", "All"]);
+    assert_eq!(
+        state.categories,
+        vec!["Popular", "Trending", "Recent", "All"]
+    );
     assert_eq!(state.selected_category, 0);
     assert_eq!(state.selected_index, 0);
 
@@ -151,8 +154,14 @@ fn test_couch_options_modal_state() {
 
     // Export to HashMap
     let values_map = modal.to_hashmap();
-    assert_eq!(values_map.get("gamemode").map(|s| s.as_str()), Some("Survival"));
-    assert_eq!(values_map.get("dx_version").map(|s| s.as_str()), Some("DirectX 11"));
+    assert_eq!(
+        values_map.get("gamemode").map(|s| s.as_str()),
+        Some("Survival")
+    );
+    assert_eq!(
+        values_map.get("dx_version").map(|s| s.as_str()),
+        Some("DirectX 11")
+    );
 }
 
 #[test]

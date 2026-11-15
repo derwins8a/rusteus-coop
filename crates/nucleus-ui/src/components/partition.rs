@@ -1,7 +1,4 @@
-use gpui::{
-    AnyElement, FontWeight, IntoElement, ParentElement, Pixels, Styled,
-    div, px,
-};
+use gpui::{AnyElement, FontWeight, IntoElement, ParentElement, Pixels, Styled, div, px};
 
 use crate::components::badge::CouchTag;
 use crate::theme;
@@ -11,16 +8,18 @@ use crate::theme;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SplitLayout {
     #[default]
-    Single,        // 1 Player full screen
-    SideBySide,    // 2 Players horizontal split (2 columns)
-    Stacked,       // 2 Players vertical split (2 rows)
-    Grid4,         // 4 Players 2x2 grid
+    Single, // 1 Player full screen
+    SideBySide,      // 2 Players horizontal split (2 columns)
+    Stacked,         // 2 Players vertical split (2 rows)
+    Grid4,           // 4 Players 2x2 grid
     TopOneBottomTwo, // 3 Players: Top 1 full, Bottom 2 side-by-side
     TopTwoBottomOne, // 3 Players: Top 2 side-by-side, Bottom 1 full
     Grid6,           // 6 Players: 3 columns x 2 rows
     Grid8,           // 8 Players: 4 columns x 2 rows
     Grid16,          // 16 Players: 4 columns x 4 rows
-    MultiMonitor { monitor_count: usize }, // Multi-monitor span across displays
+    MultiMonitor {
+        monitor_count: usize,
+    }, // Multi-monitor span across displays
 }
 
 pub struct PartitionPreview {
@@ -250,7 +249,10 @@ impl PartitionPreview {
                             .bg(theme::bg_panel())
                             .border_1()
                             .border_color(theme::accent().opacity(0.4))
-                            .child(CouchTag::player(p_idx, format!("Disp {}", m + 1)).into_any_element())
+                            .child(
+                                CouchTag::player(p_idx, format!("Disp {}", m + 1))
+                                    .into_any_element(),
+                            )
                             .child(
                                 div()
                                     .text_xs()

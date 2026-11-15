@@ -145,44 +145,97 @@ fn test_carousel_filter_mode_options_and_labels() {
     assert_eq!(CarouselFilterMode::Favorites.label(), "Favorites");
     assert_eq!(CarouselFilterMode::ControllerSupport.label(), "Controllers");
     assert_eq!(CarouselFilterMode::KeyboardOnly.label(), "Keyboard/Mouse");
-    assert_eq!(CarouselFilterMode::MultiKeyboardMouse.label(), "Multi-K&M (ProtoInput)");
+    assert_eq!(
+        CarouselFilterMode::MultiKeyboardMouse.label(),
+        "Multi-K&M (ProtoInput)"
+    );
     assert_eq!(CarouselFilterMode::FourPlusPlayers.label(), "4+ Players");
     assert_eq!(CarouselFilterMode::TwoPlusPlayers.label(), "2+ Players");
 
     for mode in CarouselFilterMode::ALL {
-        assert!(mode.label().is_ascii(), "Filter label must be ASCII: {}", mode.label());
+        assert!(
+            mode.label().is_ascii(),
+            "Filter label must be ASCII: {}",
+            mode.label()
+        );
     }
 
-    assert!(matches!(CarouselFilterMode::All.icon(), IconName::LayoutGrid));
-    assert!(matches!(CarouselFilterMode::InstalledOnly.icon(), IconName::Check));
-    assert!(matches!(CarouselFilterMode::Favorites.icon(), IconName::Star));
-    assert!(matches!(CarouselFilterMode::ControllerSupport.icon(), IconName::Gamepad2));
-    assert!(matches!(CarouselFilterMode::KeyboardOnly.icon(), IconName::Keyboard));
-    assert!(matches!(CarouselFilterMode::MultiKeyboardMouse.icon(), IconName::Mouse));
-    assert!(matches!(CarouselFilterMode::FourPlusPlayers.icon(), IconName::Users));
-    assert!(matches!(CarouselFilterMode::TwoPlusPlayers.icon(), IconName::Users));
+    assert!(matches!(
+        CarouselFilterMode::All.icon(),
+        IconName::LayoutGrid
+    ));
+    assert!(matches!(
+        CarouselFilterMode::InstalledOnly.icon(),
+        IconName::Check
+    ));
+    assert!(matches!(
+        CarouselFilterMode::Favorites.icon(),
+        IconName::Star
+    ));
+    assert!(matches!(
+        CarouselFilterMode::ControllerSupport.icon(),
+        IconName::Gamepad2
+    ));
+    assert!(matches!(
+        CarouselFilterMode::KeyboardOnly.icon(),
+        IconName::Keyboard
+    ));
+    assert!(matches!(
+        CarouselFilterMode::MultiKeyboardMouse.icon(),
+        IconName::Mouse
+    ));
+    assert!(matches!(
+        CarouselFilterMode::FourPlusPlayers.icon(),
+        IconName::Users
+    ));
+    assert!(matches!(
+        CarouselFilterMode::TwoPlusPlayers.icon(),
+        IconName::Users
+    ));
 }
 
 #[test]
 fn test_carousel_sort_mode_options_and_labels() {
     assert_eq!(CarouselSortMode::ALL.len(), 6);
     assert_eq!(CarouselSortMode::Alphabetical.label(), "Alphabetical (A-Z)");
-    assert_eq!(CarouselSortMode::AlphabeticalDesc.label(), "Alphabetical (Z-A)");
+    assert_eq!(
+        CarouselSortMode::AlphabeticalDesc.label(),
+        "Alphabetical (Z-A)"
+    );
     assert_eq!(CarouselSortMode::RecentlyPlayed.label(), "Recently Played");
     assert_eq!(CarouselSortMode::PlayTime.label(), "Total Play Time");
     assert_eq!(CarouselSortMode::MaxPlayers.label(), "Maximum Players");
     assert_eq!(CarouselSortMode::InstalledFirst.label(), "Installed First");
 
     for mode in CarouselSortMode::ALL {
-        assert!(mode.label().is_ascii(), "Sort label must be ASCII: {}", mode.label());
+        assert!(
+            mode.label().is_ascii(),
+            "Sort label must be ASCII: {}",
+            mode.label()
+        );
     }
 
-    assert!(matches!(CarouselSortMode::Alphabetical.icon(), IconName::ArrowDownAZ));
-    assert!(matches!(CarouselSortMode::AlphabeticalDesc.icon(), IconName::ArrowDownAZ));
-    assert!(matches!(CarouselSortMode::RecentlyPlayed.icon(), IconName::Clock));
+    assert!(matches!(
+        CarouselSortMode::Alphabetical.icon(),
+        IconName::ArrowDownAZ
+    ));
+    assert!(matches!(
+        CarouselSortMode::AlphabeticalDesc.icon(),
+        IconName::ArrowDownAZ
+    ));
+    assert!(matches!(
+        CarouselSortMode::RecentlyPlayed.icon(),
+        IconName::Clock
+    ));
     assert!(matches!(CarouselSortMode::PlayTime.icon(), IconName::Timer));
-    assert!(matches!(CarouselSortMode::MaxPlayers.icon(), IconName::Users));
-    assert!(matches!(CarouselSortMode::InstalledFirst.icon(), IconName::Check));
+    assert!(matches!(
+        CarouselSortMode::MaxPlayers.icon(),
+        IconName::Users
+    ));
+    assert!(matches!(
+        CarouselSortMode::InstalledFirst.icon(),
+        IconName::Check
+    ));
 }
 
 fn create_sample_handlers() -> Vec<HandlerItem> {
@@ -265,13 +318,19 @@ fn test_filter_and_sort_handlers_sorting() {
     state.sort_mode = CarouselSortMode::Alphabetical;
     let res = state.filter_and_sort_handlers(&handlers, "");
     let names: Vec<&str> = res.iter().map(|h| h.game_name.as_str()).collect();
-    assert_eq!(names, vec!["Halo MCC", "Left 4 Dead 2", "Portal 2", "Solitaire"]);
+    assert_eq!(
+        names,
+        vec!["Halo MCC", "Left 4 Dead 2", "Portal 2", "Solitaire"]
+    );
 
     // 2. Alphabetical descending (Solitaire, Portal 2, Left 4 Dead 2, Halo MCC)
     state.sort_mode = CarouselSortMode::AlphabeticalDesc;
     let res = state.filter_and_sort_handlers(&handlers, "");
     let names: Vec<&str> = res.iter().map(|h| h.game_name.as_str()).collect();
-    assert_eq!(names, vec!["Solitaire", "Portal 2", "Left 4 Dead 2", "Halo MCC"]);
+    assert_eq!(
+        names,
+        vec!["Solitaire", "Portal 2", "Left 4 Dead 2", "Halo MCC"]
+    );
 
     // 3. MaxPlayers descending (Halo [8], Left 4 Dead 2 [4], Portal 2 [2], Solitaire [1])
     state.sort_mode = CarouselSortMode::MaxPlayers;
@@ -336,7 +395,10 @@ fn test_uninstalled_carousel_badge_and_callout_constants() {
 #[test]
 fn test_uninstalled_handler_missing_exe_prompt_detection() {
     let handlers = create_sample_handlers();
-    let uninstalled = handlers.iter().find(|h| !h.is_installed).expect("uninstalled handler");
+    let uninstalled = handlers
+        .iter()
+        .find(|h| !h.is_installed)
+        .expect("uninstalled handler");
     assert!(!uninstalled.is_installed);
     assert_eq!(uninstalled.game_name, "Halo MCC");
 

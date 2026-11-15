@@ -1,9 +1,9 @@
 //! Flawless Widescreen integration, display detection overrides, and multi-instance module cloning.
 
-use std::fs;
-use std::path::{Path, PathBuf};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::file_util;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Tool for deploying Flawless Widescreen configurations, patching display detection overrides,
 /// cloning game modules per-instance, and injecting instanced plugin entries into `FWS_Plugins.fws`.
@@ -19,12 +19,19 @@ impl FlawlessWidescreenTool {
         height: i32,
     ) -> NucleusResult<()> {
         file_util::ensure_dir(plugin_dir)?;
-        let config_file = plugin_dir.join(format!("{}.cfg", game_name.to_lowercase().replace(' ', "_")));
+        let config_file = plugin_dir.join(format!(
+            "{}.cfg",
+            game_name.to_lowercase().replace(' ', "_")
+        ));
         let content = format!(
             "[Display]\r\nWidth={}\r\nHeight={}\r\nAspectRatio={:.4}\r\nFixHUD=1\r\nFixFOV=1\r\n",
             width,
             height,
-            if height > 0 { width as f64 / height as f64 } else { 1.7778 }
+            if height > 0 {
+                width as f64 / height as f64
+            } else {
+                1.7778
+            }
         );
         file_util::write_text_file(&config_file, &content)?;
         Ok(())
@@ -33,11 +40,7 @@ impl FlawlessWidescreenTool {
     /// Patches `settings.xml` in Flawless Widescreen utils to enable display detection override
     /// and specify target width and height for player instances.
     /// Creates `settings_NUCLEUS_BACKUP.xml` before modification if not already present.
-    pub fn patch_settings_xml(
-        settings_path: &Path,
-        width: u32,
-        height: u32,
-    ) -> NucleusResult<()> {
+    pub fn patch_settings_xml(settings_path: &Path, width: u32, height: u32) -> NucleusResult<()> {
         if let Some(parent) = settings_path.parent() {
             file_util::ensure_dir(parent)?;
         }
@@ -152,7 +155,11 @@ impl FlawlessWidescreenTool {
             }
         }
 
-        let new_folder_name = format!("{} - Nucleus Instance {}", game_module_name, instance_index + 1);
+        let new_folder_name = format!(
+            "{} - Nucleus Instance {}",
+            game_module_name,
+            instance_index + 1
+        );
         let new_folder = modules_dir.join(&new_folder_name);
 
         if new_folder.exists() {
@@ -165,7 +172,11 @@ impl FlawlessWidescreenTool {
             .join("Dependencies")
             .join("Scripts")
             .join(format!("{}.lua", game_module_name));
-        let new_script_name = format!("{} - Nucleus Instance {}.lua", game_module_name, instance_index + 1);
+        let new_script_name = format!(
+            "{} - Nucleus Instance {}.lua",
+            game_module_name,
+            instance_index + 1
+        );
         let new_cloned_script = new_folder
             .join("Dependencies")
             .join("Scripts")
@@ -213,7 +224,11 @@ impl FlawlessWidescreenTool {
         }
 
         let content = file_util::read_text_file(fws_xml_path)?;
-        let instanced_namespace = format!("{} - Nucleus Instance {}", game_module_name, instance_index + 1);
+        let instanced_namespace = format!(
+            "{} - Nucleus Instance {}",
+            game_module_name,
+            instance_index + 1
+        );
 
         // Check if module is already present
         if content.contains(&format!("NameSpace=\"{}\"", instanced_namespace)) {
@@ -236,13 +251,21 @@ impl FlawlessWidescreenTool {
         // Find the beginning of the <Module tag preceding NameSpace
         let module_start = match content[..orig_pos].rfind("<Module") {
             Some(p) => p,
-            None => return Err(NucleusError::Other("Malformed <Module> tag in XML".to_string())),
+            None => {
+                return Err(NucleusError::Other(
+                    "Malformed <Module> tag in XML".to_string(),
+                ));
+            }
         };
 
         // Find the end of this </Module> block
         let module_end = match content[orig_pos..].find("</Module>") {
             Some(p) => orig_pos + p + "</Module>".len(),
-            None => return Err(NucleusError::Other("Closing </Module> tag not found in XML".to_string())),
+            None => {
+                return Err(NucleusError::Other(
+                    "Closing </Module> tag not found in XML".to_string(),
+                ));
+            }
         };
 
         let orig_block = &content[module_start..module_end];
@@ -255,7 +278,11 @@ impl FlawlessWidescreenTool {
             )
             .replace(
                 &format!("<FriendlyName>{}</FriendlyName>", game_module_name),
-                &format!("<FriendlyName>{} - Nucleus Instance {}</FriendlyName>", game_module_name, instance_index + 1),
+                &format!(
+                    "<FriendlyName>{} - Nucleus Instance {}</FriendlyName>",
+                    game_module_name,
+                    instance_index + 1
+                ),
             );
 
         // Insert new module before </Modules>
@@ -277,7 +304,8 @@ mod tests {
 
     #[test]
     fn test_patch_settings_xml() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_fws_set_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_fws_set_test_{}", std::process::id()));
         let settings = temp_dir.join("settings.xml");
 
         // Fresh creation
@@ -300,7 +328,8 @@ mod tests {
 
     #[test]
     fn test_clone_and_patch_module() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_fws_clone_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_fws_clone_test_{}", std::process::id()));
         let orig_module = temp_dir.join("DarkSoulsRemastered");
         let script_dir = orig_module.join("Dependencies").join("Scripts");
         file_util::ensure_dir(&script_dir).unwrap();
@@ -316,7 +345,8 @@ mod tests {
             "DarkSoulsRemastered",
             0,
             "DARK SOULS®",
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(cloned_dir.exists());
         let cloned_script = cloned_dir
@@ -326,7 +356,9 @@ mod tests {
         assert!(cloned_script.exists());
 
         let cloned_content = file_util::read_text_file(&cloned_script).unwrap();
-        assert!(cloned_content.contains("Process_WindowName = \"Nucleus Instance 1(DARK SOULS%R)\""));
+        assert!(
+            cloned_content.contains("Process_WindowName = \"Nucleus Instance 1(DARK SOULS%R)\"")
+        );
 
         // Original script should be set to "Removed"
         let orig_content = file_util::read_text_file(&lua_file).unwrap();
@@ -337,7 +369,8 @@ mod tests {
 
     #[test]
     fn test_inject_plugin_fws() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_fws_inject_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_fws_inject_test_{}", std::process::id()));
         file_util::ensure_dir(&temp_dir).unwrap();
         let fws_file = temp_dir.join("FWS_Plugins.fws");
 
@@ -348,7 +381,9 @@ mod tests {
 
         let read = file_util::read_text_file(&fws_file).unwrap();
         assert!(read.contains("NameSpace=\"DarkSoulsRemastered - Nucleus Instance 1\""));
-        assert!(read.contains("<FriendlyName>DarkSoulsRemastered - Nucleus Instance 1</FriendlyName>"));
+        assert!(
+            read.contains("<FriendlyName>DarkSoulsRemastered - Nucleus Instance 1</FriendlyName>")
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

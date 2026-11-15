@@ -291,12 +291,18 @@ fn test_partition_layout_kind_mappings() {
 fn test_is_keyboard_device_and_icons() {
     assert!(is_keyboard_device("USB Keyboard", "GUID-KBD-1"));
     assert!(is_keyboard_device("Keyboard & Mouse", "GUID-2"));
-    assert!(is_keyboard_device("Generic Controller", "usb_keyboard_device"));
+    assert!(is_keyboard_device(
+        "Generic Controller",
+        "usb_keyboard_device"
+    ));
     assert!(is_keyboard_device("keyboard", "guid-none"));
 
     assert!(!is_keyboard_device("Xbox Wireless Controller", "GUID-XB-1"));
     assert!(!is_keyboard_device("PlayStation 5 DualSense", "GUID-PS-2"));
-    assert!(!is_keyboard_device("Nintendo Switch Pro Controller", "GUID-NSW-3"));
+    assert!(!is_keyboard_device(
+        "Nintendo Switch Pro Controller",
+        "GUID-NSW-3"
+    ));
 }
 
 #[test]
@@ -309,7 +315,10 @@ fn test_partition_slots_match_layout_and_swap_reflections() {
     ];
     state.auto_assign(&devs, &[]);
     assert_eq!(state.selected_layout, "Top 1 / Bottom 2");
-    assert_eq!(state.partition_layout_kind(), PartitionLayoutKind::TopOneBottomTwo);
+    assert_eq!(
+        state.partition_layout_kind(),
+        PartitionLayoutKind::TopOneBottomTwo
+    );
 
     // Partition 0 (Top full): Player 1 with Xbox Controller
     let p0 = state.partition_slot(0).expect("slot 0 must exist");
@@ -338,13 +347,19 @@ fn test_partition_slots_match_layout_and_swap_reflections() {
     let p0_swapped = state.partition_slot(0).expect("slot 0 must exist");
     assert_eq!(p0_swapped.player_index, 0);
     assert_eq!(p0_swapped.device_name, "USB Keyboard");
-    assert!(is_keyboard_device(&p0_swapped.device_name, &p0_swapped.device_guid));
+    assert!(is_keyboard_device(
+        &p0_swapped.device_name,
+        &p0_swapped.device_guid
+    ));
 
     // Partition 1 (Bottom Left) now displays Xbox Controller assigned to Player 2
     let p1_swapped = state.partition_slot(1).expect("slot 1 must exist");
     assert_eq!(p1_swapped.player_index, 1);
     assert_eq!(p1_swapped.device_name, "Xbox Controller");
-    assert!(!is_keyboard_device(&p1_swapped.device_name, &p1_swapped.device_guid));
+    assert!(!is_keyboard_device(
+        &p1_swapped.device_name,
+        &p1_swapped.device_guid
+    ));
 
     // Partition 2 remains unchanged
     let p2_swapped = state.partition_slot(2).expect("slot 2 must exist");
@@ -466,7 +481,10 @@ fn test_auto_assign_with_keyboard_options() {
     assert_eq!(state.slots[0].device_id, Some(9999));
     assert_eq!(state.slots[0].device_name, "Keyboard & Mouse");
     assert_eq!(state.slots[0].device_guid, "keyboard-mouse-0");
-    assert!(is_keyboard_device(&state.slots[0].device_name, &state.slots[0].device_guid));
+    assert!(is_keyboard_device(
+        &state.slots[0].device_name,
+        &state.slots[0].device_guid
+    ));
     assert_eq!(state.selected_layout, "Fullscreen (1 Player)");
 
     // 1 gamepad + supports_keyboard = true -> 2 slots: Gamepad + Keyboard & Mouse
@@ -625,8 +643,14 @@ fn test_extended_grid_layouts_and_partition_previews() {
     assert_eq!(state.partition_layout_kind().slot_count(), 16);
 
     // Test PartitionLayoutKind resolution
-    assert_eq!(PartitionLayoutKind::from_layout_name("Multi-Monitor"), PartitionLayoutKind::MultiMonitor);
-    assert_eq!(PartitionLayoutKind::from_layout_name("Multi-Monitor").slot_count(), 2);
+    assert_eq!(
+        PartitionLayoutKind::from_layout_name("Multi-Monitor"),
+        PartitionLayoutKind::MultiMonitor
+    );
+    assert_eq!(
+        PartitionLayoutKind::from_layout_name("Multi-Monitor").slot_count(),
+        2
+    );
 }
 
 #[test]
@@ -655,19 +679,24 @@ fn test_spatial_nav_geometric_distance() {
     let behind = SpatialRect::new(100.0, 50.0, 40.0, 40.0);
 
     // Cardinal neighbor directly down is inside cone
-    let (in_cone, dist_cardinal) = calculate_cone_distance(origin, down_cardinal, SpatialDirection::Down);
+    let (in_cone, dist_cardinal) =
+        calculate_cone_distance(origin, down_cardinal, SpatialDirection::Down);
     assert!(in_cone);
     assert!((dist_cardinal - 100.0).abs() < 1e-3);
 
     // Diagonal neighbor is also in forward half-plane but penalized by angle
-    let (in_cone_diag, dist_diag) = calculate_cone_distance(origin, down_diagonal, SpatialDirection::Down);
+    let (in_cone_diag, dist_diag) =
+        calculate_cone_distance(origin, down_diagonal, SpatialDirection::Down);
     assert!(in_cone_diag);
     assert!(dist_diag > dist_cardinal * 2.0);
 
     // Candidate behind origin is excluded
     let (in_cone_behind, _) = calculate_cone_distance(origin, behind, SpatialDirection::Down);
     assert!(!in_cone_behind);
-    assert_eq!(weighted_cone_distance(origin, behind, SpatialDirection::Down), f32::MAX);
+    assert_eq!(
+        weighted_cone_distance(origin, behind, SpatialDirection::Down),
+        f32::MAX
+    );
 
     // Summoner colors: P1 emerald, P2 blue, P3 amber, P4 rose
     let p1_glow = summoner_glow_color(0);

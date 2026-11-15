@@ -1,11 +1,10 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
-    div, px, rgb, AnyElement, ClickEvent, ElementId, FontWeight, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, Pixels, SharedString,
-    StatefulInteractiveElement, Styled,
+    AnyElement, ClickEvent, ElementId, FontWeight, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, Pixels, SharedString, StatefulInteractiveElement, Styled, div, px, rgb,
 };
-use gpui_component::scroll::ScrollableElement;
 use gpui_component::Icon;
+use gpui_component::scroll::ScrollableElement;
 use gpui_kit_assets::IconName;
 
 use crate::components::badge::TagTone;
@@ -46,7 +45,8 @@ pub struct CouchModal {
     body: Option<AnyElement>,
     header_actions: Vec<AnyElement>,
     footer_actions: Vec<AnyElement>,
-    on_close: Option<std::sync::Arc<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::App) + 'static>>,
+    on_close:
+        Option<std::sync::Arc<dyn Fn(&ClickEvent, &mut gpui::Window, &mut gpui::App) + 'static>>,
 }
 
 impl CouchModal {
@@ -162,44 +162,45 @@ impl CouchModal {
                     })
                     // 3. Header bar
                     .child({
-                        let mut header_bar = div()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .px_6()
-                            .py_4()
-                            .border_b_1()
-                            .border_color(theme::border_color())
-                            .bg(theme::bg_subtle())
-                            .child(
-                                div()
-                                    .flex()
-                                    .items_center()
-                                    .gap_3()
-                                    .min_w_0()
-                                    .children(self.icon.map(|icn| {
-                                        Icon::new(icn).size_5().text_color(icon_color)
-                                    }))
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .flex_col()
-                                            .min_w_0()
-                                            .child(
-                                                div()
-                                                    .text_base()
-                                                    .font_weight(FontWeight::BOLD)
-                                                    .text_color(theme::text_primary())
-                                                    .child(self.title),
-                                            )
-                                            .children(self.subtitle.map(|sub| {
-                                                div()
-                                                    .text_xs()
-                                                    .text_color(theme::text_muted())
-                                                    .child(sub)
-                                            })),
-                                    ),
-                            );
+                        let mut header_bar =
+                            div()
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .px_6()
+                                .py_4()
+                                .border_b_1()
+                                .border_color(theme::border_color())
+                                .bg(theme::bg_subtle())
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_3()
+                                        .min_w_0()
+                                        .children(self.icon.map(|icn| {
+                                            Icon::new(icn).size_5().text_color(icon_color)
+                                        }))
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .flex_col()
+                                                .min_w_0()
+                                                .child(
+                                                    div()
+                                                        .text_base()
+                                                        .font_weight(FontWeight::BOLD)
+                                                        .text_color(theme::text_primary())
+                                                        .child(self.title),
+                                                )
+                                                .children(self.subtitle.map(|sub| {
+                                                    div()
+                                                        .text_xs()
+                                                        .text_color(theme::text_muted())
+                                                        .child(sub)
+                                                })),
+                                        ),
+                                );
 
                         if !self.header_actions.is_empty() || self.on_close.is_some() {
                             let mut right_actions = div()

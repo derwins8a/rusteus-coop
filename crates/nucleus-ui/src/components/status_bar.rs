@@ -4,9 +4,7 @@
 //! session state, connected gamepad counts, and runtime platform.
 
 use gpui::prelude::FluentBuilder;
-use gpui::{
-    div, px, AnyElement, IntoElement, ParentElement, Styled,
-};
+use gpui::{AnyElement, IntoElement, ParentElement, Styled, div, px};
 
 use crate::theme;
 

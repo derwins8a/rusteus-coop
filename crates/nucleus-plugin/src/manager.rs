@@ -1,18 +1,18 @@
 //! Central Extension and Plugin Manager orchestrating discovery, capability verification, and lifecycle hooks.
 
+use semver::Version;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use semver::Version;
 use tracing::{error, info, warn};
 
-use nucleus_common::error::NucleusResult;
-use crate::js_addon::{sort_addons_by_dependencies, JsAddon};
+use crate::js_addon::{JsAddon, sort_addons_by_dependencies};
 use crate::legacy_bridge::find_and_parse_legacy_plugins;
 use crate::manifest::{LifecycleHookKind, PluginKind, PluginManifest, PluginPermission};
 use crate::package::PluginPackager;
 use crate::permissions::PermissionStore;
 use crate::wasm_host::{WasmHostContext, WasmPluginHost};
+use nucleus_common::error::NucleusResult;
 
 /// Current runtime health and activation state of an extension.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,8 +56,8 @@ impl ExtensionManager {
         permissions_path: PathBuf,
         app_version: Version,
     ) -> Self {
-        let permission_store = PermissionStore::load_from_file(&permissions_path)
-            .unwrap_or_default();
+        let permission_store =
+            PermissionStore::load_from_file(&permissions_path).unwrap_or_default();
 
         Self {
             plugins_dir,
@@ -96,7 +96,11 @@ impl ExtensionManager {
     }
 
     /// Grants a permission to an installed extension and persists the permission store.
-    pub fn grant_permission(&mut self, plugin_id: &str, perm: PluginPermission) -> NucleusResult<()> {
+    pub fn grant_permission(
+        &mut self,
+        plugin_id: &str,
+        perm: PluginPermission,
+    ) -> NucleusResult<()> {
         let binary_sha = if let Some(plugin) = self.loaded_plugins.get(plugin_id) {
             let wasm_file = plugin.root_dir.join(&plugin.manifest.entrypoint);
             if wasm_file.exists() {
@@ -107,7 +111,8 @@ impl ExtensionManager {
         } else {
             String::new()
         };
-        self.permission_store.grant_permissions(plugin_id, &binary_sha, &[perm]);
+        self.permission_store
+            .grant_permissions(plugin_id, &binary_sha, &[perm]);
         self.save_permissions()
     }
 
@@ -126,7 +131,11 @@ impl ExtensionManager {
         }
 
         PluginPackager::extract_package(archive_path, &target_dir)?;
-        info!("Successfully installed extension '{}' to {}", plugin_id, target_dir.display());
+        info!(
+            "Successfully installed extension '{}' to {}",
+            plugin_id,
+            target_dir.display()
+        );
 
         self.scan_and_load_dir(&target_dir)?;
         Ok(plugin_id)
@@ -171,7 +180,11 @@ impl ExtensionManager {
             // Check for legacy pluginsInfo.txt in root
             let legacy_entries = find_and_parse_legacy_plugins(dir)?;
             if !legacy_entries.is_empty() {
-                info!("Discovered {} legacy plugin entries in {}", legacy_entries.len(), dir.display());
+                info!(
+                    "Discovered {} legacy plugin entries in {}",
+                    legacy_entries.len(),
+                    dir.display()
+                );
             }
             return Ok(());
         };
@@ -346,7 +359,9 @@ impl ExtensionManager {
                     instance_dir.map(|p| p.to_path_buf()),
                 );
 
-                let res = wasm_host.invoke_hook(hook_str, arg, context).map(|(r, _)| r);
+                let res = wasm_host
+                    .invoke_hook(hook_str, arg, context)
+                    .map(|(r, _)| r);
                 results.push((plugin_id.clone(), res));
             }
         }
@@ -366,12 +381,8 @@ mod tests {
         let addons_dir = temp_dir.join("addons");
         let perms_file = temp_dir.join("permissions.json");
 
-        let manager = ExtensionManager::new(
-            plugins_dir,
-            addons_dir,
-            perms_file,
-            Version::new(0, 1, 0),
-        );
+        let manager =
+            ExtensionManager::new(plugins_dir, addons_dir, perms_file, Version::new(0, 1, 0));
 
         assert_eq!(manager.loaded_plugins().len(), 0);
         let _ = fs::remove_dir_all(temp_dir);

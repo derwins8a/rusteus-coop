@@ -1,9 +1,9 @@
 //! User profile definitions and persistence.
 
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Represents an individual user profile within Nucleus Coop.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

@@ -27,9 +27,7 @@ impl WindowsMutexManager {
 mod win_impl {
     use super::*;
     use std::ffi::c_void;
-    use windows::Win32::Foundation::{
-        DuplicateHandle, FALSE, HANDLE,
-    };
+    use windows::Win32::Foundation::{DuplicateHandle, FALSE, HANDLE};
     use windows::Win32::System::Threading::{
         GetCurrentProcess, OpenProcess, PROCESS_DUP_HANDLE, PROCESS_QUERY_INFORMATION,
     };
@@ -171,7 +169,11 @@ mod win_impl {
 
         // Open target process for handle duplication
         let proc = unsafe {
-            match OpenProcess(PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION, FALSE, target_pid) {
+            match OpenProcess(
+                PROCESS_DUP_HANDLE | PROCESS_QUERY_INFORMATION,
+                FALSE,
+                target_pid,
+            ) {
                 Ok(h) => h,
                 Err(e) => {
                     warn!("OpenProcess({}) failed: {}", target_pid, e);
@@ -329,7 +331,11 @@ pub fn parse_type_and_name<'a>(name: &'a str, default_type: &'a str) -> (&'a str
                 let parsed_type = &name[5..pipe_pos];
                 let parsed_name = &name[pipe_pos + 1..];
                 let dtype = if parsed_type.is_empty() {
-                    if default_type.is_empty() { "Mutant" } else { default_type }
+                    if default_type.is_empty() {
+                        "Mutant"
+                    } else {
+                        default_type
+                    }
                 } else {
                     parsed_type
                 };
@@ -337,7 +343,14 @@ pub fn parse_type_and_name<'a>(name: &'a str, default_type: &'a str) -> (&'a str
             }
         }
     }
-    (if default_type.is_empty() { "Mutant" } else { default_type }, name)
+    (
+        if default_type.is_empty() {
+            "Mutant"
+        } else {
+            default_type
+        },
+        name,
+    )
 }
 
 /// Helper to match handle object name against target name.
@@ -351,12 +364,18 @@ pub fn is_name_match(object_name: &str, target_name: &str, partial: bool) -> boo
         .unwrap_or(object_name);
 
     if partial {
-        local_name.to_lowercase().contains(&target_name.to_lowercase())
-            || object_name.to_lowercase().contains(&target_name.to_lowercase())
+        local_name
+            .to_lowercase()
+            .contains(&target_name.to_lowercase())
+            || object_name
+                .to_lowercase()
+                .contains(&target_name.to_lowercase())
     } else {
         local_name.eq_ignore_ascii_case(target_name)
             || object_name.eq_ignore_ascii_case(target_name)
-            || object_name.to_lowercase().ends_with(&target_name.to_lowercase())
+            || object_name
+                .to_lowercase()
+                .ends_with(&target_name.to_lowercase())
     }
 }
 
@@ -365,7 +384,13 @@ impl MutexManager for WindowsMutexManager {
         self.kill_mutex_ext(pid, mutex_name, mutex_type, false)
     }
 
-    fn kill_mutex_ext(&self, pid: u32, mutex_name: &str, mutex_type: &str, partial: bool) -> NucleusResult<bool> {
+    fn kill_mutex_ext(
+        &self,
+        pid: u32,
+        mutex_name: &str,
+        mutex_type: &str,
+        partial: bool,
+    ) -> NucleusResult<bool> {
         #[cfg(windows)]
         {
             let (target_type, target_name) = parse_type_and_name(mutex_name, mutex_type);
@@ -387,10 +412,16 @@ impl MutexManager for WindowsMutexManager {
                             target_type, name, handle_val
                         );
                         if win_impl::close_handle_in_process(pid, *handle_val) {
-                            info!("MutexManager: killed {} '{}' successfully", target_type, name);
+                            info!(
+                                "MutexManager: killed {} '{}' successfully",
+                                target_type, name
+                            );
                             killed = true;
                         } else {
-                            warn!("MutexManager: failed to close handle for {} '{}'", target_type, name);
+                            warn!(
+                                "MutexManager: failed to close handle for {} '{}'",
+                                target_type, name
+                            );
                         }
                     }
                 }
@@ -474,13 +505,14 @@ mod tests {
 
     #[test]
     fn test_find_and_kill_real_mutex() {
-        use windows::Win32::System::Threading::CreateMutexW;
         use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::CreateMutexW;
         use windows::core::HSTRING;
 
         let mutex_name = format!("NucleusTestMutex_{}", std::process::id());
         let h_name = HSTRING::from(&mutex_name);
-        let handle = unsafe { CreateMutexW(None, windows::Win32::Foundation::FALSE, &h_name) }.unwrap();
+        let handle =
+            unsafe { CreateMutexW(None, windows::Win32::Foundation::FALSE, &h_name) }.unwrap();
         assert!(!handle.is_invalid());
 
         let mgr = WindowsMutexManager::new();
@@ -494,15 +526,30 @@ mod tests {
         println!("Killed result: {}", killed);
 
         let _ = unsafe { CloseHandle(handle) };
-        assert!(killed, "Should have successfully found and killed the created mutex");
+        assert!(
+            killed,
+            "Should have successfully found and killed the created mutex"
+        );
     }
 
     #[test]
     fn test_parse_type_and_name() {
-        assert_eq!(parse_type_and_name("MyMutex", "Mutant"), ("Mutant", "MyMutex"));
-        assert_eq!(parse_type_and_name("type:Event|MyEvent", "Mutant"), ("Event", "MyEvent"));
-        assert_eq!(parse_type_and_name("TYPE:Semaphore|MySem", "Mutant"), ("Semaphore", "MySem"));
-        assert_eq!(parse_type_and_name("type:Mutant|hl2_singleton_mutex", "Mutant"), ("Mutant", "hl2_singleton_mutex"));
+        assert_eq!(
+            parse_type_and_name("MyMutex", "Mutant"),
+            ("Mutant", "MyMutex")
+        );
+        assert_eq!(
+            parse_type_and_name("type:Event|MyEvent", "Mutant"),
+            ("Event", "MyEvent")
+        );
+        assert_eq!(
+            parse_type_and_name("TYPE:Semaphore|MySem", "Mutant"),
+            ("Semaphore", "MySem")
+        );
+        assert_eq!(
+            parse_type_and_name("type:Mutant|hl2_singleton_mutex", "Mutant"),
+            ("Mutant", "hl2_singleton_mutex")
+        );
     }
 
     #[test]
@@ -510,7 +557,11 @@ mod tests {
         let full = r"\Sessions\1\BaseNamedObjects\hl2_singleton_mutex";
         // Exact / EndsWith
         assert!(is_name_match(full, "hl2_singleton_mutex", false));
-        assert!(is_name_match(full, r"\BaseNamedObjects\hl2_singleton_mutex", false));
+        assert!(is_name_match(
+            full,
+            r"\BaseNamedObjects\hl2_singleton_mutex",
+            false
+        ));
         assert!(!is_name_match(full, "hl2_singleton", false));
 
         // Partial / Contains

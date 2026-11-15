@@ -3,9 +3,9 @@
 //! Checks if running with administrator privileges. If not, requests elevation via Windows UAC
 //! (`ShellExecuteExW` with verb `"runas"`) to execute target commands or tools requiring elevation.
 
+use nucleus_platform::ElevationManager;
 use std::env;
 use std::process::{Command, exit};
-use nucleus_platform::ElevationManager;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -28,7 +28,10 @@ fn main() {
         let current_exe = match env::current_exe() {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("[Elevator] Failed to determine current executable path: {}", e);
+                eprintln!(
+                    "[Elevator] Failed to determine current executable path: {}",
+                    e
+                );
                 exit(1);
             }
         };
@@ -48,21 +51,27 @@ fn main() {
     if args.len() == 1 && args[0].eq_ignore_ascii_case("enable-symlinks") {
         #[cfg(windows)]
         {
-            use winreg::enums::*;
             use winreg::RegKey;
+            use winreg::enums::*;
             let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
             let key_path = r"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock";
             match hklm.create_subkey(key_path) {
                 Ok((key, _)) => {
                     if let Err(e) = key.set_value("AllowDevelopmentWithoutDevLicense", &1u32) {
-                        eprintln!("[Elevator] Failed to set AllowDevelopmentWithoutDevLicense: {}", e);
+                        eprintln!(
+                            "[Elevator] Failed to set AllowDevelopmentWithoutDevLicense: {}",
+                            e
+                        );
                         exit(1);
                     }
                     println!("[Elevator] Developer Mode symlink support enabled in registry.");
                     exit(0);
                 }
                 Err(e) => {
-                    eprintln!("[Elevator] Failed to create or open AppModelUnlock registry key: {}", e);
+                    eprintln!(
+                        "[Elevator] Failed to create or open AppModelUnlock registry key: {}",
+                        e
+                    );
                     exit(1);
                 }
             }

@@ -1,9 +1,9 @@
 //! Steam emulation tooling and Goldberg emulator configuration.
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 /// Options for deploying Goldberg Steam emulator to a player instance directory.
 #[derive(Debug, Clone)]
@@ -130,11 +130,7 @@ impl SteamEmuTool {
     }
 
     /// Generates `ColdClientLoader.ini` according to C# NucleusCoop specification.
-    pub fn generate_cold_client_loader_ini(
-        exe_name: &str,
-        cmd_line: &str,
-        app_id: &str,
-    ) -> String {
+    pub fn generate_cold_client_loader_ini(exe_name: &str, cmd_line: &str, app_id: &str) -> String {
         let mut s = String::new();
         s.push_str("#My own modified version of ColdClientLoader originally by Rat431\r\n");
         s.push_str("[SteamClient]\r\n");
@@ -175,14 +171,21 @@ impl SteamEmuTool {
             goldberg_dir
         };
 
-        for dll_name in &["steamclient.dll", "steamclient64.dll", "steamclient_loader.exe"] {
+        for dll_name in &[
+            "steamclient.dll",
+            "steamclient64.dll",
+            "steamclient_loader.exe",
+        ] {
             let src = source_dir.join(dll_name);
             let dst = instance_exe_folder.join(dll_name);
             if src.exists() {
                 let _ = file_util::copy_file(&src, &dst, true);
                 deployed.push(dst);
             } else {
-                tracing::warn!("Goldberg experimental steamclient source file not found: {}", src.display());
+                tracing::warn!(
+                    "Goldberg experimental steamclient source file not found: {}",
+                    src.display()
+                );
             }
         }
 
@@ -195,12 +198,26 @@ impl SteamEmuTool {
         let settings_folder = if no_local_save {
             if use_nucleus_environment {
                 dirs::home_dir()
-                    .map(|h| h.join("NucleusCoop").join(nickname).join("AppData").join("Roaming").join("Goldberg SteamEmu Saves").join("settings"))
+                    .map(|h| {
+                        h.join("NucleusCoop")
+                            .join(nickname)
+                            .join("AppData")
+                            .join("Roaming")
+                            .join("Goldberg SteamEmu Saves")
+                            .join("settings")
+                    })
                     .unwrap_or_else(|| instance_exe_folder.join("settings"))
             } else {
                 dirs::data_dir()
                     .map(|d| d.join("Goldberg SteamEmu Saves").join("settings"))
-                    .or_else(|| dirs::home_dir().map(|h| h.join("AppData").join("Roaming").join("Goldberg SteamEmu Saves").join("settings")))
+                    .or_else(|| {
+                        dirs::home_dir().map(|h| {
+                            h.join("AppData")
+                                .join("Roaming")
+                                .join("Goldberg SteamEmu Saves")
+                                .join("settings")
+                        })
+                    })
                     .unwrap_or_else(|| instance_exe_folder.join("settings"))
             }
         } else {
@@ -226,7 +243,10 @@ impl SteamEmuTool {
         // Also write into steam_settings in instance_exe_folder for compatibility
         let steam_settings = instance_exe_folder.join("steam_settings");
         let _ = file_util::ensure_dir(&steam_settings);
-        let _ = file_util::write_text_file(&steam_settings.join("user_steam_id.txt"), &steam_id.to_string());
+        let _ = file_util::write_text_file(
+            &steam_settings.join("user_steam_id.txt"),
+            &steam_id.to_string(),
+        );
         let _ = file_util::write_text_file(&steam_settings.join("account_name.txt"), nickname);
         let _ = file_util::write_text_file(&steam_settings.join("language.txt"), lang);
 
@@ -245,8 +265,16 @@ impl SteamEmuTool {
         instance_dll_dir: &Path,
         is_64bit: bool,
     ) -> NucleusResult<Option<PathBuf>> {
-        let orig_name = if is_64bit { "steam_api64.dll" } else { "steam_api.dll" };
-        let crack_name = if is_64bit { "cracksteam_api64.dll" } else { "cracksteam_api.dll" };
+        let orig_name = if is_64bit {
+            "steam_api64.dll"
+        } else {
+            "steam_api.dll"
+        };
+        let crack_name = if is_64bit {
+            "cracksteam_api64.dll"
+        } else {
+            "cracksteam_api.dll"
+        };
         let orig_path = instance_dll_dir.join(orig_name);
         let crack_path = instance_dll_dir.join(crack_name);
         if orig_path.exists() {
@@ -406,7 +434,8 @@ impl SteamEmuTool {
                         for prefix in PREFIXES {
                             if s.starts_with(prefix) {
                                 let suffix = &s[prefix.len()..];
-                                if suffix.chars().all(|c| c.is_ascii_digit()) && !suffix.is_empty() {
+                                if suffix.chars().all(|c| c.is_ascii_digit()) && !suffix.is_empty()
+                                {
                                     interfaces.insert(s.to_string());
                                 }
                             }
@@ -572,11 +601,29 @@ impl SteamEmuTool {
         let mut sections: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
 
         let launcher = vec![
-            ("Target".to_string(), target_exe.to_string_lossy().to_string()),
-            ("StartIn".to_string(), start_in.to_string_lossy().to_string()),
+            (
+                "Target".to_string(),
+                target_exe.to_string_lossy().to_string(),
+            ),
+            (
+                "StartIn".to_string(),
+                start_in.to_string_lossy().to_string(),
+            ),
             ("CommandLine".to_string(), cmd_line.to_string()),
-            ("SteamClientPath".to_string(), emu_dir.join("SmartSteamEmu.dll").to_string_lossy().to_string()),
-            ("SteamClientPath64".to_string(), emu_dir.join("SmartSteamEmu64.dll").to_string_lossy().to_string()),
+            (
+                "SteamClientPath".to_string(),
+                emu_dir
+                    .join("SmartSteamEmu.dll")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
+            (
+                "SteamClientPath64".to_string(),
+                emu_dir
+                    .join("SmartSteamEmu64.dll")
+                    .to_string_lossy()
+                    .to_string(),
+            ),
             ("InjectDll".to_string(), "1".to_string()),
         ];
         sections.insert("Launcher".to_string(), launcher);
@@ -605,7 +652,10 @@ impl SteamEmuTool {
                         let key = remainder[..eq_pos].trim().to_string();
                         let val = remainder[eq_pos + 1..].trim().to_string();
                         let entries = sections.entry(section).or_default();
-                        if let Some(entry) = entries.iter_mut().find(|(k, _)| k.eq_ignore_ascii_case(&key)) {
+                        if let Some(entry) = entries
+                            .iter_mut()
+                            .find(|(k, _)| k.eq_ignore_ascii_case(&key))
+                        {
                             entry.1 = val;
                         } else {
                             entries.push((key, val));
@@ -615,7 +665,10 @@ impl SteamEmuTool {
                     let key = trimmed[..eq_pos].trim().to_string();
                     let val = trimmed[eq_pos + 1..].trim().to_string();
                     let entries = sections.entry("SmartSteamEmu".to_string()).or_default();
-                    if let Some(entry) = entries.iter_mut().find(|(k, _)| k.eq_ignore_ascii_case(&key)) {
+                    if let Some(entry) = entries
+                        .iter_mut()
+                        .find(|(k, _)| k.eq_ignore_ascii_case(&key))
+                    {
                         entry.1 = val;
                     } else {
                         entries.push((key, val));
@@ -666,7 +719,10 @@ impl SteamEmuTool {
         if source_sse.exists() {
             let _ = copy_dir_all(&source_sse, &emu_dir);
         } else {
-            tracing::warn!("SmartSteamEmu source folder not found: {}", source_sse.display());
+            tracing::warn!(
+                "SmartSteamEmu source folder not found: {}",
+                source_sse.display()
+            );
         }
 
         let loader_filename = if options.is_64bit {
@@ -735,9 +791,16 @@ impl SteamEmuTool {
 
         if src_dll.is_file() {
             let _ = file_util::copy_file(&src_dll, &dst_dll, true)?;
-            tracing::info!("Deployed Steam Stub DRM Patcher: {} -> {}", src_dll.display(), dst_dll.display());
+            tracing::info!(
+                "Deployed Steam Stub DRM Patcher: {} -> {}",
+                src_dll.display(),
+                dst_dll.display()
+            );
         } else {
-            tracing::warn!("Steam Stub DRM Patcher winmm.dll not found: {}", src_dll.display());
+            tracing::warn!(
+                "Steam Stub DRM Patcher winmm.dll not found: {}",
+                src_dll.display()
+            );
         }
 
         Ok(dst_dll)
@@ -751,12 +814,13 @@ impl SteamEmuTool {
         steamless_args: Option<&str>,
         timing_ms: u64,
     ) -> NucleusResult<bool> {
-        let steamless_exe = utils_dir
-            .join("Steamless")
-            .join("Steamless.CLI.exe");
+        let steamless_exe = utils_dir.join("Steamless").join("Steamless.CLI.exe");
 
         let target_dir = target_exe.parent().unwrap_or(Path::new("."));
-        let exe_name = target_exe.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        let exe_name = target_exe
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
 
         let unpacked_exe = target_dir.join(format!("{}.unpacked.exe", exe_name));
 
@@ -806,10 +870,12 @@ impl SteamEmuTool {
     pub fn get_user_steam_client_language() -> Option<String> {
         #[cfg(windows)]
         {
-            use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ};
             use winreg::RegKey;
+            use winreg::enums::{HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ};
 
-            if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(r"Software\Valve\Steam\steamglobal", KEY_READ) {
+            if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey_with_flags(r"Software\Valve\Steam\steamglobal", KEY_READ)
+            {
                 if let Ok(lang) = hkcu.get_value::<String, _>("Language") {
                     if !lang.trim().is_empty() {
                         return Some(lang.to_lowercase());
@@ -817,7 +883,9 @@ impl SteamEmuTool {
                 }
             }
 
-            if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(r"Software\Valve\Steam", KEY_READ) {
+            if let Ok(hkcu) = RegKey::predef(HKEY_CURRENT_USER)
+                .open_subkey_with_flags(r"Software\Valve\Steam", KEY_READ)
+            {
                 if let Ok(lang) = hkcu.get_value::<String, _>("Language") {
                     if !lang.trim().is_empty() {
                         return Some(lang.to_lowercase());
@@ -825,7 +893,9 @@ impl SteamEmuTool {
                 }
             }
 
-            if let Ok(hklm) = RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey_with_flags(r"SOFTWARE\Valve\Steam", KEY_READ) {
+            if let Ok(hklm) = RegKey::predef(HKEY_LOCAL_MACHINE)
+                .open_subkey_with_flags(r"SOFTWARE\Valve\Steam", KEY_READ)
+            {
                 if let Ok(lang) = hklm.get_value::<String, _>("Language") {
                     if !lang.trim().is_empty() {
                         return Some(lang.to_lowercase());
@@ -875,15 +945,40 @@ impl SteamEmuTool {
         Self::find_steam_dlls_bounded(dir, found, 0, 3);
     }
 
-    fn find_steam_dlls_bounded(dir: &Path, found: &mut Vec<PathBuf>, depth: usize, max_depth: usize) {
+    fn find_steam_dlls_bounded(
+        dir: &Path,
+        found: &mut Vec<PathBuf>,
+        depth: usize,
+        max_depth: usize,
+    ) {
         if depth > max_depth {
             return;
         }
 
         const ASSET_DIRS: &[&str] = &[
-            "materials", "models", "sound", "sounds", "music", "audio", "maps", "media", "scenes",
-            "textures", "shaders", "addons", "vpk", "content", "movies", "video", "docs", "documentation",
-            "save", "saves", "cache", ".git", ".svn"
+            "materials",
+            "models",
+            "sound",
+            "sounds",
+            "music",
+            "audio",
+            "maps",
+            "media",
+            "scenes",
+            "textures",
+            "shaders",
+            "addons",
+            "vpk",
+            "content",
+            "movies",
+            "video",
+            "docs",
+            "documentation",
+            "save",
+            "saves",
+            "cache",
+            ".git",
+            ".svn",
         ];
 
         if let Ok(entries) = std::fs::read_dir(dir) {
@@ -956,7 +1051,9 @@ impl SteamEmuTool {
             goldberg_src_dir.join("steam_api.dll")
         };
         let src_64_candidate = if options.experimental {
-            goldberg_src_dir.join("experimental").join("steam_api64.dll")
+            goldberg_src_dir
+                .join("experimental")
+                .join("steam_api64.dll")
         } else {
             goldberg_src_dir.join("steam_api64.dll")
         };
@@ -964,7 +1061,10 @@ impl SteamEmuTool {
         let (src_32, src_64) = if !src_32_candidate.exists() && !src_64_candidate.exists() {
             let alt_dir = Path::new(r"C:\Games\NucleusCoop242\utils\GoldbergEmu");
             if alt_dir.exists() {
-                (alt_dir.join("steam_api.dll"), alt_dir.join("steam_api64.dll"))
+                (
+                    alt_dir.join("steam_api.dll"),
+                    alt_dir.join("steam_api64.dll"),
+                )
             } else {
                 (src_32_candidate, src_64_candidate)
             }
@@ -991,9 +1091,15 @@ impl SteamEmuTool {
         }
 
         if target_rel_paths.is_empty() {
-            let def_name = if options.is_64bit { "steam_api64.dll" } else { "steam_api.dll" };
+            let def_name = if options.is_64bit {
+                "steam_api64.dll"
+            } else {
+                "steam_api.dll"
+            };
             target_rel_paths.push(PathBuf::from(def_name));
-            if options.orig_game_dir.join("bin").exists() || options.instance_dir.join("bin").exists() {
+            if options.orig_game_dir.join("bin").exists()
+                || options.instance_dir.join("bin").exists()
+            {
                 target_rel_paths.push(PathBuf::from("bin").join(def_name));
             }
         }
@@ -1014,7 +1120,10 @@ impl SteamEmuTool {
             // GoldbergExperimentalRename support
             if options.experimental && options.experimental_rename {
                 if let Ok(Some(renamed)) = Self::rename_to_crack_steam_api(dest_dir, is_64) {
-                    tracing::info!("GoldbergExperimentalRename: renamed to {}", renamed.display());
+                    tracing::info!(
+                        "GoldbergExperimentalRename: renamed to {}",
+                        renamed.display()
+                    );
                     deployed.push(renamed);
                 }
             }
@@ -1027,7 +1136,11 @@ impl SteamEmuTool {
 
             if src_file.exists() {
                 let _ = file_util::copy_file(src_file, &dest_file, true);
-                tracing::info!("Deployed Goldberg Steam API: {} -> {}", src_file.display(), dest_file.display());
+                tracing::info!(
+                    "Deployed Goldberg Steam API: {} -> {}",
+                    src_file.display(),
+                    dest_file.display()
+                );
                 deployed.push(dest_file.clone());
             } else {
                 tracing::warn!("Goldberg source DLL not found: {}", src_file.display());
@@ -1051,11 +1164,20 @@ impl SteamEmuTool {
             for sub_settings in &["settings", "steam_settings"] {
                 let settings_folder = dest_dir.join(sub_settings);
                 let _ = file_util::ensure_dir(&settings_folder);
-                let _ = file_util::write_text_file(&settings_folder.join("account_name.txt"), options.nickname);
-                let _ = file_util::write_text_file(&settings_folder.join("user_steam_id.txt"), &player_steam_id.to_string());
+                let _ = file_util::write_text_file(
+                    &settings_folder.join("account_name.txt"),
+                    options.nickname,
+                );
+                let _ = file_util::write_text_file(
+                    &settings_folder.join("user_steam_id.txt"),
+                    &player_steam_id.to_string(),
+                );
                 let _ = file_util::write_text_file(&settings_folder.join("language.txt"), lang);
                 if let Some(port) = options.listen_port {
-                    let _ = file_util::write_text_file(&settings_folder.join("listen_port.txt"), &port.to_string());
+                    let _ = file_util::write_text_file(
+                        &settings_folder.join("listen_port.txt"),
+                        &port.to_string(),
+                    );
                 }
             }
 
@@ -1070,8 +1192,14 @@ impl SteamEmuTool {
                         .join("Goldberg SteamEmu Saves")
                         .join("settings");
                     let _ = file_util::ensure_dir(&user_settings);
-                    let _ = file_util::write_text_file(&user_settings.join("account_name.txt"), options.nickname);
-                    let _ = file_util::write_text_file(&user_settings.join("user_steam_id.txt"), &player_steam_id.to_string());
+                    let _ = file_util::write_text_file(
+                        &user_settings.join("account_name.txt"),
+                        options.nickname,
+                    );
+                    let _ = file_util::write_text_file(
+                        &user_settings.join("user_steam_id.txt"),
+                        &player_steam_id.to_string(),
+                    );
                     let _ = file_util::write_text_file(&user_settings.join("language.txt"), lang);
                 }
             }
@@ -1082,7 +1210,10 @@ impl SteamEmuTool {
                 let candidates = [
                     goldberg_src_dir.join("tools").join("steam_interfaces.txt"),
                     options.orig_game_dir.join("steam_interfaces.txt"),
-                    options.handler_folder.map(|h| h.join("steam_interfaces.txt")).unwrap_or_default(),
+                    options
+                        .handler_folder
+                        .map(|h| h.join("steam_interfaces.txt"))
+                        .unwrap_or_default(),
                 ];
                 let mut found_existing = false;
                 for cand in &candidates {
@@ -1094,10 +1225,15 @@ impl SteamEmuTool {
                     }
                 }
                 if !found_existing {
-                    let orig_dll = options.orig_steam_dll_path
+                    let orig_dll = options
+                        .orig_steam_dll_path
                         .map(|p| p.to_path_buf())
                         .unwrap_or_else(|| options.orig_game_dir.join(rel));
-                    let _ = Self::generate_interfaces_file(&orig_dll, &iface_dest, Some(options.utils_dir));
+                    let _ = Self::generate_interfaces_file(
+                        &orig_dll,
+                        &iface_dest,
+                        Some(options.utils_dir),
+                    );
                     deployed.push(iface_dest);
                 }
             }
@@ -1128,7 +1264,13 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn find_files_by_name(dir: &Path, target_name: &str, found: &mut Vec<PathBuf>, depth: usize, max_depth: usize) {
+fn find_files_by_name(
+    dir: &Path,
+    target_name: &str,
+    found: &mut Vec<PathBuf>,
+    depth: usize,
+    max_depth: usize,
+) {
     if depth > max_depth {
         return;
     }
@@ -1154,19 +1296,28 @@ mod tests {
 
     #[test]
     fn test_goldberg_deploy_recursive_discovery_and_settings() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_goldberg_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_goldberg_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let orig_game = temp_dir.join("orig_game");
         let bin_dir = orig_game.join("bin");
         std::fs::create_dir_all(&bin_dir).unwrap();
-        std::fs::write(bin_dir.join("steam_api.dll"), "dummy original steam_api.dll").unwrap();
+        std::fs::write(
+            bin_dir.join("steam_api.dll"),
+            "dummy original steam_api.dll",
+        )
+        .unwrap();
 
         let utils_dir = temp_dir.join("utils");
         let goldberg_dir = utils_dir.join("GoldbergEmu");
         std::fs::create_dir_all(&goldberg_dir).unwrap();
-        std::fs::write(goldberg_dir.join("steam_api.dll"), "goldberg emu steam_api dll").unwrap();
+        std::fs::write(
+            goldberg_dir.join("steam_api.dll"),
+            "goldberg emu steam_api dll",
+        )
+        .unwrap();
 
         let instance_dir = temp_dir.join("instance0");
         std::fs::create_dir_all(&instance_dir).unwrap();
@@ -1200,7 +1351,10 @@ mod tests {
         assert!(!deployed.is_empty());
 
         let target_dll = instance_dir.join("bin").join("steam_api.dll");
-        assert!(target_dll.exists(), "Instance bin/steam_api.dll should be created");
+        assert!(
+            target_dll.exists(),
+            "Instance bin/steam_api.dll should be created"
+        );
         let content = std::fs::read_to_string(&target_dll).unwrap();
         assert_eq!(content, "goldberg emu steam_api dll");
 
@@ -1212,7 +1366,10 @@ mod tests {
         assert!(appid_exe.exists());
         assert_eq!(std::fs::read_to_string(&appid_exe).unwrap(), "550");
 
-        let settings_acc = instance_dir.join("bin").join("settings").join("account_name.txt");
+        let settings_acc = instance_dir
+            .join("bin")
+            .join("settings")
+            .join("account_name.txt");
         assert!(settings_acc.exists());
         assert_eq!(std::fs::read_to_string(&settings_acc).unwrap(), "Player1");
 
@@ -1221,7 +1378,8 @@ mod tests {
 
     #[test]
     fn test_cold_client_loader_ini_generation() {
-        let ini = SteamEmuTool::generate_cold_client_loader_ini("game.exe", "-w 1920 -h 1080", "480");
+        let ini =
+            SteamEmuTool::generate_cold_client_loader_ini("game.exe", "-w 1920 -h 1080", "480");
         assert!(ini.contains("#My own modified version of ColdClientLoader originally by Rat431"));
         assert!(ini.contains("[SteamClient]"));
         assert!(ini.contains("Exe=game.exe"));
@@ -1276,7 +1434,8 @@ mod tests {
 
     #[test]
     fn test_write_steam_id_and_account() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_write_account_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_write_account_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1286,7 +1445,9 @@ mod tests {
         std::fs::write(bin_settings.join("account_name.txt"), "OldNick").unwrap();
         std::fs::write(bin_settings.join("user_steam_id.txt"), "000000").unwrap();
 
-        let updated = SteamEmuTool::write_steam_id_and_account(&temp_dir, "SuperPlayer", 76561198012345678).unwrap();
+        let updated =
+            SteamEmuTool::write_steam_id_and_account(&temp_dir, "SuperPlayer", 76561198012345678)
+                .unwrap();
         assert!(!updated.is_empty());
 
         let new_nick = std::fs::read_to_string(bin_settings.join("account_name.txt")).unwrap();
@@ -1306,7 +1467,8 @@ mod tests {
         assert!(ifaces.contains(&"SteamUser019".to_string()));
         assert!(ifaces.contains(&"SteamFriends015".to_string()));
 
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_iface_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_iface_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1314,7 +1476,8 @@ mod tests {
         std::fs::write(&dummy_dll, dummy_dll_data).unwrap();
 
         let out_file = temp_dir.join("steam_settings").join("steam_interfaces.txt");
-        let generated = SteamEmuTool::generate_interfaces_file(&dummy_dll, &out_file, None).unwrap();
+        let generated =
+            SteamEmuTool::generate_interfaces_file(&dummy_dll, &out_file, None).unwrap();
         assert!(generated.is_file());
 
         let content = std::fs::read_to_string(&generated).unwrap();
@@ -1327,7 +1490,8 @@ mod tests {
 
     #[test]
     fn test_rename_to_crack_steam_api() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_crack_rename_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_crack_rename_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1352,7 +1516,8 @@ mod tests {
 
     #[test]
     fn test_deploy_steam_stub_drm_patcher() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_drm_patch_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_drm_patch_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
@@ -1367,7 +1532,8 @@ mod tests {
         let inst_exe_dir = temp_dir.join("inst_exe");
         std::fs::create_dir_all(&inst_exe_dir).unwrap();
 
-        let deployed = SteamEmuTool::deploy_steam_stub_drm_patcher(&inst_exe_dir, &utils_dir, "64").unwrap();
+        let deployed =
+            SteamEmuTool::deploy_steam_stub_drm_patcher(&inst_exe_dir, &utils_dir, "64").unwrap();
         assert!(deployed.exists());
         assert_eq!(std::fs::read_to_string(&deployed).unwrap(), "winmm 64bit");
 
@@ -1376,12 +1542,15 @@ mod tests {
 
     #[test]
     fn test_goldberg_experimental_steam_client_deploy() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_exp_client_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_exp_client_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
 
         let utils_dir = temp_dir.join("utils");
-        let exp_dir = utils_dir.join("GoldbergEmu").join("experimental_steamclient");
+        let exp_dir = utils_dir
+            .join("GoldbergEmu")
+            .join("experimental_steamclient");
         std::fs::create_dir_all(&exp_dir).unwrap();
         std::fs::write(exp_dir.join("steamclient.dll"), "steamclient dll").unwrap();
         std::fs::write(exp_dir.join("steamclient64.dll"), "steamclient64 dll").unwrap();
@@ -1401,9 +1570,13 @@ mod tests {
             Some("english"),
             false,
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
-        assert_eq!(launch_info.loader_exe, inst_dir.join("steamclient_loader.exe"));
+        assert_eq!(
+            launch_info.loader_exe,
+            inst_dir.join("steamclient_loader.exe")
+        );
         assert!(inst_dir.join("steamclient.dll").exists());
         assert!(inst_dir.join("steamclient64.dll").exists());
         assert!(inst_dir.join("ColdClientLoader.ini").exists());

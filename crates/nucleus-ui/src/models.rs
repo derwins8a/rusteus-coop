@@ -94,7 +94,10 @@ impl HandlerItem {
             max_players,
             description: description.into(),
             cover_image_url: None,
-            tags: vec!["Controller support".to_string(), "Keyboard/mouse support".to_string()],
+            tags: vec![
+                "Controller support".to_string(),
+                "Keyboard/mouse support".to_string(),
+            ],
             is_installed: false,
             executable_path: None,
             play_time_seconds: 0,
@@ -181,12 +184,7 @@ impl HandlerItem {
     }
 
     /// Builder to set supported input types.
-    pub fn with_input_support(
-        mut self,
-        gamepad: bool,
-        keyboard: bool,
-        multi_km: bool,
-    ) -> Self {
+    pub fn with_input_support(mut self, gamepad: bool, keyboard: bool, multi_km: bool) -> Self {
         self.supports_gamepad = gamepad;
         self.supports_xinput = gamepad;
         self.supports_dinput = false;
@@ -249,7 +247,11 @@ impl HandlerItem {
         if let Some(ref s) = self.last_played_str {
             let trimmed = s.trim();
             if !trimmed.is_empty() && trimmed != "..." {
-                return trimmed.split_whitespace().next().unwrap_or(trimmed).to_string();
+                return trimmed
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or(trimmed)
+                    .to_string();
             }
         }
 
@@ -375,12 +377,21 @@ pub struct DeviceItem {
 
 impl DeviceItem {
     /// Creates a new physical `DeviceItem`.
-    pub fn new(id: usize, name: impl Into<String>, guid: impl Into<String>, is_connected: bool) -> Self {
+    pub fn new(
+        id: usize,
+        name: impl Into<String>,
+        guid: impl Into<String>,
+        is_connected: bool,
+    ) -> Self {
         let name_str = name.into();
         let guid_str = guid.into();
-        let dev_type = if name_str.to_lowercase().contains("mouse") || guid_str.to_lowercase().contains("mouse") {
+        let dev_type = if name_str.to_lowercase().contains("mouse")
+            || guid_str.to_lowercase().contains("mouse")
+        {
             nucleus_common::types::DeviceType::Mouse
-        } else if name_str.to_lowercase().contains("keyboard") || guid_str.to_lowercase().contains("keyboard") {
+        } else if name_str.to_lowercase().contains("keyboard")
+            || guid_str.to_lowercase().contains("keyboard")
+        {
             nucleus_common::types::DeviceType::Keyboard
         } else {
             nucleus_common::types::DeviceType::XInputGamepad
@@ -399,9 +410,13 @@ impl DeviceItem {
     pub fn new_virtual(id: usize, name: impl Into<String>, guid: impl Into<String>) -> Self {
         let name_str = name.into();
         let guid_str = guid.into();
-        let dev_type = if name_str.to_lowercase().contains("mouse") || guid_str.to_lowercase().contains("mouse") {
+        let dev_type = if name_str.to_lowercase().contains("mouse")
+            || guid_str.to_lowercase().contains("mouse")
+        {
             nucleus_common::types::DeviceType::Mouse
-        } else if name_str.to_lowercase().contains("keyboard") || guid_str.to_lowercase().contains("keyboard") {
+        } else if name_str.to_lowercase().contains("keyboard")
+            || guid_str.to_lowercase().contains("keyboard")
+        {
             nucleus_common::types::DeviceType::Keyboard
         } else {
             nucleus_common::types::DeviceType::XInputGamepad
@@ -535,12 +550,7 @@ impl HubPackageItem {
     }
 
     /// Builder to configure input device capabilities.
-    pub fn with_inputs(
-        mut self,
-        controllers: bool,
-        mouse_kb: bool,
-        multi_mouse_kb: bool,
-    ) -> Self {
+    pub fn with_inputs(mut self, controllers: bool, mouse_kb: bool, multi_mouse_kb: bool) -> Self {
         self.playable_controllers = controllers;
         self.playable_mouse_keyboard = mouse_kb;
         self.playable_multi_mouse_keyboard = multi_mouse_kb;

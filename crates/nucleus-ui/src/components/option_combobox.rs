@@ -327,7 +327,11 @@ impl CouchOptionCombobox {
                 } else {
                     theme::accent()
                 })
-                .child(Icon::new(IconName::Search).size_3p5().text_color(theme::text_muted()))
+                .child(
+                    Icon::new(IconName::Search)
+                        .size_3p5()
+                        .text_color(theme::text_muted()),
+                )
                 .child(
                     div()
                         .flex_1()
@@ -353,7 +357,11 @@ impl CouchOptionCombobox {
                     .p_0p5()
                     .rounded_sm()
                     .hover(|s| s.bg(theme::bg_hover()))
-                    .child(Icon::new(IconName::X).size_3().text_color(theme::text_muted()));
+                    .child(
+                        Icon::new(IconName::X)
+                            .size_3()
+                            .text_color(theme::text_muted()),
+                    );
                 if let Some(on_clear) = self.on_clear_draft {
                     clear_btn = clear_btn.on_click(move |ev, win, cx| on_clear(ev, win, cx));
                 }
@@ -378,7 +386,11 @@ impl CouchOptionCombobox {
                         .gap_2()
                         .text_xs()
                         .text_color(theme::danger())
-                        .child(Icon::new(IconName::CircleAlert).size_3p5().text_color(theme::danger()))
+                        .child(
+                            Icon::new(IconName::CircleAlert)
+                                .size_3p5()
+                                .text_color(theme::danger()),
+                        )
                         .child("No matching options"),
                 );
             } else {
@@ -477,7 +489,11 @@ impl CouchOptionCombobox {
                         .bg(theme::danger_subtle())
                         .text_xs()
                         .text_color(theme::danger())
-                        .child(Icon::new(IconName::CircleAlert).size_3().text_color(theme::danger()))
+                        .child(
+                            Icon::new(IconName::CircleAlert)
+                                .size_3()
+                                .text_color(theme::danger()),
+                        )
                         .child(err.clone()),
                 );
             }
@@ -519,7 +535,11 @@ impl CouchOptionCombobox {
                     .gap_1p5()
                     .text_xs()
                     .text_color(theme::danger())
-                    .child(Icon::new(IconName::CircleAlert).size_3().text_color(theme::danger()))
+                    .child(
+                        Icon::new(IconName::CircleAlert)
+                            .size_3()
+                            .text_color(theme::danger()),
+                    )
                     .child(err),
             );
         }

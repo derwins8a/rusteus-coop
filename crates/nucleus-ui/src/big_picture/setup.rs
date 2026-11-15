@@ -11,11 +11,11 @@ use gpui::*;
 use nucleus_common::types::DeviceType;
 use nucleus_input::gamepad::{DeviceFingerprint, GamepadDevice};
 
+use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
 use crate::models::DeviceItem;
 use crate::theme;
 use crate::window::MainWindow;
 use crate::{Icon, IconName};
-use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
 
 /// Connection resilience status for an assigned couch player slot.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,10 +23,7 @@ pub enum DisconnectStatus {
     /// Device is connected and active.
     Connected,
     /// Device disconnected; 10s toast banner is active waiting for replug.
-    ReplugPending {
-        remaining_ms: u64,
-        total_ms: u64,
-    },
+    ReplugPending { remaining_ms: u64, total_ms: u64 },
     /// 10s countdown expired; toast is dismissed, but slot remains preserved.
     DisconnectedSilent,
 }
@@ -115,7 +112,11 @@ impl CouchPlayerSlot {
     pub fn update_composite_name(&mut self) {
         if let (Some(kb), Some(mouse)) = (&self.raw_keyboard_name, &self.raw_mouse_name) {
             self.device_name = format!("{} + {}", kb, mouse);
-            self.device_guid = format!("{}+{}", self.raw_keyboard_guid.as_deref().unwrap_or("kb"), self.raw_mouse_guid.as_deref().unwrap_or("m"));
+            self.device_guid = format!(
+                "{}+{}",
+                self.raw_keyboard_guid.as_deref().unwrap_or("kb"),
+                self.raw_mouse_guid.as_deref().unwrap_or("m")
+            );
         } else if let Some(ref kb) = self.raw_keyboard_name {
             self.device_name = format!("{} (Needs Mouse)", kb);
             self.device_guid = self.raw_keyboard_guid.clone().unwrap_or_default();
@@ -388,7 +389,8 @@ impl CouchSetupState {
     /// or merging a raw mouse and raw keyboard into a single composite slot.
     pub fn drop_swap_target(&mut self, target_idx: usize) {
         if let Some(grabbed) = self.grabbed_slot {
-            if grabbed < self.slots.len() && target_idx < self.slots.len() && grabbed != target_idx {
+            if grabbed < self.slots.len() && target_idx < self.slots.len() && grabbed != target_idx
+            {
                 let is_mouse_onto_kb = self.slots[grabbed].has_raw_mouse()
                     && !self.slots[grabbed].has_raw_keyboard()
                     && self.slots[target_idx].has_raw_keyboard()
@@ -399,24 +401,48 @@ impl CouchSetupState {
                     && !self.slots[target_idx].has_raw_keyboard();
 
                 if is_mouse_onto_kb {
-                    let mouse_guid = self.slots[grabbed].raw_mouse_guid.clone().unwrap_or_else(|| self.slots[grabbed].device_guid.clone());
-                    let mouse_name = self.slots[grabbed].raw_mouse_name.clone().unwrap_or_else(|| self.slots[grabbed].device_name.clone());
+                    let mouse_guid = self.slots[grabbed]
+                        .raw_mouse_guid
+                        .clone()
+                        .unwrap_or_else(|| self.slots[grabbed].device_guid.clone());
+                    let mouse_name = self.slots[grabbed]
+                        .raw_mouse_name
+                        .clone()
+                        .unwrap_or_else(|| self.slots[grabbed].device_name.clone());
                     self.slots[target_idx].assign_raw_mouse(&mouse_guid, &mouse_name);
                     self.slots.remove(grabbed);
                     self.cancel_grab();
-                    for (i, s) in self.slots.iter_mut().enumerate() { s.player_index = i; }
+                    for (i, s) in self.slots.iter_mut().enumerate() {
+                        s.player_index = i;
+                    }
                     self.update_layout_for_slot_count();
-                    self.focused_slot = if target_idx >= self.slots.len() { self.slots.len().saturating_sub(1) } else { target_idx };
+                    self.focused_slot = if target_idx >= self.slots.len() {
+                        self.slots.len().saturating_sub(1)
+                    } else {
+                        target_idx
+                    };
                     return;
                 } else if is_kb_onto_mouse {
-                    let kb_guid = self.slots[grabbed].raw_keyboard_guid.clone().unwrap_or_else(|| self.slots[grabbed].device_guid.clone());
-                    let kb_name = self.slots[grabbed].raw_keyboard_name.clone().unwrap_or_else(|| self.slots[grabbed].device_name.clone());
+                    let kb_guid = self.slots[grabbed]
+                        .raw_keyboard_guid
+                        .clone()
+                        .unwrap_or_else(|| self.slots[grabbed].device_guid.clone());
+                    let kb_name = self.slots[grabbed]
+                        .raw_keyboard_name
+                        .clone()
+                        .unwrap_or_else(|| self.slots[grabbed].device_name.clone());
                     self.slots[target_idx].assign_raw_keyboard(&kb_guid, &kb_name);
                     self.slots.remove(grabbed);
                     self.cancel_grab();
-                    for (i, s) in self.slots.iter_mut().enumerate() { s.player_index = i; }
+                    for (i, s) in self.slots.iter_mut().enumerate() {
+                        s.player_index = i;
+                    }
                     self.update_layout_for_slot_count();
-                    self.focused_slot = if target_idx >= self.slots.len() { self.slots.len().saturating_sub(1) } else { target_idx };
+                    self.focused_slot = if target_idx >= self.slots.len() {
+                        self.slots.len().saturating_sub(1)
+                    } else {
+                        target_idx
+                    };
                     return;
                 }
 
@@ -437,8 +463,10 @@ impl CouchSetupState {
                 self.slots[grabbed].is_connected = self.slots[target_idx].is_connected;
                 self.slots[grabbed].status = self.slots[target_idx].status.clone();
                 self.slots[grabbed].fingerprint = self.slots[target_idx].fingerprint.clone();
-                self.slots[grabbed].raw_keyboard_guid = self.slots[target_idx].raw_keyboard_guid.clone();
-                self.slots[grabbed].raw_keyboard_name = self.slots[target_idx].raw_keyboard_name.clone();
+                self.slots[grabbed].raw_keyboard_guid =
+                    self.slots[target_idx].raw_keyboard_guid.clone();
+                self.slots[grabbed].raw_keyboard_name =
+                    self.slots[target_idx].raw_keyboard_name.clone();
                 self.slots[grabbed].raw_mouse_guid = self.slots[target_idx].raw_mouse_guid.clone();
                 self.slots[grabbed].raw_mouse_name = self.slots[target_idx].raw_mouse_name.clone();
 
@@ -808,7 +836,11 @@ impl CouchSetupState {
     /// Ticks disconnect resilience countdowns for all pending slots.
     pub fn tick_disconnect(&mut self, delta: Duration) {
         for slot in &mut self.slots {
-            if let DisconnectStatus::ReplugPending { ref mut remaining_ms, .. } = slot.status {
+            if let DisconnectStatus::ReplugPending {
+                ref mut remaining_ms,
+                ..
+            } = slot.status
+            {
                 let delta_ms = delta.as_millis() as u64;
                 if *remaining_ms <= delta_ms {
                     slot.status = DisconnectStatus::DisconnectedSilent;
@@ -821,12 +853,16 @@ impl CouchSetupState {
 
     /// Returns the first slot actively waiting in `ReplugPending` status, along with countdown progress.
     pub fn active_disconnect_banner(&self) -> Option<(usize, &CouchPlayerSlot, u64, u64)> {
-        self.slots.iter().enumerate().find_map(|(idx, slot)| match slot.status {
-            DisconnectStatus::ReplugPending { remaining_ms, total_ms } => {
-                Some((idx, slot, remaining_ms, total_ms))
-            }
-            _ => None,
-        })
+        self.slots
+            .iter()
+            .enumerate()
+            .find_map(|(idx, slot)| match slot.status {
+                DisconnectStatus::ReplugPending {
+                    remaining_ms,
+                    total_ms,
+                } => Some((idx, slot, remaining_ms, total_ms)),
+                _ => None,
+            })
     }
 
     /// Returns the active partition layout kind based on `selected_layout`.
@@ -881,13 +917,24 @@ impl PartitionLayoutKind {
             Self::Fullscreen
         } else if lower.contains("stacked") || lower.contains("1x2") {
             Self::Stacked
-        } else if lower.contains("2x3") || lower.contains("3x2") || lower.contains("grid 6") || lower.contains("grid6") {
+        } else if lower.contains("2x3")
+            || lower.contains("3x2")
+            || lower.contains("grid 6")
+            || lower.contains("grid6")
+        {
             Self::Grid6
-        } else if lower.contains("2x4") || lower.contains("4x2") || lower.contains("grid 8") || lower.contains("grid8") {
+        } else if lower.contains("2x4")
+            || lower.contains("4x2")
+            || lower.contains("grid 8")
+            || lower.contains("grid8")
+        {
             Self::Grid8
         } else if lower.contains("4x4") || lower.contains("grid 16") || lower.contains("grid16") {
             Self::Grid16
-        } else if lower.contains("multi-monitor") || lower.contains("multimonitor") || lower.contains("multi monitor") {
+        } else if lower.contains("multi-monitor")
+            || lower.contains("multimonitor")
+            || lower.contains("multi monitor")
+        {
             Self::MultiMonitor
         } else if lower.contains("grid") || lower.contains("2x2") {
             Self::Grid
@@ -990,10 +1037,9 @@ pub fn render_disconnect_toast_banner(
                                                 )),
                                         )
                                         .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(theme::text_muted())
-                                                .child("Replug USB / reconnect Bluetooth to resume."),
+                                            div().text_xs().text_color(theme::text_muted()).child(
+                                                "Replug USB / reconnect Bluetooth to resume.",
+                                            ),
                                         ),
                                 ),
                         )
@@ -1451,7 +1497,9 @@ fn render_step_3_options(
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
     let game_name = win.selected_game.as_deref().unwrap_or("No Game Selected");
-    let handler = win.handlers.iter().find(|h| h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name));
+    let handler = win.handlers.iter().find(|h| {
+        h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name)
+    });
     let has_options = handler.map(|h| !h.options.is_empty()).unwrap_or(false);
 
     div()
@@ -1798,7 +1846,11 @@ fn render_km_assignment_bar(
                 .flex()
                 .items_center()
                 .gap_1p5()
-                .child(Icon::new(IconName::Keyboard).size_4().text_color(theme::text_muted()))
+                .child(
+                    Icon::new(IconName::Keyboard)
+                        .size_4()
+                        .text_color(theme::text_muted()),
+                )
                 .child(
                     div()
                         .text_xs()
@@ -1821,7 +1873,12 @@ fn render_km_assignment_bar(
             CouchButton::secondary("btn-add-raw-keyboard", "Add Raw Keyboard")
                 .size(CouchButtonSize::Lg)
                 .on_click(cx.listener(move |this, _, _, cx| {
-                    let count = this.couch_setup_state.slots.iter().filter(|s| s.has_raw_keyboard()).count();
+                    let count = this
+                        .couch_setup_state
+                        .slots
+                        .iter()
+                        .filter(|s| s.has_raw_keyboard())
+                        .count();
                     this.couch_setup_state.add_raw_keyboard(count);
                     cx.notify();
                 })),
@@ -1831,7 +1888,12 @@ fn render_km_assignment_bar(
             CouchButton::secondary("btn-add-raw-mouse", "Add Raw Mouse")
                 .size(CouchButtonSize::Lg)
                 .on_click(cx.listener(move |this, _, _, cx| {
-                    let count = this.couch_setup_state.slots.iter().filter(|s| s.has_raw_mouse()).count();
+                    let count = this
+                        .couch_setup_state
+                        .slots
+                        .iter()
+                        .filter(|s| s.has_raw_mouse())
+                        .count();
                     this.couch_setup_state.add_raw_mouse(count);
                     cx.notify();
                 })),
@@ -1841,11 +1903,15 @@ fn render_km_assignment_bar(
 
 fn render_couch_game_details_card(win: &MainWindow, _cx: &mut Context<MainWindow>) -> AnyElement {
     let game_name = win.selected_game.as_deref().unwrap_or("No Game Selected");
-    let handler = win.handlers.iter().find(|h| h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name));
+    let handler = win.handlers.iter().find(|h| {
+        h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name)
+    });
 
     let cover_url = handler.and_then(|h| h.cover_image_url.as_deref());
     let max_players = handler.map(|h| h.max_players).unwrap_or(4);
-    let exe_name = handler.map(|h| h.executable_name.as_str()).unwrap_or("game.exe");
+    let exe_name = handler
+        .map(|h| h.executable_name.as_str())
+        .unwrap_or("game.exe");
     let is_installed = handler.map(|h| h.is_installed).unwrap_or(false);
 
     let cover_elem: AnyElement = if let Some(url) = cover_url {
@@ -1862,7 +1928,11 @@ fn render_couch_game_details_card(win: &MainWindow, _cx: &mut Context<MainWindow
             .size_full()
             .bg(theme::bg_subtle())
             .rounded_lg()
-            .child(Icon::new(IconName::Gamepad2).size_10().text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Gamepad2)
+                    .size_10()
+                    .text_color(theme::text_muted()),
+            )
             .into_any_element()
     };
 
@@ -1923,7 +1993,11 @@ fn render_couch_game_details_card(win: &MainWindow, _cx: &mut Context<MainWindow
                         .text_xs()
                         .font_weight(FontWeight::BOLD)
                         .text_color(theme::accent())
-                        .child(Icon::new(IconName::Users).size_3p5().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Users)
+                                .size_3p5()
+                                .text_color(theme::accent()),
+                        )
                         .child(format!("Max: {} Players", max_players)),
                 )
                 .child(
@@ -1934,14 +2008,37 @@ fn render_couch_game_details_card(win: &MainWindow, _cx: &mut Context<MainWindow
                         .px_2p5()
                         .py_1()
                         .rounded_md()
-                        .bg(if is_installed { theme::success_subtle() } else { theme::warning_subtle() })
+                        .bg(if is_installed {
+                            theme::success_subtle()
+                        } else {
+                            theme::warning_subtle()
+                        })
                         .border_1()
-                        .border_color(if is_installed { theme::success().opacity(0.5) } else { theme::warning().opacity(0.5) })
+                        .border_color(if is_installed {
+                            theme::success().opacity(0.5)
+                        } else {
+                            theme::warning().opacity(0.5)
+                        })
                         .text_xs()
                         .font_weight(FontWeight::BOLD)
-                        .text_color(if is_installed { theme::success() } else { theme::warning() })
-                        .child(Icon::new(if is_installed { IconName::Check } else { IconName::TriangleAlert }).size_3p5())
-                        .child(if is_installed { "Installed" } else { "Missing Exe" }),
+                        .text_color(if is_installed {
+                            theme::success()
+                        } else {
+                            theme::warning()
+                        })
+                        .child(
+                            Icon::new(if is_installed {
+                                IconName::Check
+                            } else {
+                                IconName::TriangleAlert
+                            })
+                            .size_3p5(),
+                        )
+                        .child(if is_installed {
+                            "Installed"
+                        } else {
+                            "Missing Exe"
+                        }),
                 ),
         )
         .into_any_element()
@@ -1949,8 +2046,12 @@ fn render_couch_game_details_card(win: &MainWindow, _cx: &mut Context<MainWindow
 
 fn render_couch_handler_notes_panel(win: &MainWindow, _cx: &mut Context<MainWindow>) -> AnyElement {
     let game_name = win.selected_game.as_deref().unwrap_or("No Game Selected");
-    let handler = win.handlers.iter().find(|h| h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name));
-    let desc = handler.map(|h| h.description.as_str()).unwrap_or("No handler instructions provided.");
+    let handler = win.handlers.iter().find(|h| {
+        h.game_name.eq_ignore_ascii_case(game_name) || h.guid.eq_ignore_ascii_case(game_name)
+    });
+    let desc = handler
+        .map(|h| h.description.as_str())
+        .unwrap_or("No handler instructions provided.");
 
     div()
         .id("couch-handler-notes-panel")
@@ -1967,7 +2068,11 @@ fn render_couch_handler_notes_panel(win: &MainWindow, _cx: &mut Context<MainWind
                 .flex()
                 .items_center()
                 .gap_2()
-                .child(Icon::new(IconName::BookOpen).size_4().text_color(theme::accent()))
+                .child(
+                    Icon::new(IconName::BookOpen)
+                        .size_4()
+                        .text_color(theme::accent()),
+                )
                 .child(
                     div()
                         .text_sm()
@@ -1987,7 +2092,10 @@ fn render_couch_handler_notes_panel(win: &MainWindow, _cx: &mut Context<MainWind
                 .bg(theme::bg_subtle())
                 .border_1()
                 .border_color(theme::border_subtle())
-                .child(crate::markdown::render_markdown_with_id("couch-notes-md", desc)),
+                .child(crate::markdown::render_markdown_with_id(
+                    "couch-notes-md",
+                    desc,
+                )),
         )
         .into_any_element()
 }
@@ -2024,7 +2132,11 @@ fn render_couch_profiles_section(win: &MainWindow, cx: &mut Context<MainWindow>)
                         .flex()
                         .items_center()
                         .gap_2()
-                        .child(Icon::new(IconName::Save).size_4().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Save)
+                                .size_4()
+                                .text_color(theme::accent()),
+                        )
                         .child(
                             div()
                                 .text_sm()
@@ -2046,7 +2158,8 @@ fn render_couch_profiles_section(win: &MainWindow, cx: &mut Context<MainWindow>)
                                     if let Some(new_id) = saver(&guid_copy, None, &prof) {
                                         this.active_profile_id = Some(new_id);
                                         this.refresh_saved_profiles();
-                                        this.status_message = format!("Saved new profile (Profile {})!", new_id);
+                                        this.status_message =
+                                            format!("Saved new profile (Profile {})!", new_id);
                                     }
                                 }
                                 cx.notify();
@@ -2064,7 +2177,9 @@ fn render_couch_profiles_section(win: &MainWindow, cx: &mut Context<MainWindow>)
                         div()
                             .text_xs()
                             .text_color(theme::text_muted())
-                            .child("No saved profiles yet. Click 'Save Setup' to record slot mapping.")
+                            .child(
+                                "No saved profiles yet. Click 'Save Setup' to record slot mapping.",
+                            )
                             .into_any_element(),
                     ]
                 } else {
@@ -2074,7 +2189,10 @@ fn render_couch_profiles_section(win: &MainWindow, cx: &mut Context<MainWindow>)
                             let is_active = active_id == Some(prof_id);
                             let guid_c = guid.clone();
                             div()
-                                .id(SharedString::from(format!("couch-profile-chip-{}", prof_id)))
+                                .id(SharedString::from(format!(
+                                    "couch-profile-chip-{}",
+                                    prof_id
+                                )))
                                 .cursor_pointer()
                                 .flex()
                                 .items_center()
@@ -2082,18 +2200,33 @@ fn render_couch_profiles_section(win: &MainWindow, cx: &mut Context<MainWindow>)
                                 .px_3()
                                 .py_1p5()
                                 .rounded_md()
-                                .bg(if is_active { theme::accent() } else { theme::bg_subtle() })
-                                .text_color(if is_active { theme::text_on_accent() } else { theme::text_primary() })
+                                .bg(if is_active {
+                                    theme::accent()
+                                } else {
+                                    theme::bg_subtle()
+                                })
+                                .text_color(if is_active {
+                                    theme::text_on_accent()
+                                } else {
+                                    theme::text_primary()
+                                })
                                 .border_1()
-                                .border_color(if is_active { theme::accent() } else { theme::border_subtle() })
+                                .border_color(if is_active {
+                                    theme::accent()
+                                } else {
+                                    theme::border_subtle()
+                                })
                                 .hover(|s| s.bg(theme::bg_hover()))
                                 .on_click(cx.listener({
                                     let g = guid_c.clone();
                                     move |this, _, _, cx| {
-                                        if let Some(ref loader) = this.callbacks.on_load_numbered_profile {
+                                        if let Some(ref loader) =
+                                            this.callbacks.on_load_numbered_profile
+                                        {
                                             if let Some(_prof) = loader(&g, prof_id) {
                                                 this.active_profile_id = Some(prof_id);
-                                                this.status_message = format!("Loaded profile #{}!", prof_id);
+                                                this.status_message =
+                                                    format!("Loaded profile #{}!", prof_id);
                                             }
                                         }
                                         cx.notify();
@@ -2172,7 +2305,11 @@ fn render_couch_setup_header(
                         .flex()
                         .items_center()
                         .gap_2p5()
-                        .child(Icon::new(IconName::Gamepad2).size_6().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Gamepad2)
+                                .size_6()
+                                .text_color(theme::accent()),
+                        )
                         .child(
                             div()
                                 .flex()
@@ -2228,7 +2365,8 @@ fn render_couch_setup_header(
                 .border_color(theme::border_subtle())
                 .children(CouchSetupStep::ALL.iter().enumerate().map(|(idx, &step)| {
                     let is_active = step == current_step;
-                    let is_done = state.is_step_completed(step) && step.index() < current_step.index();
+                    let is_done =
+                        state.is_step_completed(step) && step.index() < current_step.index();
 
                     let mut pill = div()
                         .id(SharedString::from(format!("stepper-tab-{}", idx)))
@@ -2252,7 +2390,11 @@ fn render_couch_setup_header(
                             .border_2()
                             .border_color(theme::accent())
                             .shadow_md()
-                            .child(Icon::new(IconName::Sparkles).size_4().text_color(theme::accent()))
+                            .child(
+                                Icon::new(IconName::Sparkles)
+                                    .size_4()
+                                    .text_color(theme::accent()),
+                            )
                             .child(
                                 div()
                                     .text_sm()
@@ -2266,7 +2408,11 @@ fn render_couch_setup_header(
                             .border_1()
                             .border_color(theme::border_subtle())
                             .hover(|s| s.bg(theme::bg_hover()))
-                            .child(Icon::new(IconName::Check).size_3p5().text_color(theme::success()))
+                            .child(
+                                Icon::new(IconName::Check)
+                                    .size_3p5()
+                                    .text_color(theme::success()),
+                            )
                             .child(
                                 div()
                                     .text_xs()
@@ -2296,7 +2442,10 @@ fn render_couch_setup_header(
 }
 
 #[allow(dead_code)]
-fn render_layout_selector_strip(state: &CouchSetupState, cx: &mut Context<MainWindow>) -> AnyElement {
+fn render_layout_selector_strip(
+    state: &CouchSetupState,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     div()
         .id("layout-selector-bar")
         .flex()
@@ -2380,7 +2529,11 @@ pub fn render_virtual_monitor_partition_box(
                         .text_xs()
                         .font_weight(FontWeight::BOLD)
                         .text_color(theme::text_primary())
-                        .child(Icon::new(IconName::Monitor).size_4().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Monitor)
+                                .size_4()
+                                .text_color(theme::accent()),
+                        )
                         .child("Primary Display Layout Preview"),
                 )
                 .child(
@@ -2450,7 +2603,12 @@ pub fn render_virtual_monitor_partition_box(
 
 /// Returns the exact pixel dimensions (width, height) for a given partition cell slot,
 /// assuming a 1920x1080 display baseline.
-pub fn partition_cell_dimensions(layout: &str, slot_idx: usize, total_w: u32, total_h: u32) -> (u32, u32) {
+pub fn partition_cell_dimensions(
+    layout: &str,
+    slot_idx: usize,
+    total_w: u32,
+    total_h: u32,
+) -> (u32, u32) {
     if layout.contains("1x2") || layout.contains("Stacked") {
         (total_w, total_h / 2)
     } else if layout.contains("2x1") || layout.contains("Side-by-Side") {
@@ -2492,7 +2650,8 @@ fn render_partition_cell(
         let p_color = theme::player_color(p_idx);
         let p_color_subtle = theme::player_color_subtle(p_idx);
         let p_color_text = theme::player_color_text(p_idx);
-        let (cell_w, cell_h) = partition_cell_dimensions(&state.selected_layout, slot_idx, 1920, 1080);
+        let (cell_w, cell_h) =
+            partition_cell_dimensions(&state.selected_layout, slot_idx, 1920, 1080);
 
         let border_color = if is_grabbed || is_focused {
             theme::accent()
@@ -2549,7 +2708,11 @@ fn render_partition_cell(
                     div()
                         .text_xs()
                         .font_weight(FontWeight::BOLD)
-                        .text_color(if is_grabbed { theme::accent() } else { p_color_text })
+                        .text_color(if is_grabbed {
+                            theme::accent()
+                        } else {
+                            p_color_text
+                        })
                         .child(format!("P{} · {} × {}", p_idx + 1, cell_w, cell_h)),
                 )
                 .children(if is_grabbed {
@@ -2572,11 +2735,7 @@ fn render_partition_cell(
                 .gap_1p5()
                 .w_full()
                 .min_w_0()
-                .child(
-                    Icon::new(icon_name)
-                        .size_4()
-                        .text_color(p_color),
-                )
+                .child(Icon::new(icon_name).size_4().text_color(p_color))
                 .child(
                     div()
                         .text_xs()
@@ -2588,7 +2747,10 @@ fn render_partition_cell(
         )
     } else {
         div()
-            .id(SharedString::from(format!("partition-unassigned-{}", slot_idx)))
+            .id(SharedString::from(format!(
+                "partition-unassigned-{}",
+                slot_idx
+            )))
             .relative()
             .flex()
             .flex_col()
@@ -2619,32 +2781,55 @@ fn render_partition_cell(
     }
 }
 
-fn render_partition_content(
-    state: &CouchSetupState,
-    cx: &mut Context<MainWindow>,
-) -> AnyElement {
+fn render_partition_content(state: &CouchSetupState, cx: &mut Context<MainWindow>) -> AnyElement {
     let kind = PartitionLayoutKind::from_layout_name(&state.selected_layout);
     match kind {
         PartitionLayoutKind::Fullscreen => div()
             .flex()
             .size_full()
-            .child(render_partition_cell(state, 0, cx).flex_1().h_full().w_full().min_w_0())
+            .child(
+                render_partition_cell(state, 0, cx)
+                    .flex_1()
+                    .h_full()
+                    .w_full()
+                    .min_w_0(),
+            )
             .into_any_element(),
         PartitionLayoutKind::SideBySide => div()
             .flex()
             .flex_row()
             .size_full()
             .gap_2()
-            .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-            .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0())
+            .child(
+                render_partition_cell(state, 0, cx)
+                    .flex_1()
+                    .h_full()
+                    .min_w_0(),
+            )
+            .child(
+                render_partition_cell(state, 1, cx)
+                    .flex_1()
+                    .h_full()
+                    .min_w_0(),
+            )
             .into_any_element(),
         PartitionLayoutKind::Stacked => div()
             .flex()
             .flex_col()
             .size_full()
             .gap_2()
-            .child(render_partition_cell(state, 0, cx).flex_1().w_full().min_w_0())
-            .child(render_partition_cell(state, 1, cx).flex_1().w_full().min_w_0())
+            .child(
+                render_partition_cell(state, 0, cx)
+                    .flex_1()
+                    .w_full()
+                    .min_w_0(),
+            )
+            .child(
+                render_partition_cell(state, 1, cx)
+                    .flex_1()
+                    .w_full()
+                    .min_w_0(),
+            )
             .into_any_element(),
         PartitionLayoutKind::Grid => div()
             .flex()
@@ -2659,8 +2844,18 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 0, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 1, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .child(
                 div()
@@ -2670,8 +2865,18 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 2, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 3, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 2, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 3, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .into_any_element(),
         PartitionLayoutKind::TopOneBottomTwo => div()
@@ -2679,7 +2884,12 @@ fn render_partition_content(
             .flex_col()
             .size_full()
             .gap_2()
-            .child(render_partition_cell(state, 0, cx).flex_1().w_full().min_w_0())
+            .child(
+                render_partition_cell(state, 0, cx)
+                    .flex_1()
+                    .w_full()
+                    .min_w_0(),
+            )
             .child(
                 div()
                     .flex()
@@ -2688,8 +2898,18 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 2, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 1, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 2, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .into_any_element(),
         PartitionLayoutKind::TopTwoBottomOne => div()
@@ -2705,10 +2925,25 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 0, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 1, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
-            .child(render_partition_cell(state, 2, cx).flex_1().w_full().min_w_0())
+            .child(
+                render_partition_cell(state, 2, cx)
+                    .flex_1()
+                    .w_full()
+                    .min_w_0(),
+            )
             .into_any_element(),
         PartitionLayoutKind::Grid6 => div()
             .flex()
@@ -2723,9 +2958,24 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 2, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 0, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 1, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 2, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .child(
                 div()
@@ -2735,9 +2985,24 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 3, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 4, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 5, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 3, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 4, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 5, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .into_any_element(),
         PartitionLayoutKind::Grid8 => div()
@@ -2753,10 +3018,30 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 2, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 3, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 0, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 1, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 2, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 3, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .child(
                 div()
@@ -2766,10 +3051,30 @@ fn render_partition_content(
                     .w_full()
                     .min_w_0()
                     .gap_2()
-                    .child(render_partition_cell(state, 4, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 5, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 6, cx).flex_1().h_full().min_w_0())
-                    .child(render_partition_cell(state, 7, cx).flex_1().h_full().min_w_0()),
+                    .child(
+                        render_partition_cell(state, 4, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 5, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 6, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    )
+                    .child(
+                        render_partition_cell(state, 7, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    ),
             )
             .into_any_element(),
         PartitionLayoutKind::Grid16 => {
@@ -2778,7 +3083,12 @@ fn render_partition_content(
                 let mut row = div().flex().flex_row().flex_1().w_full().min_w_0().gap_1();
                 for c in 0..4 {
                     let idx = r * 4 + c;
-                    row = row.child(render_partition_cell(state, idx, cx).flex_1().h_full().min_w_0());
+                    row = row.child(
+                        render_partition_cell(state, idx, cx)
+                            .flex_1()
+                            .h_full()
+                            .min_w_0(),
+                    );
                 }
                 col = col.child(row);
             }
@@ -2789,13 +3099,27 @@ fn render_partition_content(
             .flex_row()
             .size_full()
             .gap_2()
-            .child(render_partition_cell(state, 0, cx).flex_1().h_full().min_w_0())
-            .child(render_partition_cell(state, 1, cx).flex_1().h_full().min_w_0())
+            .child(
+                render_partition_cell(state, 0, cx)
+                    .flex_1()
+                    .h_full()
+                    .min_w_0(),
+            )
+            .child(
+                render_partition_cell(state, 1, cx)
+                    .flex_1()
+                    .h_full()
+                    .min_w_0(),
+            )
             .into_any_element(),
     }
 }
 
-fn render_slots_grid(win: &MainWindow, state: &CouchSetupState, cx: &mut Context<MainWindow>) -> AnyElement {
+fn render_slots_grid(
+    win: &MainWindow,
+    state: &CouchSetupState,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
     if state.slots.is_empty() {
         return div()
             .id("slots-grid-empty")
@@ -2849,9 +3173,11 @@ fn render_slot_card(
     let is_grabbed = slot.is_grabbed;
 
     let status_badge = match slot.status {
-        DisconnectStatus::ReplugPending { remaining_ms, .. } => CouchTag::new(format!("Replug ({:.1}s)", remaining_ms as f32 / 1000.0))
-            .tone(TagTone::Warning)
-            .into_any_element(),
+        DisconnectStatus::ReplugPending { remaining_ms, .. } => {
+            CouchTag::new(format!("Replug ({:.1}s)", remaining_ms as f32 / 1000.0))
+                .tone(TagTone::Warning)
+                .into_any_element()
+        }
         DisconnectStatus::DisconnectedSilent => CouchTag::new("Disconnected")
             .tone(TagTone::Neutral)
             .into_any_element(),
@@ -2911,7 +3237,10 @@ fn render_slot_card(
     sc.into_any_element()
 }
 
-fn render_unassigned_tray(state: &CouchSetupState, cx: &mut Context<MainWindow>) -> Option<AnyElement> {
+fn render_unassigned_tray(
+    state: &CouchSetupState,
+    cx: &mut Context<MainWindow>,
+) -> Option<AnyElement> {
     if state.unassigned_tray.is_empty() {
         return None;
     }
@@ -2934,73 +3263,71 @@ fn render_unassigned_tray(state: &CouchSetupState, cx: &mut Context<MainWindow>)
                     .text_color(theme::text_primary())
                     .child("Unassigned Controllers Tray:"),
             )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_3()
-                    .children(
-                        state.unassigned_tray.iter().enumerate().map(|(i, dev)| {
-                            let tray_idx = i;
-                            let is_kbd = is_keyboard_device(&dev.name, &dev.guid);
-                            let tray_icon = if is_kbd {
-                                IconName::Keyboard
-                            } else {
-                                IconName::Gamepad2
-                            };
+            .child(div().flex().flex_wrap().gap_3().children(
+                state.unassigned_tray.iter().enumerate().map(|(i, dev)| {
+                    let tray_idx = i;
+                    let is_kbd = is_keyboard_device(&dev.name, &dev.guid);
+                    let tray_icon = if is_kbd {
+                        IconName::Keyboard
+                    } else {
+                        IconName::Gamepad2
+                    };
 
+                    div()
+                        .id(SharedString::from(format!("tray-item-{}", i)))
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .px_3()
+                        .py_2()
+                        .rounded_lg()
+                        .bg(theme::bg_subtle())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .child(
+                            Icon::new(tray_icon)
+                                .size_5()
+                                .text_color(theme::text_muted()),
+                        )
+                        .child(
                             div()
-                                .id(SharedString::from(format!("tray-item-{}", i)))
                                 .flex()
-                                .items_center()
-                                .gap_3()
-                                .px_3()
-                                .py_2()
-                                .rounded_lg()
-                                .bg(theme::bg_subtle())
-                                .border_1()
-                                .border_color(theme::border_subtle())
-                                .child(Icon::new(tray_icon).size_5().text_color(theme::text_muted()))
+                                .flex_col()
                                 .child(
                                     div()
-                                        .flex()
-                                        .flex_col()
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .font_weight(FontWeight::BOLD)
-                                                .text_color(theme::text_primary())
-                                                .child(dev.name.clone()),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .text_color(theme::text_muted())
-                                                .child(dev.guid.clone()),
-                                        ),
-                                )
-                                .child(
-                                    div()
-                                        .id(SharedString::from(format!("btn-reclaim-{}", i)))
-                                        .cursor_pointer()
-                                        .px_2p5()
-                                        .py_1()
-                                        .rounded_md()
-                                        .bg(theme::accent_subtle())
-                                        .border_1()
-                                        .border_color(theme::accent())
                                         .text_xs()
                                         .font_weight(FontWeight::BOLD)
-                                        .text_color(theme::accent())
-                                        .child("+ Re-assign")
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.couch_setup_state.reclaim_unassigned(tray_idx);
-                                            cx.notify();
-                                        })),
+                                        .text_color(theme::text_primary())
+                                        .child(dev.name.clone()),
                                 )
-                        }),
-                    ),
-            )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(theme::text_muted())
+                                        .child(dev.guid.clone()),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("btn-reclaim-{}", i)))
+                                .cursor_pointer()
+                                .px_2p5()
+                                .py_1()
+                                .rounded_md()
+                                .bg(theme::accent_subtle())
+                                .border_1()
+                                .border_color(theme::accent())
+                                .text_xs()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::accent())
+                                .child("+ Re-assign")
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.couch_setup_state.reclaim_unassigned(tray_idx);
+                                    cx.notify();
+                                })),
+                        )
+                }),
+            ))
             .into_any_element(),
     )
 }
@@ -3053,7 +3380,11 @@ pub fn render_ignored_controllers_tray(
                             .flex()
                             .items_center()
                             .gap_1p5()
-                            .child(Icon::new(IconName::Ban).size_4().text_color(theme::danger()))
+                            .child(
+                                Icon::new(IconName::Ban)
+                                    .size_4()
+                                    .text_color(theme::danger()),
+                            )
                             .child(
                                 div()
                                     .text_sm()
@@ -3070,92 +3401,94 @@ pub fn render_ignored_controllers_tray(
                             .child("[Click Re-Enable to restore controller to active setup]"),
                     ),
             )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_3()
-                    .children(
-                        valid_ignored_guids.iter().enumerate().map(|(i, guid)| {
-                            let guid_str = guid.clone();
-                            let dev_name = if guid == "keyboard-mouse-0" {
-                                "Keyboard & Mouse".to_string()
-                            } else {
-                                win.detected_devices_list
-                                    .iter()
-                                    .find(|d| &d.guid == guid)
-                                    .map(|d| d.name.clone())
-                                    .unwrap_or_else(|| "Hardware Controller".to_string())
-                            };
-                            let is_kbd = is_keyboard_device(&dev_name, guid);
-                            let ignored_icon = if is_kbd {
-                                IconName::Keyboard
-                            } else {
-                                IconName::Gamepad2
-                            };
+            .child(div().flex().flex_wrap().gap_3().children(
+                valid_ignored_guids.iter().enumerate().map(|(i, guid)| {
+                    let guid_str = guid.clone();
+                    let dev_name = if guid == "keyboard-mouse-0" {
+                        "Keyboard & Mouse".to_string()
+                    } else {
+                        win.detected_devices_list
+                            .iter()
+                            .find(|d| &d.guid == guid)
+                            .map(|d| d.name.clone())
+                            .unwrap_or_else(|| "Hardware Controller".to_string())
+                    };
+                    let is_kbd = is_keyboard_device(&dev_name, guid);
+                    let ignored_icon = if is_kbd {
+                        IconName::Keyboard
+                    } else {
+                        IconName::Gamepad2
+                    };
 
+                    div()
+                        .id(SharedString::from(format!("ignored-chip-{}", i)))
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .px_3()
+                        .py_2()
+                        .rounded_lg()
+                        .bg(theme::bg_subtle())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .child(
+                            Icon::new(ignored_icon)
+                                .size_5()
+                                .text_color(theme::text_muted()),
+                        )
+                        .child(
                             div()
-                                .id(SharedString::from(format!("ignored-chip-{}", i)))
                                 .flex()
-                                .items_center()
-                                .gap_3()
-                                .px_3()
-                                .py_2()
-                                .rounded_lg()
-                                .bg(theme::bg_subtle())
+                                .flex_col()
+                                .min_w_0()
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(theme::text_primary())
+                                        .child(dev_name),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .font_weight(FontWeight::MEDIUM)
+                                        .text_color(theme::text_muted())
+                                        .child(guid.clone()),
+                                ),
+                        )
+                        .child(
+                            div()
+                                .id(SharedString::from(format!("btn-restore-ignored-{}", i)))
+                                .cursor_pointer()
+                                .flex_shrink_0()
+                                .px_2p5()
+                                .py_1()
+                                .rounded_md()
+                                .bg(theme::success_subtle())
+                                .hover(|s| s.bg(theme::bg_hover()))
                                 .border_1()
-                                .border_color(theme::border_subtle())
-                                .child(Icon::new(ignored_icon).size_5().text_color(theme::text_muted()))
+                                .border_color(theme::success())
+                                .text_xs()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::success())
                                 .child(
                                     div()
                                         .flex()
-                                        .flex_col()
-                                        .min_w_0()
+                                        .items_center()
+                                        .gap_1()
                                         .child(
-                                            div()
-                                                .text_xs()
-                                                .font_weight(FontWeight::BOLD)
-                                                .text_color(theme::text_primary())
-                                                .child(dev_name),
+                                            Icon::new(IconName::RotateCcw)
+                                                .size_3p5()
+                                                .text_color(theme::success()),
                                         )
-                                        .child(
-                                            div()
-                                                .text_xs()
-                                                .font_weight(FontWeight::MEDIUM)
-                                                .text_color(theme::text_muted())
-                                                .child(guid.clone()),
-                                        ),
+                                        .child("Re-Enable"),
                                 )
-                                .child(
-                                    div()
-                                        .id(SharedString::from(format!("btn-restore-ignored-{}", i)))
-                                        .cursor_pointer()
-                                        .flex_shrink_0()
-                                        .px_2p5()
-                                        .py_1()
-                                        .rounded_md()
-                                        .bg(theme::success_subtle())
-                                        .hover(|s| s.bg(theme::bg_hover()))
-                                        .border_1()
-                                        .border_color(theme::success())
-                                        .text_xs()
-                                        .font_weight(FontWeight::BOLD)
-                                        .text_color(theme::success())
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap_1()
-                                                .child(Icon::new(IconName::RotateCcw).size_3p5().text_color(theme::success()))
-                                                .child("Re-Enable"),
-                                        )
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            this.restore_ignored_controller(&guid_str, cx);
-                                        })),
-                                )
-                        }),
-                    ),
-            )
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.restore_ignored_controller(&guid_str, cx);
+                                })),
+                        )
+                }),
+            ))
             .into_any_element(),
     )
 }
@@ -3168,10 +3501,13 @@ fn render_launch_button_section(
 ) -> AnyElement {
     let can_launch = !state.slots.is_empty();
 
-    let mut btn = CouchButton::primary("btn-couch-launch-session", "Start Splitscreen Session (Start / A)")
-        .icon(IconName::Play)
-        .size(CouchButtonSize::Lg)
-        .disabled(!can_launch);
+    let mut btn = CouchButton::primary(
+        "btn-couch-launch-session",
+        "Start Splitscreen Session (Start / A)",
+    )
+    .icon(IconName::Play)
+    .size(CouchButtonSize::Lg)
+    .disabled(!can_launch);
 
     if can_launch {
         btn = btn.on_click(cx.listener(|this, _, _, cx| {
@@ -3179,10 +3515,5 @@ fn render_launch_button_section(
         }));
     }
 
-    div()
-        .flex()
-        .w_full()
-        .pt_4()
-        .child(btn)
-        .into_any_element()
+    div().flex().w_full().pt_4().child(btn).into_any_element()
 }

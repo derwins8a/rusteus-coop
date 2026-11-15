@@ -1,6 +1,6 @@
 use gpui::{
-    div, rgb, AnyElement, App, ClickEvent, ElementId, FontWeight, Hsla, InteractiveElement,
-    IntoElement, ParentElement, SharedString, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, ElementId, FontWeight, Hsla, InteractiveElement, IntoElement,
+    ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div, rgb,
 };
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
@@ -164,13 +164,7 @@ impl CouchTag {
             .text_color(text_color);
 
         if self.has_dot {
-            pill = pill.child(
-                div()
-                    .w_1p5()
-                    .h_1p5()
-                    .rounded_full()
-                    .bg(dot_color),
-            );
+            pill = pill.child(div().w_1p5().h_1p5().rounded_full().bg(dot_color));
         }
 
         if let Some(icn) = self.icon {

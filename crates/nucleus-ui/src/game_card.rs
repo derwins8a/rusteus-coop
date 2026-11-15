@@ -3,13 +3,13 @@
 //! Visual tile displaying game title, cover artwork or thumbnail, developer info,
 //! supported player counts, and quick-action play buttons.
 
-use gpui::prelude::*;
-use gpui::*;
 use crate::models::HandlerItem;
 use crate::nefos::*;
 use crate::theme;
 use crate::window::{ActiveTab, MainWindow};
 use crate::{Icon, IconName};
+use gpui::prelude::*;
+use gpui::*;
 
 /// Component representing an individual game tile in the library view.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,13 +57,19 @@ pub fn render_game_card(
     let _ = idx;
     let name_str = h.game_name.clone();
     let name_launch = h.game_name.clone();
-    let is_selected = selected_game == Some(h.game_name.as_str()) || selected_game == Some(h.guid.as_str());
+    let is_selected =
+        selected_game == Some(h.game_name.as_str()) || selected_game == Some(h.guid.as_str());
 
-    let first_line = h.description.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let first_line = h
+        .description
+        .lines()
+        .find(|l| !l.trim().is_empty())
+        .unwrap_or("");
     let desc_preview = if first_line.chars().count() > 120 {
         format!("{}...", first_line.chars().take(120).collect::<String>())
     } else if first_line.is_empty() {
-        "Split-screen multi-instance profile ready. Supports gamepad hooks & window placement.".to_string()
+        "Split-screen multi-instance profile ready. Supports gamepad hooks & window placement."
+            .to_string()
     } else {
         first_line.to_string()
     };

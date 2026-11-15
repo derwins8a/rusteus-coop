@@ -194,9 +194,7 @@ pub enum DebugEvent {
         is_error: bool,
     },
     /// Debug session terminated.
-    Terminated {
-        exit_code: i32,
-    },
+    Terminated { exit_code: i32 },
 }
 
 #[cfg(test)]

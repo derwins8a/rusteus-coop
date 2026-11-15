@@ -1,24 +1,24 @@
 //! Windows-specific implementation of the OSD (On-Screen Display) manager.
 
-use std::sync::{mpsc, Arc, Mutex};
-use std::time::{Duration, Instant};
 use nucleus_platform::OsdManager;
+use std::sync::{Arc, Mutex, mpsc};
+use std::time::{Duration, Instant};
 use tracing::{info, warn};
-use windows::core::w;
 use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::Graphics::Gdi::{
-    BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, EndPaint,
-    FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode, SetTextColor, UpdateWindow, DT_CENTER,
-    DT_SINGLELINE, DT_VCENTER, FW_BOLD, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
+    BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DT_CENTER, DT_SINGLELINE, DT_VCENTER,
+    DeleteObject, DrawTextW, EndPaint, FW_BOLD, FillRect, InvalidateRect, PAINTSTRUCT, PS_SOLID,
+    RoundRect, SelectObject, SetBkMode, SetTextColor, TRANSPARENT, UpdateWindow,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     BringWindowToTop, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW,
-    GetClientRect, GetSystemMetrics, PeekMessageW, RegisterClassW, SetLayeredWindowAttributes,
-    SetWindowPos, ShowWindow, TranslateMessage, HWND_TOP, HWND_TOPMOST, LWA_ALPHA, LWA_COLORKEY, MSG, PM_REMOVE,
-    SM_CXSCREEN, SM_CYSCREEN, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SW_HIDE,
-    SW_SHOWNOACTIVATE, WNDCLASSW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
-    WS_EX_TOPMOST, WS_POPUP, WM_ERASEBKGND, WM_NCHITTEST, WM_PAINT,
+    GetClientRect, GetSystemMetrics, HWND_TOP, HWND_TOPMOST, LWA_ALPHA, LWA_COLORKEY, MSG,
+    PM_REMOVE, PeekMessageW, RegisterClassW, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOWNOACTIVATE,
+    SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_SHOWWINDOW, SetLayeredWindowAttributes,
+    SetWindowPos, ShowWindow, TranslateMessage, WM_ERASEBKGND, WM_NCHITTEST, WM_PAINT, WNDCLASSW,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
+use windows::core::w;
 
 struct OsdSharedData {
     text: Vec<u16>,
@@ -148,7 +148,8 @@ fn parse_color_rgb(s: &str) -> (u8, u8, u8) {
 fn run_osd_event_loop(rx: mpsc::Receiver<OsdWindowCommand>) {
     unsafe {
         let class_name = w!("NucleusCoop_OSD_Overlay");
-        let hmodule = windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap_or_default();
+        let hmodule =
+            windows::Win32::System::LibraryLoader::GetModuleHandleW(None).unwrap_or_default();
         let hinstance: windows::Win32::Foundation::HINSTANCE = hmodule.into();
         let wnd_class = WNDCLASSW {
             lpfnWndProc: Some(osd_wndproc),
@@ -181,7 +182,10 @@ fn run_osd_event_loop(rx: mpsc::Receiver<OsdWindowCommand>) {
         ) {
             Ok(h) => h,
             Err(e) => {
-                warn!("[OSD] CreateWindowExW failed (running headless or non-GUI?): {}", e);
+                warn!(
+                    "[OSD] CreateWindowExW failed (running headless or non-GUI?): {}",
+                    e
+                );
                 // Drain channel so caller doesn't block or leak
                 while let Ok(_) = rx.recv() {}
                 return;
@@ -189,7 +193,8 @@ fn run_osd_event_loop(rx: mpsc::Receiver<OsdWindowCommand>) {
         };
 
         // 92% opacity (235/255) matching C# WPF_OSD with colorkey transparency for rounded corners
-        let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0x00010101), 235, LWA_COLORKEY | LWA_ALPHA);
+        let _ =
+            SetLayeredWindowAttributes(hwnd, COLORREF(0x00010101), 235, LWA_COLORKEY | LWA_ALPHA);
 
         let mut active_deadline: Option<Instant> = None;
 
@@ -215,7 +220,11 @@ fn run_osd_event_loop(rx: mpsc::Receiver<OsdWindowCommand>) {
             };
 
             match rx.recv_timeout(timeout) {
-                Ok(OsdWindowCommand::Show { text, duration, color_rgb }) => {
+                Ok(OsdWindowCommand::Show {
+                    text,
+                    duration,
+                    color_rgb,
+                }) => {
                     let text_len = text.chars().count() as i32;
                     let cur_w = (text_len * 14 + 100).clamp(480, screen_w - 40);
                     let cur_x = (screen_w - cur_w) / 2;
@@ -388,7 +397,10 @@ mod tests {
         let osd = WindowsOsdManager::new();
         assert_eq!(osd.current_message(), None);
 
-        osd.show(100, "Starting Left 4 Dead 2 instance for Player1 as Player #1");
+        osd.show(
+            100,
+            "Starting Left 4 Dead 2 instance for Player1 as Player #1",
+        );
         assert_eq!(
             osd.current_message(),
             Some("Starting Left 4 Dead 2 instance for Player1 as Player #1".to_string())

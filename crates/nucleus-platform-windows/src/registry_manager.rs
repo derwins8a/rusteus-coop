@@ -1,6 +1,6 @@
 use std::path::Path;
-use winreg::enums::*;
 use winreg::RegKey;
+use winreg::enums::*;
 
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::types::{RegistryBackup, RegistryValueBackup};
@@ -62,9 +62,8 @@ impl RegistryManager for WindowsRegistryManager {
             .map_err(|e| NucleusError::Platform(e.to_string()))?;
         let mut utf16: Vec<u16> = data.encode_utf16().collect();
         utf16.push(0);
-        let bytes = unsafe {
-            std::slice::from_raw_parts(utf16.as_ptr() as *const u8, utf16.len() * 2)
-        };
+        let bytes =
+            unsafe { std::slice::from_raw_parts(utf16.as_ptr() as *const u8, utf16.len() * 2) };
         let reg_val = winreg::RegValue {
             vtype: REG_EXPAND_SZ,
             bytes: bytes.to_vec(),
@@ -186,7 +185,9 @@ impl RegistryManager for WindowsRegistryManager {
         let output = std::process::Command::new("reg.exe")
             .args(["export", &full_key, &file_path.to_string_lossy(), "/y"])
             .output()
-            .map_err(|e| NucleusError::Platform(format!("Failed to execute reg.exe export: {}", e)))?;
+            .map_err(|e| {
+                NucleusError::Platform(format!("Failed to execute reg.exe export: {}", e))
+            })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -208,7 +209,9 @@ impl RegistryManager for WindowsRegistryManager {
         let output = std::process::Command::new("reg.exe")
             .args(["import", &file_path.to_string_lossy()])
             .output()
-            .map_err(|e| NucleusError::Platform(format!("Failed to execute reg.exe import: {}", e)))?;
+            .map_err(|e| {
+                NucleusError::Platform(format!("Failed to execute reg.exe import: {}", e))
+            })?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -239,25 +242,41 @@ mod tests {
         let _ = mgr.delete_key(&test_key);
 
         // Write normal string
-        mgr.write_string(&test_key, "TestStr", "RegularStringValue").unwrap();
-        assert_eq!(mgr.read_string(&test_key, "TestStr").unwrap(), "RegularStringValue");
+        mgr.write_string(&test_key, "TestStr", "RegularStringValue")
+            .unwrap();
+        assert_eq!(
+            mgr.read_string(&test_key, "TestStr").unwrap(),
+            "RegularStringValue"
+        );
 
         // Write DWORD
         mgr.write_dword(&test_key, "TestDword", 42).unwrap();
         assert_eq!(mgr.read_dword(&test_key, "TestDword").unwrap(), 42);
 
         // Write REG_EXPAND_SZ
-        mgr.write_expand_string(&test_key, "TestExpand", "%USERPROFILE%\\Documents").unwrap();
-        assert_eq!(mgr.read_string(&test_key, "TestExpand").unwrap(), "%USERPROFILE%\\Documents");
+        mgr.write_expand_string(&test_key, "TestExpand", "%USERPROFILE%\\Documents")
+            .unwrap();
+        assert_eq!(
+            mgr.read_string(&test_key, "TestExpand").unwrap(),
+            "%USERPROFILE%\\Documents"
+        );
 
         // Perform in-memory backup
         let backup = mgr.backup_key(&test_key).unwrap();
         assert_eq!(backup.values.len(), 3);
 
-        let expand_entry = backup.values.iter().find(|v| v.name == "TestExpand").unwrap();
+        let expand_entry = backup
+            .values
+            .iter()
+            .find(|v| v.name == "TestExpand")
+            .unwrap();
         assert_eq!(expand_entry.value_type, "REG_EXPAND_SZ");
 
-        let dword_entry = backup.values.iter().find(|v| v.name == "TestDword").unwrap();
+        let dword_entry = backup
+            .values
+            .iter()
+            .find(|v| v.name == "TestDword")
+            .unwrap();
         assert_eq!(dword_entry.value_type, "REG_DWORD");
 
         let str_entry = backup.values.iter().find(|v| v.name == "TestStr").unwrap();
@@ -271,9 +290,15 @@ mod tests {
         mgr.restore_key(&backup).unwrap();
 
         // Verify values AND types were preserved
-        assert_eq!(mgr.read_string(&test_key, "TestStr").unwrap(), "RegularStringValue");
+        assert_eq!(
+            mgr.read_string(&test_key, "TestStr").unwrap(),
+            "RegularStringValue"
+        );
         assert_eq!(mgr.read_dword(&test_key, "TestDword").unwrap(), 42);
-        assert_eq!(mgr.read_string(&test_key, "TestExpand").unwrap(), "%USERPROFILE%\\Documents");
+        assert_eq!(
+            mgr.read_string(&test_key, "TestExpand").unwrap(),
+            "%USERPROFILE%\\Documents"
+        );
 
         // Clean up
         let _ = mgr.delete_key(&test_key);
@@ -285,9 +310,11 @@ mod tests {
         let test_key = format!(r"HKCU\Software\NucleusRegExportTest_{}", std::process::id());
         let _ = mgr.delete_key(&test_key);
 
-        mgr.write_string(&test_key, "ExportKey", "ExportVal123").unwrap();
+        mgr.write_string(&test_key, "ExportKey", "ExportVal123")
+            .unwrap();
 
-        let temp_reg = std::env::temp_dir().join(format!("nucleus_reg_test_{}.reg", std::process::id()));
+        let temp_reg =
+            std::env::temp_dir().join(format!("nucleus_reg_test_{}.reg", std::process::id()));
         mgr.export_to_file(&test_key, &temp_reg).unwrap();
         assert!(temp_reg.exists(), ".reg backup file should exist on disk");
 
@@ -298,11 +325,13 @@ mod tests {
         // Import back from file
         mgr.import_from_file(&temp_reg).unwrap();
         assert!(mgr.key_exists(&test_key));
-        assert_eq!(mgr.read_string(&test_key, "ExportKey").unwrap(), "ExportVal123");
+        assert_eq!(
+            mgr.read_string(&test_key, "ExportKey").unwrap(),
+            "ExportVal123"
+        );
 
         // Cleanup
         let _ = mgr.delete_key(&test_key);
         let _ = std::fs::remove_file(&temp_reg);
     }
 }
-

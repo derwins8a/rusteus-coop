@@ -5,7 +5,6 @@ use windows::Win32::Graphics::Gdi::{
 
 const MONITORINFOF_PRIMARY: u32 = 1;
 
-
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::types::{Display, Rect};
 use nucleus_platform::DisplayManager;
@@ -43,7 +42,9 @@ impl DisplayManager for WindowsDisplayManager {
             let mut info = MONITORINFOEXW::default();
             info.monitorInfo.cbSize = std::mem::size_of::<MONITORINFOEXW>() as u32;
 
-            if unsafe { GetMonitorInfoW(hmonitor, &mut info.monitorInfo as *mut _ as *mut _) }.as_bool() {
+            if unsafe { GetMonitorInfoW(hmonitor, &mut info.monitorInfo as *mut _ as *mut _) }
+                .as_bool()
+            {
                 let r = info.monitorInfo.rcMonitor;
                 let is_primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
                 let name = String::from_utf16_lossy(&info.szDevice)
@@ -52,7 +53,11 @@ impl DisplayManager for WindowsDisplayManager {
 
                 data.displays.push(Display {
                     id: data.counter,
-                    name: if name.is_empty() { format!("Display {}", data.counter) } else { name },
+                    name: if name.is_empty() {
+                        format!("Display {}", data.counter)
+                    } else {
+                        name
+                    },
                     bounds: Rect {
                         x: r.left,
                         y: r.top,
@@ -68,7 +73,12 @@ impl DisplayManager for WindowsDisplayManager {
         }
 
         unsafe {
-            let _ = EnumDisplayMonitors(None, None, Some(monitor_proc), LPARAM(&mut data as *mut _ as isize));
+            let _ = EnumDisplayMonitors(
+                None,
+                None,
+                Some(monitor_proc),
+                LPARAM(&mut data as *mut _ as isize),
+            );
         }
 
         if data.displays.is_empty() {
@@ -107,4 +117,3 @@ impl DisplayManager for WindowsDisplayManager {
         Ok(1.0)
     }
 }
-

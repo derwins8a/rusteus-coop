@@ -41,4 +41,3 @@ pub trait IGameHandler {
     /// Tears down instances, cleans up symlinks, and restores backups.
     fn stop(&mut self) -> NucleusResult<()>;
 }
-

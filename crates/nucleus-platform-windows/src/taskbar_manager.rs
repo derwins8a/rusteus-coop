@@ -14,12 +14,12 @@ impl WindowsTaskbarManager {
     }
 }
 
-use windows::core::w;
 use windows::Win32::Foundation::{HWND, LPARAM};
-use windows::Win32::UI::Shell::{SHAppBarMessage, ABM_SETSTATE, APPBARDATA};
+use windows::Win32::UI::Shell::{ABM_SETSTATE, APPBARDATA, SHAppBarMessage};
 use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowExW, FindWindowW, ShowWindow, SW_HIDE, SW_SHOW,
+    FindWindowExW, FindWindowW, SW_HIDE, SW_SHOW, ShowWindow,
 };
+use windows::core::w;
 
 impl TaskbarManager for WindowsTaskbarManager {
     fn hide(&self) -> NucleusResult<()> {
@@ -88,5 +88,3 @@ impl TaskbarManager for WindowsTaskbarManager {
         Ok(())
     }
 }
-
-

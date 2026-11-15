@@ -4,13 +4,13 @@
 //! cover cards with focus highlight/glow, metadata badges, couch button prompts,
 //! and seamless desktop/couch mode switching.
 
-use gpui::prelude::*;
-use gpui::*;
+use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
 use crate::models::HandlerItem;
 use crate::theme;
 use crate::window::MainWindow;
 use crate::{Icon, IconName};
-use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
+use gpui::prelude::*;
+use gpui::*;
 
 /// Active screen within Couch Big Picture mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -274,9 +274,13 @@ impl CarouselState {
                     CarouselFilterMode::All => true,
                     CarouselFilterMode::InstalledOnly => h.is_installed,
                     CarouselFilterMode::Favorites => h.is_favorite,
-                    CarouselFilterMode::ControllerSupport => h.supports_gamepad || h.supports_xinput || h.supports_dinput,
+                    CarouselFilterMode::ControllerSupport => {
+                        h.supports_gamepad || h.supports_xinput || h.supports_dinput
+                    }
                     CarouselFilterMode::KeyboardOnly => h.supports_keyboard,
-                    CarouselFilterMode::MultiKeyboardMouse => h.supports_multiple_keyboards_and_mice || h.supports_raw_input,
+                    CarouselFilterMode::MultiKeyboardMouse => {
+                        h.supports_multiple_keyboards_and_mice || h.supports_raw_input
+                    }
                     CarouselFilterMode::FourPlusPlayers => h.max_players >= 4,
                     CarouselFilterMode::TwoPlusPlayers => h.max_players >= 2,
                 }
@@ -350,8 +354,12 @@ pub fn render_big_picture_view(
                 .overflow_hidden()
                 .child(match win.big_picture_screen {
                     BigPictureScreen::Carousel => render_carousel_view(win, cx),
-                    BigPictureScreen::CouchSetup => crate::big_picture::render_couch_setup_view(win, cx),
-                    BigPictureScreen::CouchHub => crate::big_picture::render_couch_hub_view(win, cx),
+                    BigPictureScreen::CouchSetup => {
+                        crate::big_picture::render_couch_setup_view(win, cx)
+                    }
+                    BigPictureScreen::CouchHub => {
+                        crate::big_picture::render_couch_hub_view(win, cx)
+                    }
                 }),
         )
         .child(render_couch_prompt_bar(win.big_picture_screen))
@@ -425,12 +433,7 @@ fn render_big_picture_header(win: &MainWindow, cx: &mut Context<MainWindow>) -> 
                                 .text_color(theme::text_primary())
                                 .child("Nucleus Co-op"),
                         )
-                        .child(
-                            div()
-                                .text_sm()
-                                .text_color(theme::text_muted())
-                                .child("•"),
-                        )
+                        .child(div().text_sm().text_color(theme::text_muted()).child("•"))
                         .child(
                             div()
                                 .text_sm()
@@ -450,7 +453,11 @@ fn render_big_picture_header(win: &MainWindow, cx: &mut Context<MainWindow>) -> 
                         .bg(theme::bg_subtle())
                         .border_1()
                         .border_color(theme::border_subtle())
-                        .child(Icon::new(IconName::Gamepad2).size_4().text_color(theme::accent()))
+                        .child(
+                            Icon::new(IconName::Gamepad2)
+                                .size_4()
+                                .text_color(theme::accent()),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -736,7 +743,10 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
             .into_any_element();
     }
 
-    let sel_idx = win.carousel_state.selected_index.min(total_matching.saturating_sub(1));
+    let sel_idx = win
+        .carousel_state
+        .selected_index
+        .min(total_matching.saturating_sub(1));
     let selected_handler = filtered_handlers[sel_idx];
 
     let visible_indices = get_carousel_window_indices(sel_idx, total_matching);
@@ -766,7 +776,13 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
                     CouchButton::ghost("btn-carousel-left", "◀")
                         .size(CouchButtonSize::Lg)
                         .on_click(cx.listener(|this, _, _, cx| {
-                            let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
+                            let total = this
+                                .carousel_state
+                                .filter_and_sort_handlers(
+                                    &this.handlers,
+                                    &this.carousel_state.search_query,
+                                )
+                                .len();
                             this.carousel_state.set_count(total);
                             this.carousel_state.move_left();
                             cx.notify();
@@ -791,7 +807,13 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
                     CouchButton::ghost("btn-carousel-right", "▶")
                         .size(CouchButtonSize::Lg)
                         .on_click(cx.listener(|this, _, _, cx| {
-                            let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
+                            let total = this
+                                .carousel_state
+                                .filter_and_sort_handlers(
+                                    &this.handlers,
+                                    &this.carousel_state.search_query,
+                                )
+                                .len();
                             this.carousel_state.set_count(total);
                             this.carousel_state.move_right();
                             cx.notify();
@@ -809,7 +831,10 @@ fn render_carousel_action_bar(
     total_matching: usize,
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
-    let sel_idx = win.carousel_state.selected_index.min(total_matching.saturating_sub(1));
+    let sel_idx = win
+        .carousel_state
+        .selected_index
+        .min(total_matching.saturating_sub(1));
     let has_search = !win.carousel_state.search_query.is_empty();
     let is_filtered = win.carousel_state.filter_mode != CarouselFilterMode::All;
     let is_sorted = win.carousel_state.sort_mode != CarouselSortMode::Alphabetical;
@@ -843,26 +868,41 @@ fn render_carousel_action_bar(
                         .py_1p5()
                         .rounded_full()
                         .min_w_0()
-                        .bg(if has_search || win.carousel_state.search_input_open { theme::accent_subtle() } else { theme::bg_panel() })
+                        .bg(if has_search || win.carousel_state.search_input_open {
+                            theme::accent_subtle()
+                        } else {
+                            theme::bg_panel()
+                        })
                         .border_1()
-                        .border_color(if has_search || win.carousel_state.search_input_open { theme::accent() } else { theme::border_subtle() })
-                        .text_color(if has_search || win.carousel_state.search_input_open { theme::accent() } else { theme::text_primary() })
+                        .border_color(if has_search || win.carousel_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::border_subtle()
+                        })
+                        .text_color(if has_search || win.carousel_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::text_primary()
+                        })
                         .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
                         .on_mouse_down(MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
                         .on_click(cx.listener(|this, _, _, cx| {
                             cx.stop_propagation();
-                            this.carousel_state.search_input_open = !this.carousel_state.search_input_open;
+                            this.carousel_state.search_input_open =
+                                !this.carousel_state.search_input_open;
                             this.carousel_state.filter_picker_open = false;
                             this.carousel_state.sort_picker_open = false;
                             cx.notify();
                         }))
-                        .child(
-                            Icon::new(IconName::Search)
-                                .size_3p5()
-                                .text_color(if has_search || win.carousel_state.search_input_open { theme::accent() } else { theme::text_muted() }),
-                        )
+                        .child(Icon::new(IconName::Search).size_3p5().text_color(
+                            if has_search || win.carousel_state.search_input_open {
+                                theme::accent()
+                            } else {
+                                theme::text_muted()
+                            },
+                        ))
                         .child(
                             div()
                                 .text_xs()
@@ -884,7 +924,13 @@ fn render_carousel_action_bar(
                                     .on_click(cx.listener(|this, _, _, cx| {
                                         cx.stop_propagation();
                                         this.carousel_state.search_query.clear();
-                                        let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
+                                        let total = this
+                                            .carousel_state
+                                            .filter_and_sort_handlers(
+                                                &this.handlers,
+                                                &this.carousel_state.search_query,
+                                            )
+                                            .len();
                                         this.carousel_state.set_count(total);
                                         cx.notify();
                                     }))
@@ -926,7 +972,13 @@ fn render_carousel_action_bar(
                                         .flex()
                                         .items_center()
                                         .justify_between()
-                                        .child(div().text_xs().font_weight(FontWeight::BOLD).text_color(theme::text_primary()).child("Search Library"))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::text_primary())
+                                                .child("Search Library"),
+                                        )
                                         .child(
                                             div()
                                                 .id("btn-close-search-popover")
@@ -960,49 +1012,82 @@ fn render_carousel_action_bar(
                                         .border_1()
                                         .border_color(theme::border_color())
                                         .rounded_md()
-                                        .child(Icon::new(IconName::Search).size_3p5().text_color(theme::accent()))
+                                        .child(
+                                            Icon::new(IconName::Search)
+                                                .size_3p5()
+                                                .text_color(theme::accent()),
+                                        )
                                         .child(
                                             div()
                                                 .text_xs()
-                                                .text_color(if has_search { theme::text_primary() } else { theme::text_muted() })
-                                                .child(if has_search { format!("{} █", win.carousel_state.search_query) } else { "Type query or click preset below...".to_string() }),
+                                                .text_color(if has_search {
+                                                    theme::text_primary()
+                                                } else {
+                                                    theme::text_muted()
+                                                })
+                                                .child(if has_search {
+                                                    format!("{} █", win.carousel_state.search_query)
+                                                } else {
+                                                    "Type query or click preset below..."
+                                                        .to_string()
+                                                }),
                                         ),
                                 )
                                 .child(
-                                    div()
-                                        .flex()
-                                        .flex_wrap()
-                                        .gap_1p5()
-                                        .pt_1()
-                                        .children(["Left 4 Dead", "Portal", "Borderlands", "Halo", "Resident Evil"].iter().enumerate().map(|(idx, &preset)| {
-                                            div()
-                                                .id(("search-preset", idx))
-                                                .cursor_pointer()
-                                                .px_2()
-                                                .py_1()
-                                                .rounded_full()
-                                                .bg(theme::bg_subtle())
-                                                .border_1()
-                                                .border_color(theme::border_color())
-                                                .text_xs()
-                                                .text_color(theme::text_muted())
-                                                .hover(|s| s.bg(theme::accent().opacity(0.15)).text_color(theme::accent()).border_color(theme::accent()))
-                                                .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                                    cx.stop_propagation();
-                                                })
-                                                .on_click(cx.listener(move |this, _, _, cx| {
-                                                    cx.stop_propagation();
-                                                    this.carousel_state.search_query = preset.to_string();
-                                                    this.carousel_state.search_input_open = false;
-                                                    let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
-                                                    this.carousel_state.set_count(total);
-                                                    cx.notify();
-                                                }))
-                                                .child(preset)
-                                        }))
-                                )
+                                    div().flex().flex_wrap().gap_1p5().pt_1().children(
+                                        [
+                                            "Left 4 Dead",
+                                            "Portal",
+                                            "Borderlands",
+                                            "Halo",
+                                            "Resident Evil",
+                                        ]
+                                        .iter()
+                                        .enumerate()
+                                        .map(
+                                            |(idx, &preset)| {
+                                                div()
+                                                    .id(("search-preset", idx))
+                                                    .cursor_pointer()
+                                                    .px_2()
+                                                    .py_1()
+                                                    .rounded_full()
+                                                    .bg(theme::bg_subtle())
+                                                    .border_1()
+                                                    .border_color(theme::border_color())
+                                                    .text_xs()
+                                                    .text_color(theme::text_muted())
+                                                    .hover(|s| {
+                                                        s.bg(theme::accent().opacity(0.15))
+                                                            .text_color(theme::accent())
+                                                            .border_color(theme::accent())
+                                                    })
+                                                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                                        cx.stop_propagation();
+                                                    })
+                                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                                        cx.stop_propagation();
+                                                        this.carousel_state.search_query =
+                                                            preset.to_string();
+                                                        this.carousel_state.search_input_open =
+                                                            false;
+                                                        let total = this
+                                                            .carousel_state
+                                                            .filter_and_sort_handlers(
+                                                                &this.handlers,
+                                                                &this.carousel_state.search_query,
+                                                            )
+                                                            .len();
+                                                        this.carousel_state.set_count(total);
+                                                        cx.notify();
+                                                    }))
+                                                    .child(preset)
+                                            },
+                                        ),
+                                    ),
+                                ),
                         )
-                        .with_priority(10)
+                        .with_priority(10),
                     )
                 }),
         )
@@ -1021,39 +1106,58 @@ fn render_carousel_action_bar(
                         .py_1p5()
                         .rounded_full()
                         .min_w_0()
-                        .bg(if is_filtered || win.carousel_state.filter_picker_open { theme::accent_subtle() } else { theme::bg_panel() })
+                        .bg(if is_filtered || win.carousel_state.filter_picker_open {
+                            theme::accent_subtle()
+                        } else {
+                            theme::bg_panel()
+                        })
                         .border_1()
-                        .border_color(if is_filtered || win.carousel_state.filter_picker_open { theme::accent() } else { theme::border_subtle() })
-                        .text_color(if is_filtered || win.carousel_state.filter_picker_open { theme::accent() } else { theme::text_primary() })
+                        .border_color(if is_filtered || win.carousel_state.filter_picker_open {
+                            theme::accent()
+                        } else {
+                            theme::border_subtle()
+                        })
+                        .text_color(if is_filtered || win.carousel_state.filter_picker_open {
+                            theme::accent()
+                        } else {
+                            theme::text_primary()
+                        })
                         .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
                         .on_mouse_down(MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
                         .on_click(cx.listener(|this, _, _, cx| {
                             cx.stop_propagation();
-                            this.carousel_state.filter_picker_open = !this.carousel_state.filter_picker_open;
+                            this.carousel_state.filter_picker_open =
+                                !this.carousel_state.filter_picker_open;
                             this.carousel_state.sort_picker_open = false;
                             this.carousel_state.search_input_open = false;
                             cx.notify();
                         }))
-                        .child(
-                            Icon::new(IconName::ListFilter)
-                                .size_3p5()
-                                .text_color(if is_filtered || win.carousel_state.filter_picker_open { theme::accent() } else { theme::text_muted() }),
-                        )
+                        .child(Icon::new(IconName::ListFilter).size_3p5().text_color(
+                            if is_filtered || win.carousel_state.filter_picker_open {
+                                theme::accent()
+                            } else {
+                                theme::text_muted()
+                            },
+                        ))
                         .child(
                             div()
                                 .text_xs()
                                 .font_weight(FontWeight::MEDIUM)
                                 .min_w_0()
-                                .child(format!("Filter: {}", win.carousel_state.filter_mode.label())),
+                                .child(format!(
+                                    "Filter: {}",
+                                    win.carousel_state.filter_mode.label()
+                                )),
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::accent())
-                                .child(if win.carousel_state.filter_picker_open { "▲" } else { "▼" }),
-                        ),
+                        .child(div().text_xs().text_color(theme::accent()).child(
+                            if win.carousel_state.filter_picker_open {
+                                "▲"
+                            } else {
+                                "▼"
+                            },
+                        )),
                 )
                 .when(win.carousel_state.filter_picker_open, |popover_anchor| {
                     popover_anchor.child(
@@ -1081,36 +1185,57 @@ fn render_carousel_action_bar(
                                 .shadow_lg()
                                 .p_2()
                                 .gap_1()
-                                .children(CarouselFilterMode::ALL.iter().enumerate().map(|(idx, &mode)| {
-                                    let is_active = win.carousel_state.filter_mode == mode;
-                                    div()
-                                        .id(("filter-opt", idx))
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .justify_between()
-                                        .px_3()
-                                        .py_2()
-                                        .rounded_md()
-                                        .text_xs()
-                                        .when(is_active, |s| s.bg(theme::accent().opacity(0.15)).text_color(theme::accent()).font_weight(FontWeight::BOLD))
-                                        .when(!is_active, |s| s.text_color(theme::text_primary()).hover(|h| h.bg(theme::bg_hover())))
-                                        .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                            cx.stop_propagation();
-                                        })
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            cx.stop_propagation();
-                                            this.carousel_state.filter_mode = mode;
-                                            this.carousel_state.filter_picker_open = false;
-                                            let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
-                                            this.carousel_state.set_count(total);
-                                            cx.notify();
-                                        }))
-                                        .child(mode.label())
-                                        .when(is_active, |el| el.child(Icon::new(IconName::Check).size_3p5().text_color(theme::accent())))
-                                }))
+                                .children(CarouselFilterMode::ALL.iter().enumerate().map(
+                                    |(idx, &mode)| {
+                                        let is_active = win.carousel_state.filter_mode == mode;
+                                        div()
+                                            .id(("filter-opt", idx))
+                                            .cursor_pointer()
+                                            .flex()
+                                            .items_center()
+                                            .justify_between()
+                                            .px_3()
+                                            .py_2()
+                                            .rounded_md()
+                                            .text_xs()
+                                            .when(is_active, |s| {
+                                                s.bg(theme::accent().opacity(0.15))
+                                                    .text_color(theme::accent())
+                                                    .font_weight(FontWeight::BOLD)
+                                            })
+                                            .when(!is_active, |s| {
+                                                s.text_color(theme::text_primary())
+                                                    .hover(|h| h.bg(theme::bg_hover()))
+                                            })
+                                            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                                cx.stop_propagation();
+                                            })
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                cx.stop_propagation();
+                                                this.carousel_state.filter_mode = mode;
+                                                this.carousel_state.filter_picker_open = false;
+                                                let total = this
+                                                    .carousel_state
+                                                    .filter_and_sort_handlers(
+                                                        &this.handlers,
+                                                        &this.carousel_state.search_query,
+                                                    )
+                                                    .len();
+                                                this.carousel_state.set_count(total);
+                                                cx.notify();
+                                            }))
+                                            .child(mode.label())
+                                            .when(is_active, |el| {
+                                                el.child(
+                                                    Icon::new(IconName::Check)
+                                                        .size_3p5()
+                                                        .text_color(theme::accent()),
+                                                )
+                                            })
+                                    },
+                                )),
                         )
-                        .with_priority(10)
+                        .with_priority(10),
                     )
                 }),
         )
@@ -1129,26 +1254,41 @@ fn render_carousel_action_bar(
                         .py_1p5()
                         .rounded_full()
                         .min_w_0()
-                        .bg(if is_sorted || win.carousel_state.sort_picker_open { theme::accent_subtle() } else { theme::bg_panel() })
+                        .bg(if is_sorted || win.carousel_state.sort_picker_open {
+                            theme::accent_subtle()
+                        } else {
+                            theme::bg_panel()
+                        })
                         .border_1()
-                        .border_color(if is_sorted || win.carousel_state.sort_picker_open { theme::accent() } else { theme::border_subtle() })
-                        .text_color(if is_sorted || win.carousel_state.sort_picker_open { theme::accent() } else { theme::text_primary() })
+                        .border_color(if is_sorted || win.carousel_state.sort_picker_open {
+                            theme::accent()
+                        } else {
+                            theme::border_subtle()
+                        })
+                        .text_color(if is_sorted || win.carousel_state.sort_picker_open {
+                            theme::accent()
+                        } else {
+                            theme::text_primary()
+                        })
                         .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
                         .on_mouse_down(MouseButton::Left, |_, _, cx| {
                             cx.stop_propagation();
                         })
                         .on_click(cx.listener(|this, _, _, cx| {
                             cx.stop_propagation();
-                            this.carousel_state.sort_picker_open = !this.carousel_state.sort_picker_open;
+                            this.carousel_state.sort_picker_open =
+                                !this.carousel_state.sort_picker_open;
                             this.carousel_state.filter_picker_open = false;
                             this.carousel_state.search_input_open = false;
                             cx.notify();
                         }))
-                        .child(
-                            Icon::new(IconName::ArrowUpDown)
-                                .size_3p5()
-                                .text_color(if is_sorted || win.carousel_state.sort_picker_open { theme::accent() } else { theme::text_muted() }),
-                        )
+                        .child(Icon::new(IconName::ArrowUpDown).size_3p5().text_color(
+                            if is_sorted || win.carousel_state.sort_picker_open {
+                                theme::accent()
+                            } else {
+                                theme::text_muted()
+                            },
+                        ))
                         .child(
                             div()
                                 .text_xs()
@@ -1156,12 +1296,13 @@ fn render_carousel_action_bar(
                                 .min_w_0()
                                 .child(format!("Sort: {}", win.carousel_state.sort_mode.label())),
                         )
-                        .child(
-                            div()
-                                .text_xs()
-                                .text_color(theme::accent())
-                                .child(if win.carousel_state.sort_picker_open { "▲" } else { "▼" }),
-                        ),
+                        .child(div().text_xs().text_color(theme::accent()).child(
+                            if win.carousel_state.sort_picker_open {
+                                "▲"
+                            } else {
+                                "▼"
+                            },
+                        )),
                 )
                 .when(win.carousel_state.sort_picker_open, |popover_anchor| {
                     popover_anchor.child(
@@ -1189,36 +1330,57 @@ fn render_carousel_action_bar(
                                 .shadow_lg()
                                 .p_2()
                                 .gap_1()
-                                .children(CarouselSortMode::ALL.iter().enumerate().map(|(idx, &mode)| {
-                                    let is_active = win.carousel_state.sort_mode == mode;
-                                    div()
-                                        .id(("sort-opt", idx))
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .justify_between()
-                                        .px_3()
-                                        .py_2()
-                                        .rounded_md()
-                                        .text_xs()
-                                        .when(is_active, |s| s.bg(theme::accent().opacity(0.15)).text_color(theme::accent()).font_weight(FontWeight::BOLD))
-                                        .when(!is_active, |s| s.text_color(theme::text_primary()).hover(|h| h.bg(theme::bg_hover())))
-                                        .on_mouse_down(MouseButton::Left, |_, _, cx| {
-                                            cx.stop_propagation();
-                                        })
-                                        .on_click(cx.listener(move |this, _, _, cx| {
-                                            cx.stop_propagation();
-                                            this.carousel_state.sort_mode = mode;
-                                            this.carousel_state.sort_picker_open = false;
-                                            let total = this.carousel_state.filter_and_sort_handlers(&this.handlers, &this.carousel_state.search_query).len();
-                                            this.carousel_state.set_count(total);
-                                            cx.notify();
-                                        }))
-                                        .child(mode.label())
-                                        .when(is_active, |el| el.child(Icon::new(IconName::Check).size_3p5().text_color(theme::accent())))
-                                }))
+                                .children(CarouselSortMode::ALL.iter().enumerate().map(
+                                    |(idx, &mode)| {
+                                        let is_active = win.carousel_state.sort_mode == mode;
+                                        div()
+                                            .id(("sort-opt", idx))
+                                            .cursor_pointer()
+                                            .flex()
+                                            .items_center()
+                                            .justify_between()
+                                            .px_3()
+                                            .py_2()
+                                            .rounded_md()
+                                            .text_xs()
+                                            .when(is_active, |s| {
+                                                s.bg(theme::accent().opacity(0.15))
+                                                    .text_color(theme::accent())
+                                                    .font_weight(FontWeight::BOLD)
+                                            })
+                                            .when(!is_active, |s| {
+                                                s.text_color(theme::text_primary())
+                                                    .hover(|h| h.bg(theme::bg_hover()))
+                                            })
+                                            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                                cx.stop_propagation();
+                                            })
+                                            .on_click(cx.listener(move |this, _, _, cx| {
+                                                cx.stop_propagation();
+                                                this.carousel_state.sort_mode = mode;
+                                                this.carousel_state.sort_picker_open = false;
+                                                let total = this
+                                                    .carousel_state
+                                                    .filter_and_sort_handlers(
+                                                        &this.handlers,
+                                                        &this.carousel_state.search_query,
+                                                    )
+                                                    .len();
+                                                this.carousel_state.set_count(total);
+                                                cx.notify();
+                                            }))
+                                            .child(mode.label())
+                                            .when(is_active, |el| {
+                                                el.child(
+                                                    Icon::new(IconName::Check)
+                                                        .size_3p5()
+                                                        .text_color(theme::accent()),
+                                                )
+                                            })
+                                    },
+                                )),
                         )
-                        .with_priority(10)
+                        .with_priority(10),
                     )
                 }),
         )
@@ -1260,11 +1422,7 @@ fn render_carousel_action_bar(
 /// Returns the visual opacity for a carousel game card based on installation status and selection state.
 pub fn carousel_card_opacity(is_installed: bool, is_selected: bool) -> f32 {
     if !is_installed {
-        if is_selected {
-            0.60
-        } else {
-            0.40
-        }
+        if is_selected { 0.60 } else { 0.40 }
     } else if !is_selected {
         0.70
     } else {
@@ -1298,10 +1456,7 @@ fn render_carousel_card(
                 .absolute()
                 .top_3()
                 .right_3()
-                .child(
-                    CouchTag::new("Uninstalled")
-                        .tone(TagTone::Warning)
-                )
+                .child(CouchTag::new("Uninstalled").tone(TagTone::Warning))
                 .into_any_element(),
         )
     } else {
@@ -1354,13 +1509,14 @@ fn render_selected_game_metadata(
         "1 Player".to_string()
     };
 
-    let input_badge = if handler.supports_gamepad || handler.supports_xinput || handler.supports_dinput {
-        "Gamepad Supported"
-    } else if handler.supports_keyboard {
-        "Keyboard & Mouse"
-    } else {
-        "Controller"
-    };
+    let input_badge =
+        if handler.supports_gamepad || handler.supports_xinput || handler.supports_dinput {
+            "Gamepad Supported"
+        } else if handler.supports_keyboard {
+            "Keyboard & Mouse"
+        } else {
+            "Controller"
+        };
 
     let play_time_text = if handler.play_time_seconds > 0 {
         let hours = handler.play_time_seconds / 3600;

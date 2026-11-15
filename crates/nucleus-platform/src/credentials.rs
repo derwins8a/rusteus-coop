@@ -1,8 +1,8 @@
 //! Platform-agnostic credential and secret storage trait.
 
+use nucleus_common::error::NucleusResult;
 use std::collections::HashMap;
 use std::sync::RwLock;
-use nucleus_common::error::NucleusResult;
 
 /// Platform-agnostic secure secret store interface.
 pub trait CredentialStore: Send + Sync {
@@ -42,7 +42,9 @@ impl CredentialStore for InMemoryCredentialStore {
         let map = self.secrets.read().map_err(|e| {
             nucleus_common::error::NucleusError::Platform(format!("Lock poisoned: {}", e))
         })?;
-        Ok(map.get(&(service.to_string(), account.to_string())).cloned())
+        Ok(map
+            .get(&(service.to_string(), account.to_string()))
+            .cloned())
     }
 
     fn delete_secret(&self, service: &str, account: &str) -> NucleusResult<()> {
@@ -63,7 +65,9 @@ mod tests {
         let store = InMemoryCredentialStore::new();
         assert_eq!(store.load_secret("hub", "user1").unwrap(), None);
 
-        store.save_secret("hub", "user1", b"secret-token-123").unwrap();
+        store
+            .save_secret("hub", "user1", b"secret-token-123")
+            .unwrap();
         assert_eq!(
             store.load_secret("hub", "user1").unwrap(),
             Some(b"secret-token-123".to_vec())

@@ -5,8 +5,8 @@
 //! and Proceed/Cancel action controls.
 
 use gpui::{
-    div, px, rgb, AnyElement, App, ClickEvent, ElementId, FontWeight, InteractiveElement,
-    IntoElement, MouseButton, ParentElement, SharedString, Styled, Window,
+    AnyElement, App, ClickEvent, ElementId, FontWeight, InteractiveElement, IntoElement,
+    MouseButton, ParentElement, SharedString, Styled, Window, div, px, rgb,
 };
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
@@ -28,11 +28,7 @@ pub struct NefosLaunchPromptModal {
 }
 
 impl NefosLaunchPromptModal {
-    pub fn new(
-        player_index: usize,
-        player_count: usize,
-        message: impl Into<SharedString>,
-    ) -> Self {
+    pub fn new(player_index: usize, player_count: usize, message: impl Into<SharedString>) -> Self {
         Self {
             id: ElementId::Name(format!("launch-prompt-p{}", player_index).into()),
             player_index,

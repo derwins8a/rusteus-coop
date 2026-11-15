@@ -15,8 +15,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, px, AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
 };
 
 use crate::models::HandlerItem;
@@ -350,7 +350,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2()
-                    .child(Icon::new(IconName::Wrench).size(px(16.0)).text_color(theme::accent()))
+                    .child(
+                        Icon::new(IconName::Wrench)
+                            .size(px(16.0))
+                            .text_color(theme::accent()),
+                    )
                     .child(
                         div()
                             .text_sm()
@@ -377,7 +381,11 @@ impl CouchContextMenu {
             .text_xs()
             .text_color(theme::text_primary())
             .hover(|s| s.bg(theme::bg_active()))
-            .child(Icon::new(IconName::Folder).size(px(16.0)).text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Folder)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
             .child(div().child("Open Game Handler"));
 
         if let Some(cb) = self.on_open_handler {
@@ -386,24 +394,31 @@ impl CouchContextMenu {
         panel = panel.child(open_handler_row);
 
         // Action 2: Open Original Exe Path
-        let mut open_exe_row = div()
-            .id("ctx-open-exe")
-            .cursor_pointer()
-            .flex()
-            .items_center()
-            .gap_2p5()
-            .px_2p5()
-            .py_1p5()
-            .rounded_md()
-            .text_xs()
-            .text_color(if exe_available {
-                theme::text_primary()
-            } else {
-                theme::text_muted()
-            })
-            .hover(|s| s.bg(theme::bg_active()))
-            .child(Icon::new(IconName::FolderOpen).size(px(16.0)).text_color(if exe_available { theme::text_muted() } else { theme::text_subtle() }))
-            .child(div().child("Open Original Exe Path"));
+        let mut open_exe_row =
+            div()
+                .id("ctx-open-exe")
+                .cursor_pointer()
+                .flex()
+                .items_center()
+                .gap_2p5()
+                .px_2p5()
+                .py_1p5()
+                .rounded_md()
+                .text_xs()
+                .text_color(if exe_available {
+                    theme::text_primary()
+                } else {
+                    theme::text_muted()
+                })
+                .hover(|s| s.bg(theme::bg_active()))
+                .child(Icon::new(IconName::FolderOpen).size(px(16.0)).text_color(
+                    if exe_available {
+                        theme::text_muted()
+                    } else {
+                        theme::text_subtle()
+                    },
+                ))
+                .child(div().child("Open Original Exe Path"));
 
         if let Some(cb) = self.on_open_exe {
             open_exe_row = open_exe_row.on_click(move |ev, win, app| cb(ev, win, app));
@@ -423,7 +438,11 @@ impl CouchContextMenu {
             .text_xs()
             .text_color(theme::text_primary())
             .hover(|s| s.bg(theme::bg_active()))
-            .child(Icon::new(IconName::Save).size(px(16.0)).text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Save)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
             .child(div().child("Open UserProfile Save Path"));
 
         if let Some(cb) = self.on_open_userprofile {
@@ -445,7 +464,11 @@ impl CouchContextMenu {
             .text_xs()
             .text_color(theme::warning())
             .hover(|s| s.bg(theme::warning().opacity(0.15)))
-            .child(Icon::new(IconName::Trash).size(px(16.0)).text_color(theme::warning()))
+            .child(
+                Icon::new(IconName::Trash)
+                    .size(px(16.0))
+                    .text_color(theme::warning()),
+            )
             .child(div().child("Delete UserProfile Save Path"));
 
         if let Some(cb) = self.on_delete_userprofile {
@@ -476,7 +499,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::Gamepad2).size(px(16.0)).text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::Gamepad2)
+                            .size(px(16.0))
+                            .text_color(theme::text_muted()),
+                    )
                     .child(div().child("Assign Gamepads By Index")),
             )
             .child(
@@ -522,7 +549,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::CircleDot).size(px(16.0)).text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::CircleDot)
+                            .size(px(16.0))
+                            .text_color(theme::text_muted()),
+                    )
                     .child(div().child("Assign Gamepads On Button Press (profile)")),
             )
             .child(
@@ -568,7 +599,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::Package).size(px(16.0)).text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::Package)
+                            .size(px(16.0))
+                            .text_color(theme::text_muted()),
+                    )
                     .child(div().child("Keep Instances Content Folder")),
             )
             .child(
@@ -613,7 +648,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::Ban).size(px(16.0)).text_color(theme::danger()))
+                    .child(
+                        Icon::new(IconName::Ban)
+                            .size(px(16.0))
+                            .text_color(theme::danger()),
+                    )
                     .child(div().child("Disable Profile")),
             )
             .child(
@@ -659,7 +698,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::Lock).size(px(16.0)).text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::Lock)
+                            .size(px(16.0))
+                            .text_color(theme::text_muted()),
+                    )
                     .child(div().child("Disable Handler Update")),
             )
             .child(
@@ -682,8 +725,7 @@ impl CouchContextMenu {
             );
 
         if let Some(cb) = self.on_toggle_disable_update {
-            disable_update_row =
-                disable_update_row.on_click(move |ev, win, app| cb(ev, win, app));
+            disable_update_row = disable_update_row.on_click(move |ev, win, app| cb(ev, win, app));
         }
         panel = panel.child(disable_update_row);
 
@@ -703,7 +745,11 @@ impl CouchContextMenu {
             .text_xs()
             .text_color(theme::text_primary())
             .hover(|s| s.bg(theme::bg_active()))
-            .child(Icon::new(IconName::Image).size(px(16.0)).text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Image)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
             .child(div().child("Change Game Icon"));
 
         if let Some(cb) = self.on_change_icon {
@@ -724,7 +770,11 @@ impl CouchContextMenu {
             .text_xs()
             .text_color(theme::text_primary())
             .hover(|s| s.bg(theme::bg_active()))
-            .child(Icon::new(IconName::Palette).size(px(16.0)).text_color(theme::text_muted()))
+            .child(
+                Icon::new(IconName::Palette)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
             .child(div().child("Game Assets (Covers & Artwork)"));
 
         if let Some(cb) = self.on_open_assets {
@@ -734,8 +784,18 @@ impl CouchContextMenu {
 
         // Action 12: Steam Language selector (collapsible dropdown picker)
         let langs = [
-            "english", "german", "french", "spanish", "italian",
-            "russian", "japanese", "schinese", "tchinese", "koreana", "brazilian", "polish",
+            "english",
+            "german",
+            "french",
+            "spanish",
+            "italian",
+            "russian",
+            "japanese",
+            "schinese",
+            "tchinese",
+            "koreana",
+            "brazilian",
+            "polish",
         ];
 
         let mut toggle_lang_btn = div()
@@ -755,7 +815,11 @@ impl CouchContextMenu {
                     .flex()
                     .items_center()
                     .gap_2p5()
-                    .child(Icon::new(IconName::Globe).size(px(16.0)).text_color(theme::text_muted()))
+                    .child(
+                        Icon::new(IconName::Globe)
+                            .size(px(16.0))
+                            .text_color(theme::text_muted()),
+                    )
                     .child(div().child("Steam Language")),
             )
             .child(
@@ -856,7 +920,11 @@ impl CouchContextMenu {
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(theme::danger())
             .hover(|s| s.bg(theme::danger_subtle()))
-            .child(Icon::new(IconName::Trash).size(px(16.0)).text_color(theme::danger()))
+            .child(
+                Icon::new(IconName::Trash)
+                    .size(px(16.0))
+                    .text_color(theme::danger()),
+            )
             .child(div().child("Remove Game From List"));
 
         if let Some(cb) = self.on_remove_game {

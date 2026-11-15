@@ -4,13 +4,13 @@
 //! fuzzy searching, sorting by hotness/downloads/trending/date, and installing
 //! community-contributed game handler scripts directly from the Splitscreen.Me Hub.
 
-use gpui::prelude::*;
-use gpui::*;
 use crate::models::{HandlerItem, HubPackageItem};
 use crate::nefos::*;
 use crate::theme;
 use crate::window::{HubSortOption, MainWindow};
 use crate::{Icon, IconName, ScrollableElement};
+use gpui::prelude::*;
+use gpui::*;
 
 pub fn normalize_for_match(s: &str) -> String {
     let lower = s.to_lowercase();
@@ -147,14 +147,23 @@ pub fn render_hub_view(
     let mut autocomplete_suggestions: Vec<String> = Vec::new();
     if query_val.len() >= 2 {
         for tag in COMMUNITY_TAGS {
-            if tag.to_lowercase().contains(&query_val.to_lowercase()) && !autocomplete_suggestions.contains(&tag.to_string()) {
+            if tag.to_lowercase().contains(&query_val.to_lowercase())
+                && !autocomplete_suggestions.contains(&tag.to_string())
+            {
                 autocomplete_suggestions.push(tag.to_string());
             }
         }
         for pkg in packages {
-            if pkg.game_name.to_lowercase().contains(&query_val.to_lowercase()) && !autocomplete_suggestions.contains(&pkg.game_name) {
+            if pkg
+                .game_name
+                .to_lowercase()
+                .contains(&query_val.to_lowercase())
+                && !autocomplete_suggestions.contains(&pkg.game_name)
+            {
                 autocomplete_suggestions.push(pkg.game_name.clone());
-            } else if pkg.title.to_lowercase().contains(&query_val.to_lowercase()) && !autocomplete_suggestions.contains(&pkg.title) {
+            } else if pkg.title.to_lowercase().contains(&query_val.to_lowercase())
+                && !autocomplete_suggestions.contains(&pkg.title)
+            {
                 autocomplete_suggestions.push(pkg.title.clone());
             }
             if autocomplete_suggestions.len() >= 5 {
@@ -186,7 +195,11 @@ pub fn render_hub_view(
                 let title_score = fuzzy_score(&query_val, &pkg.title);
                 let game_score = fuzzy_score(&query_val, &pkg.game_name);
                 let author_score = fuzzy_score(&query_val, &pkg.author);
-                let tag_score = pkg.tags.iter().filter_map(|t| fuzzy_score(&query_val, t)).max();
+                let tag_score = pkg
+                    .tags
+                    .iter()
+                    .filter_map(|t| fuzzy_score(&query_val, t))
+                    .max();
 
                 let best_score = [title_score, game_score, author_score, tag_score]
                     .into_iter()
@@ -202,28 +215,37 @@ pub fn render_hub_view(
     scored_packages.sort_by(|(s_a, a), (s_b, b)| {
         let cmp = match current_sort {
             HubSortOption::Trending => {
-                let trend_a = a.downloads * 2 + (a.likes as u64) * 5 + (a.comments_count as u64) * 3;
-                let trend_b = b.downloads * 2 + (b.likes as u64) * 5 + (b.comments_count as u64) * 3;
+                let trend_a =
+                    a.downloads * 2 + (a.likes as u64) * 5 + (a.comments_count as u64) * 3;
+                let trend_b =
+                    b.downloads * 2 + (b.likes as u64) * 5 + (b.comments_count as u64) * 3;
                 trend_b.cmp(&trend_a).then_with(|| s_b.cmp(s_a))
             }
             HubSortOption::Hottest => b.likes.cmp(&a.likes).then_with(|| s_b.cmp(s_a)),
             HubSortOption::Downloads => b.downloads.cmp(&a.downloads).then_with(|| s_b.cmp(s_a)),
             HubSortOption::ReleaseDate => {
-                let date_a = if a.updated_at.is_empty() { &a.created_at } else { &a.updated_at };
-                let date_b = if b.updated_at.is_empty() { &b.created_at } else { &b.updated_at };
+                let date_a = if a.updated_at.is_empty() {
+                    &a.created_at
+                } else {
+                    &a.updated_at
+                };
+                let date_b = if b.updated_at.is_empty() {
+                    &b.created_at
+                } else {
+                    &b.updated_at
+                };
                 date_b.cmp(date_a).then_with(|| s_b.cmp(s_a))
             }
-            HubSortOption::Alphabetical => a.game_name.to_lowercase().cmp(&b.game_name.to_lowercase()),
+            HubSortOption::Alphabetical => {
+                a.game_name.to_lowercase().cmp(&b.game_name.to_lowercase())
+            }
         };
 
-        if sort_ascending {
-            cmp.reverse()
-        } else {
-            cmp
-        }
+        if sort_ascending { cmp.reverse() } else { cmp }
     });
 
-    let filtered_packages: Vec<&HubPackageItem> = scored_packages.into_iter().map(|(_, p)| p).collect();
+    let filtered_packages: Vec<&HubPackageItem> =
+        scored_packages.into_iter().map(|(_, p)| p).collect();
     let total_packages = filtered_packages.len();
     let total_pages = if total_packages == 0 {
         1

@@ -6,7 +6,11 @@ use nucleus_common::types::{Rect, WindowHandle, WindowStyle};
 /// Platform-agnostic window management operations.
 pub trait WindowManager: Send + Sync {
     /// Find a window by its title (exact or partial match).
-    fn find_window_by_title(&self, title: &str, partial: bool) -> NucleusResult<Option<WindowHandle>>;
+    fn find_window_by_title(
+        &self,
+        title: &str,
+        partial: bool,
+    ) -> NucleusResult<Option<WindowHandle>>;
 
     /// Find all windows belonging to a process.
     fn find_windows_by_process(&self, pid: u32) -> NucleusResult<Vec<WindowHandle>>;
@@ -15,7 +19,12 @@ pub trait WindowManager: Send + Sync {
     fn set_window_position(&self, handle: WindowHandle, rect: &Rect) -> NucleusResult<()>;
 
     /// Set window position and size with topmost control (not_top_most guard).
-    fn set_window_position_ext(&self, handle: WindowHandle, rect: &Rect, not_top_most: bool) -> NucleusResult<()> {
+    fn set_window_position_ext(
+        &self,
+        handle: WindowHandle,
+        rect: &Rect,
+        not_top_most: bool,
+    ) -> NucleusResult<()> {
         let _ = not_top_most;
         self.set_window_position(handle, rect)
     }

@@ -1,9 +1,9 @@
 //! Non-secret Community Hub account profile metadata and preferences.
 
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Non-secret summary of the authenticated Splitscreen.Me Hub account.
 ///
@@ -27,7 +27,11 @@ pub struct HubAccountSummary {
 
 impl HubAccountSummary {
     /// Creates a new `HubAccountSummary`.
-    pub fn new(user_id: impl Into<String>, username: impl Into<String>, hub_base_url: impl Into<String>) -> Self {
+    pub fn new(
+        user_id: impl Into<String>,
+        username: impl Into<String>,
+        hub_base_url: impl Into<String>,
+    ) -> Self {
         Self {
             user_id: user_id.into(),
             username: username.into(),
@@ -58,11 +62,13 @@ mod tests {
 
     #[test]
     fn test_hub_account_summary_roundtrip() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_hub_acc_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_hub_acc_test_{}", std::process::id()));
         let _ = std::fs::create_dir_all(&temp_dir);
         let path = temp_dir.join("hub_account.json");
 
-        let mut summary = HubAccountSummary::new("user_xyz123", "GamerPro", "https://hub.splitscreen.me");
+        let mut summary =
+            HubAccountSummary::new("user_xyz123", "GamerPro", "https://hub.splitscreen.me");
         summary.email_hint = Some("g***@example.com".to_string());
         summary.token_expires_unix_ms = Some(1775000000000);
 

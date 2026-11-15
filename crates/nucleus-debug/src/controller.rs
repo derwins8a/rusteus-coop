@@ -1,13 +1,13 @@
 //! Thread-safe debug controller managing breakpoints, stepping condvars, and lifecycle stages.
 
 use std::collections::HashMap;
-use std::sync::{mpsc, Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, mpsc};
 
-use nucleus_common::error::{NucleusError, NucleusResult};
 use crate::protocol::{
-    Breakpoint, DebugCommand, DebugEvent, DebugLaunchMode, PauseReason,
-    PipelineStage, RuntimeSnapshot, StackFrameInfo,
+    Breakpoint, DebugCommand, DebugEvent, DebugLaunchMode, PauseReason, PipelineStage,
+    RuntimeSnapshot, StackFrameInfo,
 };
+use nucleus_common::error::{NucleusError, NucleusResult};
 
 /// Stepping modes supported by the execution controller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,7 +141,9 @@ impl DebugController {
         let mut state = self.state.lock().unwrap();
 
         if state.aborted {
-            return Err(NucleusError::Other("Debug session aborted by user".to_string()));
+            return Err(NucleusError::Other(
+                "Debug session aborted by user".to_string(),
+            ));
         }
 
         state.current_file = Some(file_id.to_string());
@@ -246,7 +248,9 @@ impl DebugController {
         }
 
         if state.aborted {
-            return Err(NucleusError::Other("Debug session aborted by user".to_string()));
+            return Err(NucleusError::Other(
+                "Debug session aborted by user".to_string(),
+            ));
         }
 
         Ok(())
@@ -274,7 +278,9 @@ impl DebugController {
             DebugCommand::StepOver => {
                 let depth = state.call_depth;
                 state.is_paused = false;
-                state.step_mode = StepMode::StepOver { target_depth: depth };
+                state.step_mode = StepMode::StepOver {
+                    target_depth: depth,
+                };
                 self.condvar.notify_all();
                 drop(state);
                 self.emit_event(DebugEvent::Resumed);
@@ -282,7 +288,9 @@ impl DebugController {
             DebugCommand::StepOut => {
                 let depth = state.call_depth;
                 state.is_paused = false;
-                state.step_mode = StepMode::StepOut { target_depth: depth };
+                state.step_mode = StepMode::StepOut {
+                    target_depth: depth,
+                };
                 self.condvar.notify_all();
                 drop(state);
                 self.emit_event(DebugEvent::Resumed);
@@ -300,7 +308,10 @@ impl DebugController {
             DebugCommand::ClearAllBreakpoints => {
                 state.breakpoints.clear();
             }
-            DebugCommand::EvaluateExpression { expression, frame_id } => {
+            DebugCommand::EvaluateExpression {
+                expression,
+                frame_id,
+            } => {
                 state.pending_eval = Some((expression, frame_id));
                 self.condvar.notify_all();
             }
@@ -370,16 +381,22 @@ mod tests {
         let ctrl_clone = controller.clone();
         let worker = thread::spawn(move || {
             // Probe line 1 (no bp)
-            ctrl_clone.on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 1, 1, None).unwrap();
+            ctrl_clone
+                .on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 1, 1, None)
+                .unwrap();
 
             // Set breakpoint on line 2
             ctrl_clone.set_breakpoint(Breakpoint::new("handler.js", 2));
 
             // Probe line 2 (should pause)
-            ctrl_clone.on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 2, 1, None).unwrap();
+            ctrl_clone
+                .on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 2, 1, None)
+                .unwrap();
 
             // Probe line 3
-            ctrl_clone.on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 3, 1, None).unwrap();
+            ctrl_clone
+                .on_statement_probe::<fn(&str) -> Result<String, String>>("handler.js", 3, 1, None)
+                .unwrap();
         });
 
         // Receive paused event

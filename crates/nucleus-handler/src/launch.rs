@@ -28,9 +28,9 @@ impl ProcessLauncher {
             cmd.env(k, v);
         }
 
-        let child = cmd
-            .spawn()
-            .map_err(|e| NucleusError::Process(format!("Failed to spawn {:?}: {}", executable, e)))?;
+        let child = cmd.spawn().map_err(|e| {
+            NucleusError::Process(format!("Failed to spawn {:?}: {}", executable, e))
+        })?;
 
         Ok(child.id())
     }
@@ -88,7 +88,10 @@ mod tests {
     #[test]
     fn test_process_launch_and_terminate() {
         #[cfg(windows)]
-        let (prog, args) = ("cmd.exe", vec!["/c".to_string(), "timeout /t 5".to_string()]);
+        let (prog, args) = (
+            "cmd.exe",
+            vec!["/c".to_string(), "timeout /t 5".to_string()],
+        );
         #[cfg(not(windows))]
         let (prog, args) = ("sleep", vec!["5".to_string()]);
 
@@ -98,10 +101,10 @@ mod tests {
             &args,
             &cur_dir,
             std::iter::empty::<(&str, &str)>(),
-        ).unwrap();
+        )
+        .unwrap();
         assert!(pid > 0);
 
         ProcessLauncher::terminate(pid).unwrap();
     }
 }
-

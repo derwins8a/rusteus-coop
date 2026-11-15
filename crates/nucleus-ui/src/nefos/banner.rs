@@ -4,8 +4,8 @@
 //! Used for startup pre-flight diagnostics, filesystem warnings, and system status alerts.
 
 use gpui::{
-    div, px, rgb, AnyElement, App, ClickEvent, ElementId, FontWeight, Hsla, InteractiveElement,
-    IntoElement, ParentElement, SharedString, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, ElementId, FontWeight, Hsla, InteractiveElement, IntoElement,
+    ParentElement, SharedString, StatefulInteractiveElement, Styled, Window, div, px, rgb,
 };
 use gpui_component::Icon;
 use gpui_kit_assets::IconName;
@@ -90,29 +90,45 @@ impl NefosBanner {
 
     /// Converts this banner into an `AnyElement`.
     pub fn into_any_element(self) -> AnyElement {
-        let (bg_color, border_color, text_color, default_icon): (Hsla, Hsla, Hsla, IconName) = match self.tone {
-            NefosBannerTone::Info => (
-                theme::accent().opacity(0.12),
-                theme::accent().opacity(0.35),
-                theme::accent(),
-                IconName::Info,
-            ),
-            NefosBannerTone::Warning => {
-                let warn: Hsla = rgb(0xf59e0b).into();
-                let warn_text: Hsla = rgb(0xfbbf24).into();
-                (warn.opacity(0.12), warn.opacity(0.35), warn_text, IconName::TriangleAlert)
-            }
-            NefosBannerTone::Danger => {
-                let danger: Hsla = rgb(0xef4444).into();
-                let danger_text: Hsla = rgb(0xf87171).into();
-                (danger.opacity(0.12), danger.opacity(0.35), danger_text, IconName::CircleAlert)
-            }
-            NefosBannerTone::Success => {
-                let success: Hsla = rgb(0x10b981).into();
-                let success_text: Hsla = rgb(0x34d399).into();
-                (success.opacity(0.12), success.opacity(0.35), success_text, IconName::CircleCheck)
-            }
-        };
+        let (bg_color, border_color, text_color, default_icon): (Hsla, Hsla, Hsla, IconName) =
+            match self.tone {
+                NefosBannerTone::Info => (
+                    theme::accent().opacity(0.12),
+                    theme::accent().opacity(0.35),
+                    theme::accent(),
+                    IconName::Info,
+                ),
+                NefosBannerTone::Warning => {
+                    let warn: Hsla = rgb(0xf59e0b).into();
+                    let warn_text: Hsla = rgb(0xfbbf24).into();
+                    (
+                        warn.opacity(0.12),
+                        warn.opacity(0.35),
+                        warn_text,
+                        IconName::TriangleAlert,
+                    )
+                }
+                NefosBannerTone::Danger => {
+                    let danger: Hsla = rgb(0xef4444).into();
+                    let danger_text: Hsla = rgb(0xf87171).into();
+                    (
+                        danger.opacity(0.12),
+                        danger.opacity(0.35),
+                        danger_text,
+                        IconName::CircleAlert,
+                    )
+                }
+                NefosBannerTone::Success => {
+                    let success: Hsla = rgb(0x10b981).into();
+                    let success_text: Hsla = rgb(0x34d399).into();
+                    (
+                        success.opacity(0.12),
+                        success.opacity(0.35),
+                        success_text,
+                        IconName::CircleCheck,
+                    )
+                }
+            };
 
         let icon_name = self.icon.unwrap_or(default_icon);
 
@@ -132,12 +148,7 @@ impl NefosBanner {
             .shadow_sm();
 
         // Left content: Icon + Title & Message
-        let mut left_content = div()
-            .flex()
-            .flex_row()
-            .items_center()
-            .gap_3()
-            .flex_1();
+        let mut left_content = div().flex().flex_row().items_center().gap_3().flex_1();
 
         left_content = left_content.child(
             div()

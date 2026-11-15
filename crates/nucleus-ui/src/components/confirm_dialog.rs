@@ -17,8 +17,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    div, px, AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement,
-    MouseButton, ParentElement, StatefulInteractiveElement, Styled, Window,
+    AnyElement, App, ClickEvent, FontWeight, InteractiveElement, IntoElement, MouseButton,
+    ParentElement, StatefulInteractiveElement, Styled, Window, div, px,
 };
 
 use crate::components::button::CouchButton;
@@ -124,21 +124,19 @@ impl CouchConfirmDialog {
             .items_start()
             .gap_3()
             .child(
-                div()
-                    .pt_0p5()
-                    .child(
-                        Icon::new(if is_destructive {
-                            IconName::TriangleAlert
-                        } else {
-                            IconName::Info
-                        })
-                        .size_5()
-                        .text_color(if is_destructive {
-                            theme::warning()
-                        } else {
-                            theme::accent()
-                        }),
-                    ),
+                div().pt_0p5().child(
+                    Icon::new(if is_destructive {
+                        IconName::TriangleAlert
+                    } else {
+                        IconName::Info
+                    })
+                    .size_5()
+                    .text_color(if is_destructive {
+                        theme::warning()
+                    } else {
+                        theme::accent()
+                    }),
+                ),
             )
             .child(
                 div()
@@ -192,11 +190,7 @@ impl CouchConfirmDialog {
 
         // Assemble full modal
         backdrop
-            .child(
-                panel
-                    .child(header)
-                    .child(footer),
-            )
+            .child(panel.child(header).child(footer))
             .into_any_element()
     }
 }

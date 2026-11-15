@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf};
 use nucleus_common::error::NucleusResult;
 use nucleus_common::file_util;
+use std::path::{Path, PathBuf};
 
 /// Tool for configuring DevReorder (dinput8.dll wrapper) to selectively expose or hide
 /// DirectInput devices per game instance.
@@ -13,7 +13,7 @@ impl DevReorderTool {
     pub fn generate_ini(visible_guid: &str, all_guids: &[&str]) -> String {
         let mut lines = Vec::new();
         lines.push("[order]".to_string());
-        
+
         let trimmed_visible = visible_guid.trim().trim_matches(|c| c == '{' || c == '}');
         if !trimmed_visible.is_empty() {
             lines.push(format!("{{{}}}", trimmed_visible));
@@ -45,7 +45,10 @@ impl DevReorderTool {
 
         if copy_dll {
             let arch_folder = if is_64bit { "x64" } else { "x86" };
-            let src_dll = utils_dir.join("devreorder").join(arch_folder).join("dinput8.dll");
+            let src_dll = utils_dir
+                .join("devreorder")
+                .join(arch_folder)
+                .join("dinput8.dll");
             let dst_dll = instance_dir.join("dinput8.dll");
             if src_dll.exists() {
                 file_util::copy_file(&src_dll, &dst_dll, true)?;
@@ -83,7 +86,8 @@ mod tests {
 
     #[test]
     fn test_devreorder_setup() {
-        let temp_dir = std::env::temp_dir().join(format!("nucleus_devreorder_test_{}", std::process::id()));
+        let temp_dir =
+            std::env::temp_dir().join(format!("nucleus_devreorder_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         let utils_dir = temp_dir.join("utils");
         let instance_dir = temp_dir.join("instance0");
@@ -98,7 +102,8 @@ mod tests {
             &utils_dir,
             true,
             false,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(ini_path.exists());
         let read_content = file_util::read_text_file(&ini_path).unwrap();
@@ -108,4 +113,3 @@ mod tests {
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 }
-
