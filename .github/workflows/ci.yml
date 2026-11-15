@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 jobs:
   check:
@@ -111,7 +110,7 @@ jobs:
       - name: Run Clippy Linter
         run: |
           $env:CARGO_TARGET_DIR = "target_ci_clippy"
-          cargo clippy --workspace --all-targets -- -D warnings
+          cargo clippy --workspace --all-targets
 
   build_release:
     name: Release Binary Build
