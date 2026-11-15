@@ -1,0 +1,11 @@
+[env]
+RUST_MIN_STACK = "67108864"
+
+# [build]
+# rustc-wrapper = "sccache"
+
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-args=-Wl,--stack,67108864"]
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

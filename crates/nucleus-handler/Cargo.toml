@@ -1,0 +1,17 @@
+[package]
+name = "nucleus-handler"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+nucleus-profile = { workspace = true }
+nucleus-script = { workspace = true }
+nucleus-tools = { workspace = true }
+nucleus-hook = { workspace = true }
+nucleus-plugin = { workspace = true }
+nucleus-debug = { workspace = true }
+parking_lot = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }

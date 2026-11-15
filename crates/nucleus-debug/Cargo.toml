@@ -1,0 +1,13 @@
+[package]
+name = "nucleus-debug"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+boa_parser = { workspace = true }
+boa_ast = { workspace = true }
+boa_interner = { workspace = true }

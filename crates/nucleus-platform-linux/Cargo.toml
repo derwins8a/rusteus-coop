@@ -1,0 +1,9 @@
+[package]
+name = "nucleus-platform-linux"
+version.workspace = true
+edition.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+tracing = { workspace = true }

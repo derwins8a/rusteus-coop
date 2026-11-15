@@ -1,0 +1,18 @@
+[package]
+name = "nucleus-hook"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true }
+

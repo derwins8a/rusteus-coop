@@ -1,0 +1,11 @@
+[package]
+name = "nucleus-profile"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dirs = { workspace = true }
+nucleus-common = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

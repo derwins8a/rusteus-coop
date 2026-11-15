@@ -1,0 +1,21 @@
+[package]
+name = "nucleus-platform-windows"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+dirs = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+windows = { workspace = true }
+winreg = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+dirs = { workspace = true }

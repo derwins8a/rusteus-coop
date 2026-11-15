@@ -1,0 +1,10 @@
+/target/
+**/target/
+/target_*/
+*.pdb
+*.log
+.superpowers/
+scratch/
+content/cache/
+.DS_Store
+Thumbs.db

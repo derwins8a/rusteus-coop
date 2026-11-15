@@ -1,0 +1,31 @@
+[package]
+name = "nucleus-ui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-engine = { workspace = true }
+nucleus-script = { workspace = true }
+nucleus-profile = { workspace = true }
+nucleus-hub = { workspace = true }
+nucleus-input = { workspace = true }
+nucleus-plugin = { workspace = true }
+nucleus-debug = { workspace = true }
+nucleus-tools = { workspace = true }
+tracing = { workspace = true }
+gpui = { workspace = true }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+futures = "0.3"
+dirs = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+gpui-component = { workspace = true }
+gpui-kit-assets = { workspace = true }
+gilrs = { workspace = true }
+smallvec = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true }
+

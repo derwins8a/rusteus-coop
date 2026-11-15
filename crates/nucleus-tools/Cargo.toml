@@ -1,0 +1,29 @@
+[package]
+name = "nucleus-tools"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+serde_ini = { workspace = true }
+quick-xml = { workspace = true }
+zip = { workspace = true }
+dirs = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+nucleus-platform-windows = { workspace = true }
+winreg = { workspace = true }
+
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true
+features = [
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_System_Com_StructuredStorage",
+]

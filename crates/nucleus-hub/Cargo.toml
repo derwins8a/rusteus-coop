@@ -1,0 +1,19 @@
+[package]
+name = "nucleus-hub"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+zip = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+zeroize = { workspace = true }
+boa_parser = { workspace = true }
+boa_ast = { workspace = true }
+boa_interner = { workspace = true }

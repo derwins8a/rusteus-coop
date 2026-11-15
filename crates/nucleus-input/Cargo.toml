@@ -1,0 +1,15 @@
+[package]
+name = "nucleus-input"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+nucleus-common = { workspace = true }
+nucleus-platform = { workspace = true }
+nucleus-profile = { workspace = true }
+gilrs = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true }
+

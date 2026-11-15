@@ -1,0 +1,192 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/nucleus-common",
+    "crates/nucleus-platform",
+    "crates/nucleus-platform-windows",
+    "crates/nucleus-platform-linux",
+    "crates/nucleus-script",
+    "crates/nucleus-profile",
+    "crates/nucleus-input",
+    "crates/nucleus-tools",
+    "crates/nucleus-hub",
+    "crates/nucleus-handler",
+    "crates/nucleus-hook",
+    "crates/nucleus-engine",
+    "crates/nucleus-ui",
+    "crates/nucleus-plugin",
+    "crates/nucleus-debug",
+    "crates/nucleus-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["NucleusCoop Contributors"]
+license = "MIT"
+repository = "https://github.com/derwins8a/rusteus-coop"
+
+[workspace.dependencies]
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# HTTP
+reqwest = { version = "0.12", features = ["json"] }
+
+# JavaScript engine (closest Rust equivalent to Jint)
+boa_engine = "0.20"
+boa_gc = "0.20"
+boa_parser = "0.20"
+boa_ast = "0.20"
+boa_interner = "0.20"
+
+# Cryptography & Hashing
+sha2 = "0.10"
+hex = "0.4"
+zeroize = { version = "1", features = ["derive"] }
+
+# WebAssembly Runtime & SemVer
+wasmi = "0.40"
+semver = { version = "1", features = ["serde"] }
+
+# YAML parsing (for Ludusavi configurations)
+serde_yaml = "0.9"
+
+# Gamepad input (cross-platform)
+gilrs = "0.11"
+
+# Image loading
+image = "0.25"
+
+# Archive handling
+zip = "2"
+
+# File watching
+notify = "7"
+
+# Concurrency primitives
+parking_lot = "0.12"
+
+# Process info
+sysinfo = "0.32"
+
+# INI parsing
+serde_ini = "0.2"
+
+# XML parsing
+quick-xml = { version = "0.37", features = ["serialize"] }
+
+# UUID generation
+uuid = { version = "1", features = ["v4"] }
+
+# SmallVec inline vector optimization
+smallvec = "1.16"
+
+# Path handling
+dirs = "6"
+
+# Internal crates
+nucleus-common = { path = "crates/nucleus-common" }
+nucleus-platform = { path = "crates/nucleus-platform" }
+nucleus-platform-windows = { path = "crates/nucleus-platform-windows" }
+nucleus-platform-linux = { path = "crates/nucleus-platform-linux" }
+nucleus-script = { path = "crates/nucleus-script" }
+nucleus-profile = { path = "crates/nucleus-profile" }
+nucleus-input = { path = "crates/nucleus-input" }
+nucleus-tools = { path = "crates/nucleus-tools" }
+nucleus-hub = { path = "crates/nucleus-hub" }
+nucleus-handler = { path = "crates/nucleus-handler" }
+nucleus-hook = { path = "crates/nucleus-hook" }
+nucleus-engine = { path = "crates/nucleus-engine" }
+nucleus-ui = { path = "crates/nucleus-ui" }
+nucleus-plugin = { path = "crates/nucleus-plugin" }
+nucleus-debug = { path = "crates/nucleus-debug" }
+
+# Windows-specific
+[workspace.dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_Controls",
+    "Win32_System_Threading",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Memory",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Registry",
+    "Win32_Security",
+    "Win32_Security_Cryptography",
+    "Win32_Storage_FileSystem",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+    "Win32_UI_Input",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_PropertiesSystem",
+    "Win32_System_Com",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_Media_Audio",
+    "Win32_Devices_HumanInterfaceDevice",
+]
+
+[workspace.dependencies.winreg]
+version = "0.52"
+
+# GUI
+[workspace.dependencies.gpui]
+version = "=0.3.10"
+package = "gpui-pre"
+
+[workspace.dependencies.gpui-platform]
+version = "=0.3.10"
+package = "gpui-pre-platform"
+
+[workspace.dependencies.gpui-component]
+version = "0.8.1"
+package = "gpui-component"
+
+[workspace.dependencies.gpui-kit-assets]
+version = "0.8.1"
+package = "gpui-kit-assets"
+
+[profile.dev]
+debug = 1
+split-debuginfo = "unpacked"
+incremental = true
+
+[profile.test]
+debug = 1
+split-debuginfo = "unpacked"
+incremental = true
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.test.package."*"]
+opt-level = 2
+
+[profile.release]
+lto = "thin"
+codegen-units = 16
+strip = true
+debug = 0
+incremental = true
+debug-assertions = true

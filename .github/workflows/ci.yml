@@ -1,0 +1,136 @@
+name: Rusteus-Coop CI/CD
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  check:
+    name: Workspace Compile Check
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-check-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-check-
+
+      - name: Run Cargo Check
+        run: |
+          $env:CARGO_TARGET_DIR = "target_ci_check"
+          cargo check --workspace -j 4
+
+  test:
+    name: Core & Isolated Integration Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-test-
+
+      - name: Run Core Library Tests
+        run: |
+          $env:CARGO_TARGET_DIR = "target_ci_test"
+          cargo test -p nucleus-common --lib -j 4
+          cargo test -p nucleus-platform --lib -j 4
+          cargo test -p nucleus-platform-windows --lib -j 4
+          cargo test -p nucleus-script --lib -j 4
+          cargo test -p nucleus-profile --lib -j 4
+          cargo test -p nucleus-hub --lib -j 4
+          cargo test -p nucleus-handler --lib -j 4
+          cargo test -p nucleus-engine --lib -j 4
+          cargo test -p nucleus-plugin --lib -j 4
+          cargo test -p nucleus-debug --lib -j 4
+
+      - name: Run Isolated GPUI Integration Test Suites
+        run: |
+          $env:CARGO_TARGET_DIR = "target_ci_test"
+          cargo test -p nucleus-ui --test components_tests -j 4
+          cargo test -p nucleus-ui --test carousel_tests -j 4
+          cargo test -p nucleus-ui --test couch_hub_tests -j 4
+          cargo test -p nucleus-ui --test couch_setup_tests -j 4
+          cargo test -p nucleus-ui --test couch_osd_tests -j 4
+          cargo test -p nucleus-ui --test disconnect_resilience_tests -j 4
+          cargo test -p nucleus-ui --test gamepad_action_tests -j 4
+
+  format_and_clippy:
+    name: Code Formatting & Linting
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy Linter
+        run: |
+          $env:CARGO_TARGET_DIR = "target_ci_clippy"
+          cargo clippy --workspace --all-targets -- -D warnings
+
+  build_release:
+    name: Release Binary Build
+    runs-on: windows-latest
+    needs: [check, test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Release Binary
+        run: |
+          $env:CARGO_TARGET_DIR = "target_ci_release"
+          cargo build --release --bin nucleus-coop
+
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rusteus-coop-windows-x64
+          path: target_ci_release/release/nucleus-coop.exe
