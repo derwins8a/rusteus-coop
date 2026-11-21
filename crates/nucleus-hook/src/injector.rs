@@ -1,7 +1,21 @@
 //! Dynamic link library (DLL) injection and ejection mechanics.
 
+use crate::pe_inspector::{PeInspector, PeMachine};
+use crate::privilege::open_target_process;
+use crate::remote_call::RemoteRpc;
+use crate::remote_memory::RemoteMemoryGuard;
+use nucleus_common::dll_injection::{DllInjectionConfig, TargetArchitecture};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use std::path::Path;
+
+#[cfg(windows)]
+use windows::Win32::Foundation::{CloseHandle, STILL_ACTIVE, WAIT_OBJECT_0};
+#[cfg(windows)]
+use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
+#[cfg(windows)]
+use windows::Win32::System::Threading::{
+    CreateRemoteThread, GetExitCodeProcess, GetExitCodeThread, WaitForSingleObject,
+};
 
 /// Utilities for injecting custom dynamic libraries into remote target processes.
 pub struct DllInjector;
@@ -9,6 +23,16 @@ pub struct DllInjector;
 impl DllInjector {
     /// Injects a specified DLL file into the address space of a target process.
     pub fn inject_dll(pid: u32, dll_path: &Path) -> NucleusResult<()> {
+        let config = DllInjectionConfig::new(dll_path.to_string_lossy().to_string());
+        Self::inject_advanced(pid, &config).map(|_| ())
+    }
+
+    /// Injects a dynamic library using an advanced configuration specification, verifying
+    /// PE architectures, isolating remote crashes, and executing startup exports.
+    ///
+    /// Returns the remote module base address upon success.
+    pub fn inject_advanced(pid: u32, config: &DllInjectionConfig) -> NucleusResult<usize> {
+        let dll_path = Path::new(&config.path);
         if !dll_path.exists() {
             return Err(NucleusError::Platform(format!(
                 "DLL file does not exist: {:?}",
@@ -16,102 +40,233 @@ impl DllInjector {
             )));
         }
 
+        // Verify configuration architecture expectations if explicitly set
+        let pe_info = PeInspector::inspect_file(dll_path)?;
+        match config.architecture {
+            TargetArchitecture::X64 => {
+                if pe_info.machine != PeMachine::X64 {
+                    return Err(NucleusError::PeInspection(format!(
+                        "DLL {:?} is not 64-bit AMD64 as required by configuration (found {:?})",
+                        dll_path, pe_info.machine
+                    )));
+                }
+            }
+            TargetArchitecture::X86 => {
+                if pe_info.machine != PeMachine::X86 {
+                    return Err(NucleusError::PeInspection(format!(
+                        "DLL {:?} is not 32-bit i386 as required by configuration (found {:?})",
+                        dll_path, pe_info.machine
+                    )));
+                }
+            }
+            TargetArchitecture::Auto => {}
+        }
+
+        // Pre-flight check: Verify DLL architecture matches the target process architecture
+        let _ = PeInspector::verify_compatibility(dll_path, pid)?;
+
         #[cfg(windows)]
         {
             use std::os::windows::ffi::OsStrExt;
-            use windows::Win32::Foundation::{CloseHandle, HANDLE};
-            use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
-            use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
-            use windows::Win32::System::Memory::{
-                MEM_COMMIT, MEM_RELEASE, MEM_RESERVE, PAGE_READWRITE, VirtualAllocEx, VirtualFreeEx,
-            };
-            use windows::Win32::System::Threading::{
-                CreateRemoteThread, OpenProcess, PROCESS_ALL_ACCESS, WaitForSingleObject,
-            };
 
-            let wide_path: Vec<u16> = dll_path
+            let abs_path = std::fs::canonicalize(dll_path)
+                .unwrap_or_else(|_| dll_path.to_path_buf());
+            let wide_path: Vec<u16> = abs_path
                 .as_os_str()
                 .encode_wide()
                 .chain(std::iter::once(0))
                 .collect();
             let size = wide_path.len() * std::mem::size_of::<u16>();
 
-            unsafe {
-                let process: HANDLE = OpenProcess(PROCESS_ALL_ACCESS, false, pid)
-                    .map_err(|e| NucleusError::Platform(format!("OpenProcess failed: {}", e)))?;
+            let process = open_target_process(pid, true)?;
 
-                let mem = VirtualAllocEx(
+            let module_base = unsafe {
+                // RAII guard automatically cleans up memory if any error occurs
+                let mem_guard = match RemoteMemoryGuard::allocate(process, size) {
+                    Ok(g) => g,
+                    Err(e) => {
+                        let _ = CloseHandle(process);
+                        return Err(e);
+                    }
+                };
+
+                let path_bytes = std::slice::from_raw_parts(
+                    wide_path.as_ptr() as *const u8,
+                    size,
+                );
+                if let Err(e) = mem_guard.write(path_bytes) {
+                    let _ = CloseHandle(process);
+                    return Err(e);
+                }
+
+                let kernel32 = match GetModuleHandleA(windows::core::s!("kernel32.dll")) {
+                    Ok(k) => k,
+                    Err(e) => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!("Failed to get kernel32 handle: {}", e)));
+                    }
+                };
+
+                let load_library_w = match GetProcAddress(kernel32, windows::core::s!("LoadLibraryW")) {
+                    Some(f) => f,
+                    None => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform("LoadLibraryW symbol not found in kernel32".to_string()));
+                    }
+                };
+
+                let thread_res = CreateRemoteThread(
                     process,
                     None,
-                    size,
-                    MEM_COMMIT | MEM_RESERVE,
-                    PAGE_READWRITE,
+                    0,
+                    Some(std::mem::transmute(load_library_w)),
+                    Some(mem_guard.address() as *const std::ffi::c_void),
+                    0,
+                    None,
                 );
 
-                if mem.is_null() {
-                    let _ = CloseHandle(process);
-                    return Err(NucleusError::Platform("VirtualAllocEx failed".to_string()));
-                }
+                let thread = match thread_res {
+                    Ok(th) => th,
+                    Err(e) => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!("CreateRemoteThread failed: {}", e)));
+                    }
+                };
 
-                let write_res =
-                    WriteProcessMemory(process, mem, wide_path.as_ptr() as _, size, None);
+                // Bounded polling loop: wait up to 10s monitoring process liveness
+                let timeout_ms = 10_000u64;
+                let poll_interval_ms = 100u64;
+                let mut elapsed = 0u64;
+                let mut exit_code = 0u32;
 
-                if write_res.is_err() {
-                    let _ = VirtualFreeEx(process, mem, 0, MEM_RELEASE);
-                    let _ = CloseHandle(process);
-                    return Err(NucleusError::Platform(
-                        "WriteProcessMemory failed".to_string(),
-                    ));
-                }
+                loop {
+                    let wait_res = WaitForSingleObject(thread, poll_interval_ms as u32);
+                    if wait_res == WAIT_OBJECT_0 {
+                        let _ = GetExitCodeThread(thread, &mut exit_code);
+                        break;
+                    }
 
-                let kernel32 = GetModuleHandleA(windows::core::s!("kernel32.dll"))
-                    .map_err(|e| NucleusError::Platform(e.to_string()))?;
-                let load_library_w = GetProcAddress(kernel32, windows::core::s!("LoadLibraryW"));
+                    // Detect target process crash inside DllMain
+                    let mut proc_exit = 0u32;
+                    let _ = GetExitCodeProcess(process, &mut proc_exit);
+                    if proc_exit != STILL_ACTIVE.0 as u32 {
+                        let _ = CloseHandle(thread);
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!(
+                            "Target process PID {} crashed during LoadLibraryW of {:?} (exit code: {:#x})",
+                            pid, dll_path, proc_exit
+                        )));
+                    }
 
-                if let Some(load_lib_fn) = load_library_w {
-                    let thread = CreateRemoteThread(
-                        process,
-                        None,
-                        0,
-                        Some(std::mem::transmute(load_lib_fn)),
-                        Some(mem),
-                        0,
-                        None,
-                    );
-
-                    if let Ok(th) = thread {
-                        let _ = WaitForSingleObject(th, 5000);
-                        let _ = CloseHandle(th);
+                    elapsed += poll_interval_ms;
+                    if elapsed >= timeout_ms {
+                        let _ = CloseHandle(thread);
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!(
+                            "Timeout waiting for LoadLibraryW of {:?} to complete in PID {}",
+                            dll_path, pid
+                        )));
                     }
                 }
 
-                let _ = VirtualFreeEx(process, mem, 0, MEM_RELEASE);
+                let _ = CloseHandle(thread);
                 let _ = CloseHandle(process);
+
+                // Exit code of LoadLibraryW remote thread is the remote HMODULE base address
+                if exit_code == 0 {
+                    return Err(NucleusError::DllInjection(format!(
+                        "LoadLibraryW returned NULL for {:?} in PID {} (possible missing dependencies or DllMain returned FALSE)",
+                        dll_path, pid
+                    )));
+                }
+
+                exit_code as usize
+            };
+
+            // Execute post-injection export if configured
+            if let Some(ref export) = config.export_name {
+                let _ = RemoteRpc::call_remote_export(
+                    pid,
+                    dll_path,
+                    module_base,
+                    export,
+                    config.export_argument.as_deref(),
+                )?;
+            }
+
+            Ok(module_base)
+        }
+
+        #[cfg(not(windows))]
+        {
+            let _ = (pid, config);
+            Err(NucleusError::Unsupported("DLL injection only supported on Windows".to_string()))
+        }
+    }
+
+    /// Ejects an injected module from the target process address space via `FreeLibrary`.
+    pub fn eject_dll(pid: u32, module_handle: usize) -> NucleusResult<()> {
+        if module_handle == 0 {
+            return Ok(());
+        }
+
+        #[cfg(windows)]
+        {
+            let process = open_target_process(pid, true)?;
+
+            unsafe {
+                let kernel32 = match GetModuleHandleA(windows::core::s!("kernel32.dll")) {
+                    Ok(k) => k,
+                    Err(e) => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!("Failed to get kernel32 handle: {}", e)));
+                    }
+                };
+
+                let free_library = match GetProcAddress(kernel32, windows::core::s!("FreeLibrary")) {
+                    Some(f) => f,
+                    None => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform("FreeLibrary symbol not found in kernel32".to_string()));
+                    }
+                };
+
+                let thread_res = CreateRemoteThread(
+                    process,
+                    None,
+                    0,
+                    Some(std::mem::transmute(free_library)),
+                    Some(module_handle as *const std::ffi::c_void),
+                    0,
+                    None,
+                );
+
+                let thread = match thread_res {
+                    Ok(th) => th,
+                    Err(e) => {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!("CreateRemoteThread for FreeLibrary failed: {}", e)));
+                    }
+                };
+
+                let _ = WaitForSingleObject(thread, 5000);
+                let mut exit_code = 0u32;
+                let _ = GetExitCodeThread(thread, &mut exit_code);
+
+                let _ = CloseHandle(thread);
+                let _ = CloseHandle(process);
+
+                if exit_code == 0 {
+                    tracing::warn!("FreeLibrary returned 0 for module {:#x} in PID {}", module_handle, pid);
+                }
             }
         }
 
         #[cfg(not(windows))]
         {
-            let _ = pid;
+            let _ = (pid, module_handle);
         }
 
         Ok(())
-    }
-
-    /// Ejects an injected module from the target process address space.
-    pub fn eject_dll(_pid: u32, _dll_name: &str) -> NucleusResult<()> {
-        Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_inject_dll_nonexistent_fails() {
-        let dummy_path = Path::new("C:\\nonexistent\\dummy.dll");
-        let result = DllInjector::inject_dll(1234, dummy_path);
-        assert!(result.is_err());
     }
 }

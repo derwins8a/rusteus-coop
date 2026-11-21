@@ -6,6 +6,8 @@ pub mod credentials;
 #[cfg(windows)]
 mod display_manager;
 #[cfg(windows)]
+mod dll_manager;
+#[cfg(windows)]
 mod elevation_manager;
 #[cfg(windows)]
 mod filesystem_manager;
@@ -31,6 +33,8 @@ mod window_manager;
 pub use credentials::WindowsDpapiCredentialStore;
 #[cfg(windows)]
 pub use display_manager::WindowsDisplayManager;
+#[cfg(windows)]
+pub use dll_manager::{WindowsDllInjectionManager, WindowsProcessMemoryManager};
 #[cfg(windows)]
 pub use elevation_manager::WindowsElevationManager;
 #[cfg(windows)]
@@ -77,6 +81,8 @@ pub struct WindowsPlatform {
     elevation_manager: WindowsElevationManager,
     osd_manager: WindowsOsdManager,
     credential_store: WindowsDpapiCredentialStore,
+    dll_manager: WindowsDllInjectionManager,
+    memory_manager: WindowsProcessMemoryManager,
 }
 
 #[cfg(windows)]
@@ -97,6 +103,8 @@ impl WindowsPlatform {
             elevation_manager: WindowsElevationManager::new(),
             osd_manager: WindowsOsdManager::new(),
             credential_store: WindowsDpapiCredentialStore::new(),
+            dll_manager: WindowsDllInjectionManager::new(),
+            memory_manager: WindowsProcessMemoryManager::new(),
         }
     }
 }
@@ -156,6 +164,14 @@ impl PlatformServices for WindowsPlatform {
 
     fn osd_manager(&self) -> &dyn OsdManager {
         &self.osd_manager
+    }
+
+    fn dll_injection_manager(&self) -> Option<&dyn nucleus_platform::DllInjectionManager> {
+        Some(&self.dll_manager)
+    }
+
+    fn process_memory_manager(&self) -> Option<&dyn nucleus_platform::ProcessMemoryManager> {
+        Some(&self.memory_manager)
     }
 
     fn credential_store(&self) -> &dyn nucleus_platform::CredentialStore {
