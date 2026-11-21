@@ -165,9 +165,12 @@ graph TD
       - **Network Isolation**: Loopback IP generation following the formula $\text{IP} = 127.0.0.(i + 2)$ and ForceBindIP injection.
       - **User Profile Guard**: Safe RAII redirection of Windows Explorer `Personal` shell folder to `%USERPROFILE%\NucleusCoop\<Player>\Documents`.
 15. **`nucleus-hook` (`crates/nucleus-hook`)**:
-    - Process DLL injection using Win32 `CreateRemoteThread` and `LoadLibraryW`.
-    - Dynamic C-ABI FFI bindings to native `ProtoInputLoader32.dll` and `ProtoInputLoader64.dll`.
-    - Window focus hook staging and fake focus message dispatching sequences.
+    - **Arbitrary DLL Injection Subsystem**: Pure-Rust PE header inspector (`PeInspector`) verifying DOS/NT/Optional headers and machine bitness (x86 vs x64) before memory operations; RAII remote memory allocation (`RemoteMemoryGuard` wrapping `VirtualAllocEx` / `VirtualFreeEx`); privilege escalation (`SeDebugPrivilege`); anti-crash bounded polling loops detecting remote `DllMain` crashes or access violations.
+    - **Remote Export RPC (`RemoteRpc`)**: Calculates target module export RVA from disk PE and invokes remote functions with custom arguments via remote thread.
+    - **Inter-Process Communication (`ipc/`)**: Async Tokio Windows Named Pipe server and client with 4-byte LE length-prefixed JSON framing; zero-copy Shared Memory segments (`CreateFileMappingW` / `MapViewOfFile`) with atomic synchronization.
+    - **In-Process Memory Engine (`MemoryEngine`)**: Cheat Engine parity engine supporting AOB wildcard pattern scanning (`aob_scan`), multi-level pointer chain resolution (`resolve_pointer_chain`), primitive read/write with auto-unprotect, and continuous memory value freezing (`freeze_value` / `apply_frozen_slots`).
+    - **ProtoInput FFI Bindings**: Dynamic C-ABI FFI bindings to native `ProtoInputLoader32.dll` and `ProtoInputLoader64.dll`.
+    - **Window Focus Hook**: Staging and fake focus message dispatching sequences (`WM_ACTIVATEAPP`, `WM_MOUSEACTIVATE`, etc.).
 
 ### 2.5 Community Hub Layer
 16. **`nucleus-hub` (`crates/nucleus-hub`)**:

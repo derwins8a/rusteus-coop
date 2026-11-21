@@ -163,6 +163,75 @@ Game.AddOption(
 );
 ```
 
+#### 4. Arbitrary DLL Injection & Remote Export Execution
+Inject custom `.dll` mods or helper binaries into specific instances at exact lifecycle stages without external injector tools:
+```javascript
+Game.InjectedDlls = [
+    {
+        Path: "mods/early_patch.dll",
+        Timing: "AtStartupSuspended", // Spawns suspended, injects, calls export, resumes
+        Required: true,
+        TargetInstances: "All",
+        ExportName: "InitPatch",
+        ExportArgument: "disable_intro=1"
+    },
+    {
+        Path: "mods/fov_fix.dll",
+        Timing: "OnWindowCreated",   // Injects once HWND is created & bounds applied
+        DelayMs: 250,
+        TargetInstances: "All",
+        ExportName: "SetFieldOfView",
+        ExportArgument: "95",
+        EjectOnClose: true           // Cleanly calls FreeLibrary on session shutdown
+    }
+];
+
+// Or programmatically via helper:
+Game.AddInjectedDll("mods/extra_mod.dll", {
+    Timing: "PostStartup",
+    TargetInstances: [0, 1]
+});
+```
+
+#### 5. Cheat Engine Parity Memory Manipulation
+Completely replaces the need for manual Cheat Engine workflows. Handlers can scan signatures (AOB with wildcards), traverse multi-level pointer chains, and freeze memory values continuously across instances:
+```javascript
+Game.Play = function() {
+    // 1. AOB pattern scanning with wildcard masks:
+    var matches = Context.ScanMemory("89 45 ?? 8B 45", "xx?xx", null);
+    if (matches && matches.length > 0) {
+        var instructionAddr = matches[0];
+        // Patch instructions directly (e.g. NOP out damage calculation)
+        Context.WriteMemoryBytes(instructionAddr, [0x90, 0x90, 0x90, 0x90, 0x90]);
+    }
+
+    // 2. Multi-level pointer chain resolution:
+    var baseModuleAddr = 0x00400000;
+    var playerHealthAddr = Context.ResolvePointer(baseModuleAddr, [0x48, 0x1C, 0x30]);
+
+    // 3. Continuous memory freezing (Cheat Engine locked values):
+    // Frozen values are automatically enforced every 500ms by the session heartbeat loop
+    var freezeId = Context.FreezeMemoryInt(playerHealthAddr, 9999);
+};
+```
+
+#### 6. Bidirectional Inter-Process Communication (IPC)
+Communicate with injected DLLs in real time via Windows Named Pipes or Shared Memory:
+```javascript
+Context.SendDllMessage(JSON.stringify({
+    command: "SetPlayerNickname",
+    nickname: Context.Nickname,
+    instanceIndex: Context.InstanceNum,
+    viewport: { x: Context.PosX, y: Context.PosY, width: Context.Width, height: Context.Height }
+}));
+```
+Automatic environment telemetry variables provided to all instance processes:
+- `NUCLEUS_INSTANCE_INDEX`: Zero-indexed instance index (`"0"`, `"1"`, etc.).
+- `NUCLEUS_PLAYER_INDEX`: Zero-indexed player index.
+- `NUCLEUS_PLAYER_ID`: One-indexed player number (`"1"`, `"2"`, etc.).
+- `NUCLEUS_PIPE_NAME`: `\\.\pipe\nucleus_instance_{index}`.
+- `NUCLEUS_SHARED_MEM_NAME`: `Local\nucleus_instance_{index}`.
+
 ---
 
 ### 2.3 The Runtime `Context` Object
@@ -183,6 +252,19 @@ When `Game.Play = function() { ... }` executes for each player instance, the eng
 | `Context.WriteTextFile(path, text)` | `void` | Writes or overwrites a text file at `path` (relative or absolute). |
 | `Context.ReadTextFile(path)` | `string` | Reads text contents from a file. |
 | `Context.CopyFolder(src, dest)` | `void` | Recursively copies a folder from `src` to `dest`. |
+| `Context.InjectDll(path, options)` | `number` | Injects a DLL into the running instance process; returns remote module handle. |
+| `Context.CallDllExport(module, export, arg)` | `number` | Executes an exported function in an injected DLL via remote thread. |
+| `Context.SendDllMessage(json)` | `boolean` | Transmits a length-prefixed JSON message to the instance Named Pipe. |
+| `Context.ReadMemoryInt(address)` | `number` | Reads a 32-bit signed integer from target process memory. |
+| `Context.ReadMemoryFloat(address)` | `number` | Reads a 32-bit floating-point value from target process memory. |
+| `Context.ReadMemoryBytes(address, length)` | `number[]` | Reads an array of bytes from target process memory. |
+| `Context.WriteMemoryInt(address, value)` | `boolean` | Writes an integer into target process memory (with auto-unprotect). |
+| `Context.WriteMemoryFloat(address, value)` | `boolean` | Writes a float into target process memory. |
+| `Context.WriteMemoryBytes(address, bytes)` | `boolean` | Writes a byte array into target process memory. |
+| `Context.ScanMemory(pattern, mask, module)` | `number[]` | Performs fast AOB signature search (Cheat Engine style); returns array of matched addresses. |
+| `Context.ResolvePointer(base, offsets)` | `number` | Traverses multi-level pointer chains to resolve final address. |
+| `Context.FreezeMemoryInt(address, value)` | `number` | Registers a continuous memory freeze rule (re-asserted every 500ms); returns freeze ID. |
+| `Context.UnfreezeMemory(freezeId)` | `boolean` | Unfreezes and removes a continuous memory freeze rule. |
 
 ---
 
@@ -224,6 +306,44 @@ Game.ProtoInput.FocusFilter = true;
 
 Game.Play = function() {
     Context.StartArguments += " -popupwindow -x " + Context.PosX + " -y " + Context.PosY;
+};
+```
+
+### Template 3: Arbitrary DLL Injection & Cheat Engine Memory Patching
+
+```javascript
+Game.GUID = "custom-mod-cheat-engine-game";
+Game.GameName = "Custom Mod & In-Process Memory Patch Game";
+Game.MaxPlayers = 4;
+Game.ExecutableName = "game.exe";
+
+// Early DLL injection at process startup suspended
+Game.InjectedDlls = [
+    {
+        Path: "mods/fov_fix.dll",
+        Timing: "AtStartupSuspended",
+        Required: true,
+        ExportName: "SetFov",
+        ExportArgument: "105",
+        EjectOnClose: true
+    }
+];
+
+Game.Play = function() {
+    // 1. Signature scan to locate damage calculation instruction
+    var matches = Context.ScanMemory("89 45 ?? 8B 45", "xx?xx", null);
+    if (matches && matches.length > 0) {
+        // NOP out the instruction: 5 bytes of 0x90
+        Context.WriteMemoryBytes(matches[0], [0x90, 0x90, 0x90, 0x90, 0x90]);
+    }
+
+    // 2. Resolve pointer chain and freeze max player health
+    var baseModuleAddr = 0x00400000;
+    var playerHealthAddr = Context.ResolvePointer(baseModuleAddr, [0x48, 0x1C, 0x30]);
+    if (playerHealthAddr !== 0) {
+        // Automatically re-asserted on every 500ms engine heartbeat tick
+        Context.FreezeMemoryInt(playerHealthAddr, 9999);
+    }
 };
 ```
 
