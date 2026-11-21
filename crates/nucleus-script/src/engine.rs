@@ -442,6 +442,11 @@ impl ScriptEngine {
         }
     }
 
+    /// Returns a mutable reference to the underlying Boa execution context.
+    pub fn context_mut(&mut self) -> &mut Context {
+        &mut self.context
+    }
+
     /// Initializes global `Game` and `Hub` objects, executes the handler script, and parses back the `HandlerConfig`.
     pub fn load_handler_script(&mut self, script: &str) -> NucleusResult<HandlerConfig> {
         self.load_handler_script_with_folder(script, None)
@@ -817,6 +822,14 @@ impl ScriptEngine {
             false,
             &mut self.context,
         );
+        let _ = game_obj.set(
+            JsString::from("InjectedDlls"),
+            JsValue::from(boa_engine::object::builtins::JsArray::new(
+                &mut self.context,
+            )),
+            false,
+            &mut self.context,
+        );
 
         let folder_str = handler_folder
             .map(|p| p.to_string_lossy().to_string())
@@ -868,6 +881,52 @@ impl ScriptEngine {
         let _ = game_obj.set(
             JsString::from("AddOption"),
             add_option_fn,
+            false,
+            &mut self.context,
+        );
+
+        let add_injected_dll_fn = crate::bridge::JsBridge::create_native_function(
+            &mut self.context,
+            |this, args, ctx| {
+                if let Some(this_obj) = this.as_object() {
+                    if let Ok(dlls_val) = this_obj.get(JsString::from("InjectedDlls"), ctx) {
+                        if let Some(dlls_arr) = dlls_val.as_object() {
+                            let dll_obj = boa_engine::object::JsObject::default();
+                            if let Some(path) = args.get(0).cloned() {
+                                let _ = dll_obj.set(JsString::from("Path"), path, false, ctx);
+                            }
+                            if let Some(opts) = args.get(1).and_then(|v| v.as_object()) {
+                                for prop in [
+                                    "Timing",
+                                    "DelayMs",
+                                    "Required",
+                                    "ExportName",
+                                    "ExportArgument",
+                                    "IpcChannel",
+                                    "PipeName",
+                                    "Architecture",
+                                    "TargetInstances",
+                                ] {
+                                    if let Ok(val) = opts.get(JsString::from(prop), ctx) {
+                                        if !val.is_undefined() {
+                                            let _ = dll_obj.set(JsString::from(prop), val, false, ctx);
+                                        }
+                                    }
+                                }
+                            }
+                            if let Ok(len_val) = dlls_arr.get(JsString::from("length"), ctx) {
+                                let len = len_val.as_number().unwrap_or(0.0) as u32;
+                                let _ = dlls_arr.set(len, JsValue::from(dll_obj), false, ctx);
+                            }
+                        }
+                    }
+                }
+                Ok(JsValue::undefined())
+            },
+        );
+        let _ = game_obj.set(
+            JsString::from("AddInjectedDll"),
+            add_injected_dll_fn,
             false,
             &mut self.context,
         );
@@ -1595,6 +1654,120 @@ impl ScriptEngine {
                                 }
                             }
                             config.custom_steps.push(step);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Extract Game.InjectedDlls
+        if let Ok(dlls_val) = game_obj.get(JsString::from("InjectedDlls"), &mut self.context) {
+            if let Some(dlls_arr) = dlls_val.as_object() {
+                let len = dlls_arr
+                    .get(JsString::from("length"), &mut self.context)
+                    .ok()
+                    .and_then(|v| v.as_number())
+                    .unwrap_or(0.0) as u32;
+
+                for i in 0..len {
+                    if let Ok(item_val) = dlls_arr.get(i, &mut self.context) {
+                        if let Some(item_obj) = item_val.as_object() {
+                            let path = if let Ok(v) = item_obj.get(JsString::from("Path"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    s.to_std_string_escaped()
+                                } else {
+                                    String::new()
+                                }
+                            } else {
+                                String::new()
+                            };
+
+                            if path.is_empty() {
+                                continue;
+                            }
+
+                            let mut dll_config = nucleus_common::dll_injection::DllInjectionConfig::new(path);
+
+                            if let Ok(v) = item_obj.get(JsString::from("Timing"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    let t_str = s.to_std_string_escaped().to_lowercase();
+                                    if t_str.contains("startupsuspended") || t_str.contains("suspended") {
+                                        dll_config.timing = nucleus_common::dll_injection::InjectionTiming::AtStartupSuspended;
+                                    } else if t_str.contains("window") {
+                                        dll_config.timing = nucleus_common::dll_injection::InjectionTiming::OnWindowCreated;
+                                    } else if t_str.contains("delay") {
+                                        dll_config.timing = nucleus_common::dll_injection::InjectionTiming::AfterDelayMs(dll_config.delay_ms);
+                                    } else if t_str.contains("manual") {
+                                        dll_config.timing = nucleus_common::dll_injection::InjectionTiming::Manual;
+                                    } else {
+                                        dll_config.timing = nucleus_common::dll_injection::InjectionTiming::PostStartup;
+                                    }
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("DelayMs"), &mut self.context) {
+                                if let Some(n) = v.as_number() {
+                                    dll_config.delay_ms = n.max(0.0) as u64;
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("Required"), &mut self.context) {
+                                if let Some(b) = v.as_boolean() {
+                                    dll_config.required = b;
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("ExportName"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    let export_str = s.to_std_string_escaped();
+                                    if !export_str.is_empty() {
+                                        dll_config.export_name = Some(export_str);
+                                    }
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("ExportArgument"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    dll_config.export_argument = Some(s.to_std_string_escaped());
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("IpcChannel"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    let ipc_str = s.to_std_string_escaped().to_lowercase();
+                                    if ipc_str.contains("pipe") {
+                                        dll_config.ipc_channel = nucleus_common::dll_injection::IpcChannelKind::NamedPipe;
+                                    } else if ipc_str.contains("shared") || ipc_str.contains("shm") {
+                                        dll_config.ipc_channel = nucleus_common::dll_injection::IpcChannelKind::SharedMemory;
+                                    } else {
+                                        dll_config.ipc_channel = nucleus_common::dll_injection::IpcChannelKind::None;
+                                    }
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("PipeName"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    let p = s.to_std_string_escaped();
+                                    if !p.is_empty() {
+                                        dll_config.pipe_name = Some(p);
+                                    }
+                                }
+                            }
+
+                            if let Ok(v) = item_obj.get(JsString::from("Architecture"), &mut self.context) {
+                                if let Some(s) = v.as_string() {
+                                    let arch_str = s.to_std_string_escaped().to_lowercase();
+                                    if arch_str.contains("64") {
+                                        dll_config.architecture = nucleus_common::dll_injection::TargetArchitecture::X64;
+                                    } else if arch_str.contains("86") || arch_str.contains("32") {
+                                        dll_config.architecture = nucleus_common::dll_injection::TargetArchitecture::X86;
+                                    } else {
+                                        dll_config.architecture = nucleus_common::dll_injection::TargetArchitecture::Auto;
+                                    }
+                                }
+                            }
+
+                            config.injected_dlls.push(dll_config);
                         }
                     }
                 }

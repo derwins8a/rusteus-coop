@@ -5,12 +5,29 @@ use boa_engine::native_function::NativeFunction;
 use boa_engine::object::FunctionObjectBuilder;
 use boa_engine::object::builtins::JsArray;
 use boa_engine::property::Attribute;
-use boa_engine::{Context, JsResult, JsString, JsValue};
+use boa_engine::{Context, JsError, JsNativeError, JsResult, JsString, JsValue};
 use nucleus_common::error::{NucleusError, NucleusResult};
 use nucleus_common::file_util;
 use nucleus_common::types::SearchMode;
 use nucleus_tools::HexEditTool;
 use std::path::Path;
+
+fn extract_target_pid(this: &JsValue, ctx: &mut Context) -> u32 {
+    let pid_from_this = this
+        .as_object()
+        .and_then(|o| o.get(JsString::from("ProcessID"), ctx).ok())
+        .and_then(|v| v.as_number())
+        .unwrap_or(0.0) as u32;
+    if pid_from_this != 0 {
+        pid_from_this
+    } else {
+        std::process::id()
+    }
+}
+
+fn js_err(msg: impl Into<String>) -> JsError {
+    JsError::from(JsNativeError::typ().with_message(msg.into()))
+}
 
 /// Bridge helper for registering native Rust callbacks and converting types in the JS engine.
 pub struct JsBridge;
@@ -1460,6 +1477,333 @@ impl JsBridge {
         });
         ctx_obj
             .set(JsString::from("RunAhkCode"), run_ahk_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // DLL Injection & Memory Engine APIs on Context
+        // Context.InjectDll(path, [options])
+        let inject_dll_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let path = args
+                .get(0)
+                .and_then(|v| v.as_string())
+                .map(|s| s.to_std_string_escaped())
+                .unwrap_or_default();
+            let mut config = nucleus_common::dll_injection::DllInjectionConfig::new(path);
+            if let Some(opts) = args.get(1).and_then(|v| v.as_object()) {
+                if let Ok(v) = opts.get(JsString::from("Timing"), ctx) {
+                    if let Some(s) = v.as_string() {
+                        let t_str = s.to_std_string_escaped().to_lowercase();
+                        if t_str.contains("startupsuspended") || t_str.contains("suspended") {
+                            config.timing = nucleus_common::dll_injection::InjectionTiming::AtStartupSuspended;
+                        } else if t_str.contains("window") {
+                            config.timing = nucleus_common::dll_injection::InjectionTiming::OnWindowCreated;
+                        } else if t_str.contains("delay") {
+                            config.timing = nucleus_common::dll_injection::InjectionTiming::AfterDelayMs(config.delay_ms);
+                        } else if t_str.contains("manual") {
+                            config.timing = nucleus_common::dll_injection::InjectionTiming::Manual;
+                        } else {
+                            config.timing = nucleus_common::dll_injection::InjectionTiming::PostStartup;
+                        }
+                    }
+                }
+                if let Ok(v) = opts.get(JsString::from("DelayMs"), ctx) {
+                    if let Some(n) = v.as_number() {
+                        config.delay_ms = n.max(0.0) as u64;
+                    }
+                }
+                if let Ok(v) = opts.get(JsString::from("Required"), ctx) {
+                    if let Some(b) = v.as_boolean() {
+                        config.required = b;
+                    }
+                }
+                if let Ok(v) = opts.get(JsString::from("ExportName"), ctx) {
+                    if let Some(s) = v.as_string() {
+                        let export_str = s.to_std_string_escaped();
+                        if !export_str.is_empty() {
+                            config.export_name = Some(export_str);
+                        }
+                    }
+                }
+                if let Ok(v) = opts.get(JsString::from("ExportArgument"), ctx) {
+                    if let Some(s) = v.as_string() {
+                        config.export_argument = Some(s.to_std_string_escaped());
+                    }
+                }
+            }
+            match nucleus_hook::injector::DllInjector::inject_advanced(pid, &config) {
+                Ok(handle) => Ok(JsValue::from(handle as f64)),
+                Err(e) => Err(js_err(format!("Context.InjectDll failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("InjectDll"), inject_dll_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.CallDllExport(dll_path, module_handle, export_name, [arg_str])
+        let call_export_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let dll_path_str = args
+                .get(0)
+                .and_then(|v| v.as_string())
+                .map(|s| s.to_std_string_escaped())
+                .unwrap_or_default();
+            let module_handle = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let export_name = args
+                .get(2)
+                .and_then(|v| v.as_string())
+                .map(|s| s.to_std_string_escaped())
+                .unwrap_or_default();
+            let arg_str = args
+                .get(3)
+                .and_then(|v| v.as_string())
+                .map(|s| s.to_std_string_escaped());
+
+            match nucleus_hook::remote_call::RemoteRpc::call_remote_export(
+                pid,
+                Path::new(&dll_path_str),
+                module_handle,
+                &export_name,
+                arg_str.as_deref(),
+            ) {
+                Ok(code) => Ok(JsValue::from(code as f64)),
+                Err(e) => Err(js_err(format!("Context.CallDllExport failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("CallDllExport"), call_export_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.SendDllMessage(msg)
+        let send_dll_msg_fn = Self::create_native_function(context, |this, args, ctx| {
+            let player_id = this
+                .as_object()
+                .and_then(|o| o.get(JsString::from("PlayerID"), ctx).ok())
+                .and_then(|v| v.as_number())
+                .unwrap_or(0.0) as u32;
+
+            let payload = if let Some(s) = args.get(0).and_then(|v| v.as_string()) {
+                s.to_std_string_escaped()
+            } else {
+                String::new()
+            };
+
+            let pipe_name = format!(r"\\.\pipe\nucleus_instance_{player_id}");
+            match nucleus_hook::ipc::send_pipe_message_sync(&pipe_name, &payload) {
+                Ok(resp) => Ok(JsValue::from(JsString::from(resp.as_str()))),
+                Err(e) => Err(js_err(format!("Context.SendDllMessage failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("SendDllMessage"), send_dll_msg_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.ReadMemoryInt(address)
+        let read_mem_int_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            match nucleus_hook::memory_engine::MemoryEngine::read_value::<i32>(pid, address) {
+                Ok(val) => Ok(JsValue::from(val)),
+                Err(e) => Err(js_err(format!("Context.ReadMemoryInt failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("ReadMemoryInt"), read_mem_int_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.ReadMemoryFloat(address)
+        let read_mem_float_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            match nucleus_hook::memory_engine::MemoryEngine::read_value::<f32>(pid, address) {
+                Ok(val) => Ok(JsValue::from(val as f64)),
+                Err(e) => Err(js_err(format!("Context.ReadMemoryFloat failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("ReadMemoryFloat"), read_mem_float_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.ReadMemoryBytes(address, length)
+        let read_mem_bytes_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let length = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let mut buf = vec![0u8; length];
+            match nucleus_hook::memory_engine::MemoryEngine::read_bytes(pid, address, &mut buf) {
+                Ok(read) => {
+                    let arr = JsArray::new(ctx);
+                    for b in &buf[..read] {
+                        let _ = arr.push(JsValue::from(*b), ctx);
+                    }
+                    Ok(JsValue::from(arr))
+                }
+                Err(e) => Err(js_err(format!("Context.ReadMemoryBytes failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("ReadMemoryBytes"), read_mem_bytes_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.WriteMemoryInt(address, value)
+        let write_mem_int_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let value = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as i32;
+            match nucleus_hook::memory_engine::MemoryEngine::write_value::<i32>(pid, address, &value) {
+                Ok(()) => Ok(JsValue::from(true)),
+                Err(e) => Err(js_err(format!("Context.WriteMemoryInt failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("WriteMemoryInt"), write_mem_int_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.WriteMemoryFloat(address, value)
+        let write_mem_float_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let value = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as f32;
+            match nucleus_hook::memory_engine::MemoryEngine::write_value::<f32>(pid, address, &value) {
+                Ok(()) => Ok(JsValue::from(true)),
+                Err(e) => Err(js_err(format!("Context.WriteMemoryFloat failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("WriteMemoryFloat"), write_mem_float_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.WriteMemoryBytes(address, bytes)
+        let write_mem_bytes_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let mut bytes = Vec::new();
+            if let Some(arr_obj) = args.get(1).and_then(|v| v.as_object()) {
+                let len = arr_obj
+                    .get(JsString::from("length"), ctx)
+                    .ok()
+                    .and_then(|v| v.as_number())
+                    .unwrap_or(0.0) as u32;
+                for i in 0..len {
+                    if let Ok(item) = arr_obj.get(i, ctx) {
+                        if let Some(b) = item.as_number() {
+                            bytes.push(b as u8);
+                        }
+                    }
+                }
+            }
+            match nucleus_hook::memory_engine::MemoryEngine::write_bytes(pid, address, &bytes) {
+                Ok(_) => Ok(JsValue::from(true)),
+                Err(e) => Err(js_err(format!("Context.WriteMemoryBytes failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("WriteMemoryBytes"), write_mem_bytes_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.ScanMemory(pattern, mask)
+        let scan_mem_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let mut pattern = Vec::new();
+            if let Some(s) = args.get(0).and_then(|v| v.as_string()) {
+                let hex_str = s.to_std_string_escaped();
+                for part in hex_str.split_whitespace() {
+                    if part == "?" || part == "??" {
+                        pattern.push(0x00);
+                    } else if let Ok(b) = u8::from_str_radix(part, 16) {
+                        pattern.push(b);
+                    }
+                }
+            } else if let Some(arr_obj) = args.get(0).and_then(|v| v.as_object()) {
+                let len = arr_obj
+                    .get(JsString::from("length"), ctx)
+                    .ok()
+                    .and_then(|v| v.as_number())
+                    .unwrap_or(0.0) as u32;
+                for i in 0..len {
+                    if let Ok(item) = arr_obj.get(i, ctx) {
+                        if let Some(b) = item.as_number() {
+                            pattern.push(b as u8);
+                        }
+                    }
+                }
+            }
+            let mask = args
+                .get(1)
+                .and_then(|v| v.as_string())
+                .map(|s| s.to_std_string_escaped())
+                .unwrap_or_default();
+            match nucleus_hook::memory_engine::MemoryEngine::aob_scan(pid, &pattern, &mask) {
+                Ok(addrs) => {
+                    let arr = JsArray::new(ctx);
+                    for addr in addrs {
+                        let _ = arr.push(JsValue::from(addr as f64), ctx);
+                    }
+                    Ok(JsValue::from(arr))
+                }
+                Err(e) => Err(js_err(format!("Context.ScanMemory failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("ScanMemory"), scan_mem_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.ResolvePointer(base, offsets_arr)
+        let resolve_ptr_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let base = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let mut offsets = Vec::new();
+            if let Some(arr_obj) = args.get(1).and_then(|v| v.as_object()) {
+                let len = arr_obj
+                    .get(JsString::from("length"), ctx)
+                    .ok()
+                    .and_then(|v| v.as_number())
+                    .unwrap_or(0.0) as u32;
+                for i in 0..len {
+                    if let Ok(item) = arr_obj.get(i, ctx) {
+                        if let Some(offset) = item.as_number() {
+                            offsets.push(offset as usize);
+                        }
+                    }
+                }
+            }
+            match nucleus_hook::memory_engine::MemoryEngine::resolve_pointer_chain(
+                pid,
+                base,
+                &offsets,
+                cfg!(target_pointer_width = "64"),
+            ) {
+                Ok(addr) => Ok(JsValue::from(addr as f64)),
+                Err(e) => Err(js_err(format!("Context.ResolvePointer failed: {e}"))),
+            }
+        });
+        ctx_obj
+            .set(JsString::from("ResolvePointer"), resolve_ptr_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.FreezeMemoryInt(address, value)
+        let freeze_mem_int_fn = Self::create_native_function(context, |this, args, ctx| {
+            let pid = extract_target_pid(this, ctx);
+            let address = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as usize;
+            let value = args.get(1).and_then(|v| v.as_number()).unwrap_or(0.0) as i32;
+            let id = nucleus_hook::memory_engine::MemoryEngine::freeze_value(
+                pid,
+                address,
+                value.to_le_bytes().to_vec(),
+            );
+            Ok(JsValue::from(id as f64))
+        });
+        ctx_obj
+            .set(JsString::from("FreezeMemoryInt"), freeze_mem_int_fn, false, context)
+            .map_err(|e| NucleusError::Script(e.to_string()))?;
+
+        // Context.UnfreezeMemory(id)
+        let unfreeze_mem_fn = Self::create_native_function(context, |_this, args, _ctx| {
+            let id = args.get(0).and_then(|v| v.as_number()).unwrap_or(0.0) as u64;
+            let result = nucleus_hook::memory_engine::MemoryEngine::unfreeze_value(id);
+            Ok(JsValue::from(result))
+        });
+        ctx_obj
+            .set(JsString::from("UnfreezeMemory"), unfreeze_mem_fn, false, context)
             .map_err(|e| NucleusError::Script(e.to_string()))?;
 
         // Register global Context

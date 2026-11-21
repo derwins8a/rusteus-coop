@@ -1,5 +1,6 @@
 //! Configuration properties defined by a game handler script.
 
+use nucleus_common::dll_injection::DllInjectionConfig;
 use serde::{Deserialize, Serialize};
 
 /// Comprehensive configuration structure containing properties exposed by game handlers.
@@ -263,6 +264,8 @@ pub struct HandlerConfig {
 
     // Emulator / Hook fields
     pub use_nemirtingas_epic_emu: bool,
+    /// Arbitrary DLLs to inject into target game instances.
+    pub injected_dlls: Vec<DllInjectionConfig>,
     pub use_nemirtingas_galaxy_emu: bool,
     pub epic_emu_args: bool,
     pub alt_epic_emu_args: bool,
@@ -527,6 +530,7 @@ impl Default for HandlerConfig {
 
             // Emulator / Hook defaults
             use_nemirtingas_epic_emu: false,
+            injected_dlls: Vec::new(),
             use_nemirtingas_galaxy_emu: false,
             epic_emu_args: false,
             alt_epic_emu_args: false,

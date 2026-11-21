@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 nucleus-common = { workspace = true }
+nucleus-hook = { workspace = true }
 nucleus-tools = { workspace = true }
 nucleus-plugin = { workspace = true }
 nucleus-debug = { workspace = true }
