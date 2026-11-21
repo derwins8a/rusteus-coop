@@ -94,6 +94,12 @@ pub struct HandlerContext {
     /// Whether this player slot is currently active in the running session.
     #[serde(default = "default_true")]
     pub is_active: bool,
+    /// Whether PeerParty P2P multiplayer emulation is active for this instance.
+    #[serde(default)]
+    pub use_peerparty: bool,
+    /// Optional room code for PeerParty DHT internet play.
+    #[serde(default)]
+    pub peerparty_room: Option<String>,
     /// AutoHotkey script execution directives requested by the handler.
     #[serde(default)]
     pub ahk_directives: Vec<AhkScriptDirective>,

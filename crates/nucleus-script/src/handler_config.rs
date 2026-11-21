@@ -266,6 +266,20 @@ pub struct HandlerConfig {
     pub use_nemirtingas_epic_emu: bool,
     /// Arbitrary DLLs to inject into target game instances.
     pub injected_dlls: Vec<DllInjectionConfig>,
+    /// Whether PeerParty P2P multiplayer emulation is enabled.
+    pub use_peerparty: bool,
+    /// Explicit list of services to emulate via PeerParty.
+    pub peerparty_services: Option<Vec<String>>,
+    /// Optional private room code for PeerParty DHT internet co-op.
+    pub peerparty_room: Option<String>,
+    /// Enable public session discovery on BitTorrent DHT.
+    pub peerparty_public: bool,
+    /// Enable in-game Opus voice chat.
+    pub peerparty_voice: bool,
+    /// Enable PeerParty in-game overlay.
+    pub peerparty_overlay: bool,
+    /// Enable per-player save isolation copying.
+    pub peerparty_copy_saves: bool,
     pub use_nemirtingas_galaxy_emu: bool,
     pub epic_emu_args: bool,
     pub alt_epic_emu_args: bool,
@@ -598,6 +612,15 @@ impl Default for HandlerConfig {
 
             required_plugins: None,
             required_addons: None,
+
+            // PeerParty
+            use_peerparty: false,
+            peerparty_services: None,
+            peerparty_room: None,
+            peerparty_public: false,
+            peerparty_voice: false,
+            peerparty_overlay: false,
+            peerparty_copy_saves: false,
         }
     }
 }

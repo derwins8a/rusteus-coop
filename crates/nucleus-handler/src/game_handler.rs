@@ -566,7 +566,19 @@ impl GameHandler {
                 &inst_folder
             };
 
-        if self.config.use_goldberg {
+        let peerparty_handles_steam = self.config.use_peerparty
+            && self
+                .config
+                .peerparty_services
+                .as_ref()
+                .map(|s| {
+                    s.iter().any(|v| {
+                        v.eq_ignore_ascii_case("steam") || v.eq_ignore_ascii_case("steamworks")
+                    })
+                })
+                .unwrap_or(true);
+
+        if self.config.use_goldberg && !peerparty_handles_steam {
             let steam_id = if self.config.steam_id.is_empty() {
                 "480"
             } else {
@@ -1386,8 +1398,35 @@ impl IGameHandler for GameHandler {
             }
         }
 
-        let env_vars =
+        let mut env_vars =
             EnvironmentSetup::build_environment(player_index, app_id, player_env.as_ref());
+
+        if self.config.use_peerparty {
+            let utils_dir = self.resolve_utils_dir();
+            let pp_tool = nucleus_tools::PeerPartyTool::new(utils_dir);
+            let mut pp_cfg = nucleus_tools::PeerPartyConfig::new()
+                .with_public_sessions(self.config.peerparty_public)
+                .with_copy_saves(self.config.peerparty_copy_saves);
+            if let Some(ref room) = self.config.peerparty_room {
+                pp_cfg = pp_cfg.with_room_code(room);
+            }
+            if let Some(ref services) = self.config.peerparty_services {
+                let parsed_services = services
+                    .iter()
+                    .filter_map(|s| s.parse::<nucleus_tools::PeerPartyService>().ok())
+                    .collect::<Vec<_>>();
+                if !parsed_services.is_empty() {
+                    pp_cfg.services = parsed_services;
+                }
+            }
+            let pp_envs = pp_tool.generate_env_vars(
+                player_index,
+                &ctx.nickname,
+                Path::new(&ctx.instance_folder),
+                &pp_cfg,
+            );
+            env_vars.extend(pp_envs);
+        }
 
         let args: Vec<String> = if ctx.start_arguments.is_empty() {
             Vec::new()

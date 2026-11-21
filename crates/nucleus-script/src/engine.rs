@@ -1229,6 +1229,11 @@ impl ScriptEngine {
         extract_bool!(goldberg_experimental_rename, "GoldbergExperimentalRename");
         extract_bool!(goldberg_lobby_connect, "GoldbergLobbyConnect");
         extract_bool!(requires_admin, "RequiresAdmin");
+        extract_bool!(use_peerparty, "UsePeerParty");
+        extract_bool!(peerparty_public, "PeerPartyPublic");
+        extract_bool!(peerparty_voice, "PeerPartyVoice");
+        extract_bool!(peerparty_overlay, "PeerPartyOverlay");
+        extract_bool!(peerparty_copy_saves, "PeerPartyCopySaves");
 
         extract_bool!(cmd_start_args_inside, "CMDStartArgsInside");
         extract_bool!(launcher_exe_ignore_file_check, "LauncherExeIgnoreFileCheck");
@@ -1309,6 +1314,7 @@ impl ScriptEngine {
         extract_opt_string!(write_to_process_memory, "WriteToProcessMemory");
         extract_opt_string!(use_processor, "UseProcessor");
         extract_opt_string!(processor_priority_class, "ProcessorPriorityClass");
+        extract_opt_string!(peerparty_room, "PeerPartyRoom");
 
         // Hook sub-object properties
         if let Ok(hook_val) = game_obj.get(JsString::from("Hook"), &mut self.context) {
@@ -1493,6 +1499,18 @@ impl ScriptEngine {
         // Extensions & Plugins extraction
         extract_string_array!(required_plugins, "RequiredPlugins");
         extract_string_array!(required_addons, "RequiredAddons");
+        extract_string_array!(peerparty_services, "PeerPartyServices");
+
+        if config.use_peerparty {
+            let mut pp_dll = nucleus_common::dll_injection::DllInjectionConfig::new("utils/PeerParty/x64/peerparty_hook.dll");
+            pp_dll.timing = nucleus_common::dll_injection::InjectionTiming::AtStartupSuspended;
+            pp_dll.method = nucleus_common::dll_injection::InjectionMethod::QueueUserApc;
+            pp_dll.architecture = nucleus_common::dll_injection::TargetArchitecture::Auto;
+            pp_dll.required = true;
+            if !config.injected_dlls.iter().any(|d| d.path.contains("peerparty_hook")) {
+                config.injected_dlls.push(pp_dll);
+            }
+        }
 
         // DesktopScale float array
         if let Ok(val) = game_obj.get(JsString::from("DesktopScale"), &mut self.context) {

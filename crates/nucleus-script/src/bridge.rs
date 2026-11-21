@@ -435,6 +435,11 @@ impl JsBridge {
         );
         set_num!("NumberOfPlayers", handler_ctx.number_of_players as i32);
         set_num!("GamepadId", handler_ctx.gamepad_id);
+        set_bool!("UsePeerParty", handler_ctx.use_peerparty);
+        set_str!(
+            "PeerPartyRoom",
+            handler_ctx.peerparty_room.as_deref().unwrap_or_default()
+        );
 
         set_str!("Nickname", handler_ctx.nickname.as_str());
         set_str!("HandlerGUID", handler_ctx.handler_guid.as_str());
