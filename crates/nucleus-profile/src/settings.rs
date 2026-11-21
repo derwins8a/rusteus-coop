@@ -233,6 +233,30 @@ pub struct AppSettings {
     /// Automatically attach debugger on handler launch.
     #[serde(default)]
     pub debugger_auto_attach: bool,
+
+    // --- PeerParty Online Multiplayer ---
+    /// Whether PeerParty P2P multiplayer emulation is enabled globally.
+    #[serde(default = "default_true")]
+    pub peerparty_enabled: bool,
+    /// Default room code to host or join with PeerParty.
+    #[serde(default)]
+    pub peerparty_default_room: Option<String>,
+    /// Whether to announce and discover sessions publicly via BitTorrent DHT.
+    #[serde(default)]
+    pub peerparty_public_sessions: bool,
+    /// Whether PeerParty in-game voice chat is enabled.
+    #[serde(default)]
+    pub peerparty_voice_chat: bool,
+    /// Whether PeerParty in-game overlay is enabled.
+    #[serde(default = "default_true")]
+    pub peerparty_overlay: bool,
+    /// Preferred multiplayer emulator backend ("Auto", "Goldberg", "Nemirtingas", "PeerParty").
+    #[serde(default = "default_preferred_emulator")]
+    pub preferred_emulator: String,
+}
+
+fn default_preferred_emulator() -> String {
+    "Auto".to_string()
 }
 
 fn default_true() -> bool {
@@ -363,6 +387,13 @@ impl Default for AppSettings {
             autohotkey_custom_path: None,
             plugins_enabled: true,
             debugger_auto_attach: false,
+
+            peerparty_enabled: true,
+            peerparty_default_room: None,
+            peerparty_public_sessions: false,
+            peerparty_voice_chat: false,
+            peerparty_overlay: true,
+            preferred_emulator: "Auto".to_string(),
         }
     }
 }

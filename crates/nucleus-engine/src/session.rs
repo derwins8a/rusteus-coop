@@ -94,6 +94,28 @@ impl GameSession {
         self.handler = Some(handler);
     }
 
+    /// Returns true if PeerParty P2P multiplayer is active for this session.
+    pub fn is_peerparty_active(&self) -> bool {
+        self.handler
+            .as_ref()
+            .map(|h| h.config.use_peerparty)
+            .unwrap_or(false)
+    }
+
+    /// Toggles or sets PeerParty active status for this session.
+    pub fn set_peerparty_active(&mut self, active: bool) {
+        if let Some(ref mut handler) = self.handler {
+            handler.config.use_peerparty = active;
+        }
+    }
+
+    /// Returns the PeerParty room code if configured for this session.
+    pub fn peerparty_room_code(&self) -> Option<&str> {
+        self.handler
+            .as_ref()
+            .and_then(|h| h.config.peerparty_room.as_deref())
+    }
+
     /// Starts all configured game instances in this session.
     pub fn start(&mut self) -> NucleusResult<()> {
         if let Some(ref mut handler) = self.handler {

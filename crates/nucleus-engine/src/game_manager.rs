@@ -718,12 +718,23 @@ impl GameManager {
     pub fn start_game(&mut self, guid: &str, profile: GameProfile) -> NucleusResult<()> {
         self.stop_game()?;
 
-        let config = self.handlers.get(guid).cloned().ok_or_else(|| {
+        let mut config = self.handlers.get(guid).cloned().ok_or_else(|| {
             nucleus_common::error::NucleusError::Other(format!(
                 "Handler not found for GUID: {}",
                 guid
             ))
         })?;
+
+        // Apply profile emulator preference & PeerParty room override
+        if profile.preferred_emulator == "PeerParty" {
+            config.use_peerparty = true;
+        } else if profile.preferred_emulator == "Goldberg" {
+            config.use_peerparty = false;
+            config.use_goldberg = true;
+        }
+        if let Some(ref room) = profile.peerparty_room_override {
+            config.peerparty_room = Some(room.clone());
+        }
 
         let exe_path = std::path::PathBuf::from(&profile.executable_path);
         let game_dir = exe_path
@@ -841,12 +852,23 @@ impl GameManager {
     ) -> NucleusResult<()> {
         self.stop_game()?;
 
-        let config = self.handlers.get(guid).cloned().ok_or_else(|| {
+        let mut config = self.handlers.get(guid).cloned().ok_or_else(|| {
             nucleus_common::error::NucleusError::Other(format!(
                 "Handler not found for GUID: {}",
                 guid
             ))
         })?;
+
+        // Apply profile emulator preference & PeerParty room override
+        if profile.preferred_emulator == "PeerParty" {
+            config.use_peerparty = true;
+        } else if profile.preferred_emulator == "Goldberg" {
+            config.use_peerparty = false;
+            config.use_goldberg = true;
+        }
+        if let Some(ref room) = profile.peerparty_room_override {
+            config.peerparty_room = Some(room.clone());
+        }
 
         let exe_path = std::path::PathBuf::from(&profile.executable_path);
         let game_dir = exe_path
