@@ -1,0 +1,3 @@
+[submodule "vendor/PeerParty"]
+	path = vendor/PeerParty
+	url = https://github.com/MaximumFreak/PeerParty.git
