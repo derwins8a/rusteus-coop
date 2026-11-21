@@ -68,6 +68,15 @@ impl EnvironmentSetup {
         let player_id = (player_index + 1).to_string();
         env.insert("NUCLEUS_PLAYER_ID".to_string(), player_id);
         env.insert("NUCLEUS_PLAYER_INDEX".to_string(), player_index.to_string());
+        env.insert("NUCLEUS_INSTANCE_INDEX".to_string(), player_index.to_string());
+        env.insert(
+            "NUCLEUS_PIPE_NAME".to_string(),
+            format!(r"\\.\pipe\nucleus_instance_{}", player_index),
+        );
+        env.insert(
+            "NUCLEUS_SHARED_MEM_NAME".to_string(),
+            format!("Local\\nucleus_instance_{}", player_index),
+        );
 
         if let Some(id) = app_id {
             env.insert("SteamAppId".to_string(), id.to_string());

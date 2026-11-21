@@ -78,6 +78,8 @@ pub struct GameHandler {
     pub extension_manager: Option<Arc<parking_lot::Mutex<nucleus_plugin::ExtensionManager>>>,
     /// Optional step-by-step debugger controller.
     pub debug_controller: Option<nucleus_debug::DebugController>,
+    /// Injected DLL module handles per PID: (pid, module_handle, eject_on_close)
+    pub injected_modules: Vec<(u32, usize, bool)>,
 }
 
 impl GameHandler {
@@ -120,6 +122,7 @@ impl GameHandler {
             ludusavi_config_dir: None,
             extension_manager: None,
             debug_controller: None,
+            injected_modules: Vec::new(),
         }
     }
 
@@ -167,6 +170,31 @@ impl GameHandler {
     pub fn with_player_audio_device_assignments(mut self, assignments: Vec<String>) -> Self {
         self.player_audio_device_assignments = Some(assignments);
         self
+    }
+
+    /// Resolves the absolute path for an injected DLL configuration relative to instance or game directory.
+    pub fn resolve_dll_path(
+        &self,
+        cfg: &nucleus_common::dll_injection::DllInjectionConfig,
+        player_index: usize,
+    ) -> nucleus_common::dll_injection::DllInjectionConfig {
+        let mut resolved = cfg.clone();
+        let p = Path::new(&cfg.path);
+        if !p.exists() {
+            if let Some(ctx) = self.contexts.get(player_index) {
+                let inst_p = Path::new(&ctx.instance_folder).join(&cfg.path);
+                if inst_p.exists() {
+                    resolved.path = inst_p.to_string_lossy().to_string();
+                    return resolved;
+                }
+            }
+            let game_p = self.game_dir.join(&cfg.path);
+            if game_p.exists() {
+                resolved.path = game_p.to_string_lossy().to_string();
+                return resolved;
+            }
+        }
+        resolved
     }
 
     /// Sets whether interactive prompts should proceed automatically via countdown.
@@ -1429,7 +1457,53 @@ impl IGameHandler for GameHandler {
             );
         }
 
-        let pid = if let Some(ref ctrl) = self.debug_controller {
+        let has_startup_dlls = self.config.injected_dlls.iter().any(|d| {
+            d.target_instances.applies_to(player_index, self.contexts.len())
+                && d.timing == nucleus_common::dll_injection::InjectionTiming::AtStartupSuspended
+        });
+
+        let pid = if has_startup_dlls && self.platform.is_some() {
+            let p_mgr = self.platform.as_ref().unwrap().process_manager();
+            let proc_cfg = nucleus_common::types::ProcessConfig {
+                exe_path: exe.clone(),
+                args: args.clone(),
+                working_dir: Some(working_dir.to_path_buf()),
+                environment: env_vars.clone(),
+                run_as_admin: false,
+                run_as_user: None,
+            };
+            let handle = p_mgr.start_process_extended(&proc_cfg, true)?;
+            let spawned_pid = handle.pid;
+
+            // Inject AtStartupSuspended DLLs
+            for dll_cfg in &self.config.injected_dlls {
+                if dll_cfg.target_instances.applies_to(player_index, self.contexts.len())
+                    && dll_cfg.timing == nucleus_common::dll_injection::InjectionTiming::AtStartupSuspended
+                {
+                    let resolved_cfg = self.resolve_dll_path(dll_cfg, player_index);
+                    match nucleus_hook::injector::DllInjector::inject_advanced(spawned_pid, &resolved_cfg) {
+                        Ok(h) => {
+                            tracing::info!(
+                                "Injected startup DLL {:?} into PID {} (handle {:#x})",
+                                resolved_cfg.path, spawned_pid, h
+                            );
+                            self.injected_modules.push((spawned_pid, h, resolved_cfg.eject_on_close));
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to inject startup DLL {:?} into PID {}: {}", resolved_cfg.path, spawned_pid, e);
+                            if resolved_cfg.required {
+                                let _ = p_mgr.kill_process(spawned_pid);
+                                return Err(e);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Resume the process
+            p_mgr.resume_process(spawned_pid)?;
+            spawned_pid
+        } else if let Some(ref ctrl) = self.debug_controller {
             ctrl.set_stage(nucleus_debug::protocol::PipelineStage::ProcessSpawn);
             if ctrl.is_dry_run() {
                 tracing::info!(
@@ -1446,6 +1520,31 @@ impl IGameHandler for GameHandler {
         self.contexts[player_index].process_id = Some(pid);
         self.contexts[player_index].is_active = true;
         self.sync_launched_pids();
+
+        // Inject PostStartup DLLs
+        for dll_cfg in &self.config.injected_dlls {
+            if dll_cfg.target_instances.applies_to(player_index, self.contexts.len())
+                && dll_cfg.timing == nucleus_common::dll_injection::InjectionTiming::PostStartup
+            {
+                let resolved_cfg = self.resolve_dll_path(dll_cfg, player_index);
+                match nucleus_hook::injector::DllInjector::inject_advanced(pid, &resolved_cfg) {
+                    Ok(h) => {
+                        tracing::info!(
+                            "Injected post-startup DLL {:?} into PID {} (handle {:#x})",
+                            resolved_cfg.path, pid, h
+                        );
+                        self.injected_modules.push((pid, h, resolved_cfg.eject_on_close));
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to inject post-startup DLL {:?} into PID {}: {}", resolved_cfg.path, pid, e);
+                        if resolved_cfg.required {
+                            let _ = ProcessLauncher::terminate(pid);
+                            return Err(e);
+                        }
+                    }
+                }
+            }
+        }
 
         // Mutex handling immediately after launch (if delay specified)
         if let Some(ref patterns) = self.config.kill_mutex {
@@ -1680,6 +1779,47 @@ impl IGameHandler for GameHandler {
                         Some(&inst_folder),
                         player_index as i32,
                     );
+                }
+
+                // Trigger OnWindowCreated and AfterDelayMs DLL injections
+                for dll_cfg in &self.config.injected_dlls {
+                    if !dll_cfg.target_instances.applies_to(player_index, self.contexts.len()) {
+                        continue;
+                    }
+                    match dll_cfg.timing {
+                        nucleus_common::dll_injection::InjectionTiming::OnWindowCreated => {
+                            let resolved_cfg = self.resolve_dll_path(dll_cfg, player_index);
+                            match nucleus_hook::injector::DllInjector::inject_advanced(pid, &resolved_cfg) {
+                                Ok(h) => {
+                                    tracing::info!(
+                                        "Injected on-window DLL {:?} into PID {} (handle {:#x})",
+                                        resolved_cfg.path, pid, h
+                                    );
+                                    self.injected_modules.push((pid, h, resolved_cfg.eject_on_close));
+                                }
+                                Err(e) => {
+                                    tracing::error!(
+                                        "Failed to inject on-window DLL {:?} into PID {}: {}",
+                                        resolved_cfg.path, pid, e
+                                    );
+                                    if resolved_cfg.required {
+                                        return Err(e);
+                                    }
+                                }
+                            }
+                        }
+                        nucleus_common::dll_injection::InjectionTiming::AfterDelayMs(delay) => {
+                            let delay_ms = if delay > 0 { delay } else { dll_cfg.delay_ms };
+                            let resolved_cfg = self.resolve_dll_path(dll_cfg, player_index);
+                            std::thread::spawn(move || {
+                                if delay_ms > 0 {
+                                    std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                                }
+                                let _ = nucleus_hook::injector::DllInjector::inject_advanced(pid, &resolved_cfg);
+                            });
+                        }
+                        _ => {}
+                    }
                 }
             } else {
                 tracing::warn!(
@@ -1988,6 +2128,15 @@ impl IGameHandler for GameHandler {
                 }
             }
         }
+
+        // Eject any injected modules configured with eject_on_close before process termination
+        for &(pid, module_handle, eject_on_close) in &self.injected_modules {
+            if eject_on_close && module_handle != 0 {
+                tracing::info!("Ejecting module {:#x} from PID {}", module_handle, pid);
+                let _ = nucleus_hook::injector::DllInjector::eject_dll(pid, module_handle);
+            }
+        }
+        self.injected_modules.clear();
 
         // 3. Terminate launched processes and child process trees
         for pid in self.launched_pids.drain(..) {

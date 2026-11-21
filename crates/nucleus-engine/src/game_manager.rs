@@ -1190,6 +1190,10 @@ impl GameManager {
             }
             let _ = self.meta_info.save();
         }
+
+        // Re-enforce active Cheat Engine parity frozen memory values across all instances
+        nucleus_hook::memory_engine::MemoryEngine::apply_frozen_slots();
+
         Ok(())
     }
 
