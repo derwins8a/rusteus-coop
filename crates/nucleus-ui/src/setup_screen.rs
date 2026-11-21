@@ -1881,15 +1881,26 @@ pub fn render_setup_view(
                     },
                 )
                 // Section 7.5: Multiplayer Backend & PeerParty P2P Co-op
-                .child(
+                .child({
+                    let emu_val = selected_handler_options
+                        .get("preferred_emulator")
+                        .cloned()
+                        .unwrap_or_else(|| "Auto".to_string());
+                    let is_peerparty = emu_val.contains("PeerParty");
+                    let room_val = selected_handler_options
+                        .get("peerparty_room")
+                        .cloned()
+                        .unwrap_or_default();
+                    let display_room = if room_val.is_empty() {
+                        "None (LAN Only)".to_string()
+                    } else {
+                        room_val.clone()
+                    };
+
                     NefosCard::surface("setup-multiplayer-backend-card")
                         .title_text("Multiplayer Backend & PeerParty P2P Co-op")
                         .description_text("Select emulator backend (Auto, PeerParty, Goldberg, Nemirtingas)")
                         .child({
-                            let emu_val = selected_handler_options
-                                .get("preferred_emulator")
-                                .cloned()
-                                .unwrap_or_else(|| "Auto".to_string());
                             let emu_options = vec![
                                 "Auto".to_string(),
                                 "PeerParty (P2P DHT)".to_string(),
@@ -1905,7 +1916,7 @@ pub fn render_setup_view(
                                 "setup-emu-backend-row",
                                 "Preferred Emulator Backend",
                                 "Switch between decentralized P2P co-op and offline LAN emulators",
-                                emu_val,
+                                emu_val.clone(),
                             )
                             .on_prev(cx.listener(move |this, _, _, cx| {
                                 let pos = emu_options_prev.iter().position(|v| v == &cur_val_prev).unwrap_or(0);
@@ -1921,7 +1932,73 @@ pub fn render_setup_view(
                             }))
                             .into_any_element()
                         })
-                )
+                        .when(is_peerparty, |card| {
+                            let room_val_clear = room_val.clone();
+                            card.child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .p_3()
+                                    .rounded_lg()
+                                    .bg(theme::bg_subtle())
+                                    .border_1()
+                                    .border_color(theme::border_subtle())
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .flex_col()
+                                            .gap_1()
+                                            .child(
+                                                div()
+                                                    .text_sm()
+                                                    .font_weight(FontWeight::SEMIBOLD)
+                                                    .text_color(theme::text_primary())
+                                                    .child("PeerParty Room Code"),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_xs()
+                                                    .text_color(theme::text_muted())
+                                                    .child("Connect with friends over the internet using BitTorrent DHT"),
+                                            ),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap_2()
+                                            .child(
+                                                NefosTag::new(display_room)
+                                                    .tone(if room_val.is_empty() { NefosTagTone::Neutral } else { NefosTagTone::Accent })
+                                            )
+                                            .child(
+                                                NefosButton::secondary("btn-gen-room-code", "🎲 New Code")
+                                                    .size(NefosButtonSize::Sm)
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        let random_num: u16 = (std::time::SystemTime::now()
+                                                            .duration_since(std::time::UNIX_EPOCH)
+                                                            .unwrap_or_default()
+                                                            .as_millis() & 0xFFFF) as u16;
+                                                        let new_code = format!("ROOM-{:04X}", random_num);
+                                                        this.selected_handler_options.insert("peerparty_room".to_string(), new_code);
+                                                        cx.notify();
+                                                    }))
+                                            )
+                                            .when(!room_val_clear.is_empty(), |b| {
+                                                b.child(
+                                                    NefosButton::secondary("btn-clear-room-code", "Clear")
+                                                        .size(NefosButtonSize::Sm)
+                                                        .on_click(cx.listener(|this, _, _, cx| {
+                                                            this.selected_handler_options.remove("peerparty_room");
+                                                            cx.notify();
+                                                        }))
+                                                )
+                                            })
+                                    )
+                            )
+                        })
+                })
                 // Section 8: Save Slots & "Start Session" Buttons
                 .child(
                     div()

@@ -59,3 +59,21 @@ fn test_peerparty_dll_resolution_and_injection_config() {
 
     let _ = fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_peerparty_launcher_args_generation() {
+    let tool = PeerPartyTool::new(PathBuf::from("utils"));
+    let config = PeerPartyConfig::new()
+        .with_room_code("COOP_ROOM_99")
+        .with_public_sessions(true)
+        .with_copy_saves(true);
+
+    let args = tool.generate_launcher_args(&config, 1, "PlayerOne");
+    assert!(args.contains(&"--room".to_string()));
+    assert!(args.contains(&"COOP_ROOM_99".to_string()));
+    assert!(args.contains(&"--public".to_string()));
+    assert!(args.contains(&"--multi-instance".to_string()));
+    assert!(args.contains(&"--copy-saves".to_string()));
+    assert!(args.contains(&"--set".to_string()));
+    assert!(args.iter().any(|a| a.contains("name=PlayerOne")));
+}

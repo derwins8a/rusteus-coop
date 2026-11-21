@@ -49,6 +49,47 @@ impl PeerPartyTool {
         }
     }
 
+    /// Resolves the path to the PeerParty launcher executable `peerparty.exe` if present.
+    pub fn resolve_launcher_exe(&self) -> Option<PathBuf> {
+        let p1 = self.utils_dir.join("PeerParty").join("peerparty.exe");
+        let p2 = self.utils_dir.join("peerparty.exe");
+        if p1.exists() {
+            Some(p1)
+        } else if p2.exists() {
+            Some(p2)
+        } else {
+            None
+        }
+    }
+
+    /// Generates CLI arguments for invoking `peerparty.exe` directly as a game launcher.
+    pub fn generate_launcher_args(
+        &self,
+        config: &PeerPartyConfig,
+        player_index: usize,
+        player_nick: &str,
+    ) -> Vec<String> {
+        let mut args = Vec::new();
+        if let Some(ref room) = config.room_code {
+            args.push("--room".to_string());
+            args.push(room.clone());
+        }
+        if config.public_sessions {
+            args.push("--public".to_string());
+        }
+        if config.multi_instance {
+            args.push("--multi-instance".to_string());
+        }
+        if config.copy_saves && player_index > 0 {
+            args.push("--copy-saves".to_string());
+        }
+        let voice_str = if config.voice_enabled { "on" } else { "off" };
+        let overlay_str = if config.overlay_enabled { "on" } else { "off" };
+        args.push("--set".to_string());
+        args.push(format!("name={},voice={},overlay={}", player_nick, voice_str, overlay_str));
+        args
+    }
+
     /// Generates the `DllInjectionConfig` for injecting `peerparty_hook.dll` into target instances.
     pub fn get_injection_config(
         &self,

@@ -844,6 +844,27 @@ fn launch_gui(
                 profile.player_device_assignments = assignments_vec;
                 profile.player_monitor_assignments = monitors_vec;
                 profile.player_audio_device_assignments = audio_devices_vec;
+
+                if let Some(emu) = options_map.get("preferred_emulator") {
+                    let emu_clean = if emu.contains("PeerParty") {
+                        "PeerParty"
+                    } else if emu.contains("Goldberg") {
+                        "Goldberg"
+                    } else if emu.contains("Nemirtingas") {
+                        "Nemirtingas"
+                    } else {
+                        "Auto"
+                    };
+                    profile.preferred_emulator = emu_clean.to_string();
+                }
+                if let Some(room) = options_map.get("peerparty_room") {
+                    if !room.trim().is_empty() {
+                        profile.peerparty_room_override = Some(room.trim().to_string());
+                    } else {
+                        profile.peerparty_room_override = None;
+                    }
+                }
+
                 let _ = mgr.save_game_profile(&guid, &profile);
 
                 let started = match mgr.start_game(&guid, profile) {
