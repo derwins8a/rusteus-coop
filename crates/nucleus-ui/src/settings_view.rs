@@ -519,6 +519,13 @@ pub static SETTINGS_CARDS: &[SettingsCardDefinition] = &[
         render: render_card_appearance_autoscan,
     },
     SettingsCardDefinition {
+        id: "card-peerparty-config",
+        category: SettingsCategory::Network,
+        title: "PeerParty P2P Online Multiplayer",
+        description: "Decentralized BitTorrent DHT multiplayer co-op, Opus voice chat, and in-game overlay",
+        render: render_card_peerparty_config,
+    },
+    SettingsCardDefinition {
         id: "card-network-isolation",
         category: SettingsCategory::Network,
         title: "Network & Loopback IP Isolation",
@@ -3571,12 +3578,62 @@ pub fn render_card_launch_timer_config(
         .into_any_element()
 }
 
+/// Renders Card: PeerParty P2P Online Multiplayer Settings.
+pub fn render_card_peerparty_config(
+    win: &MainWindow,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
+    let settings = &win.app_settings;
+
+    NefosCard::surface("card-peerparty-config")
+        .title_text("PeerParty P2P Multiplayer Settings")
+        .description_text("Decentralized multiplayer emulation via BitTorrent DHT, Opus voice chat, and in-game overlay")
+        .child(render_toggle(
+            "Enable PeerParty P2P Multiplayer",
+            "Enable decentralized multiplayer emulation and BitTorrent DHT room discovery",
+            settings.peerparty_enabled,
+            cx.listener(|this, _, _, cx| {
+                this.app_settings.peerparty_enabled = !this.app_settings.peerparty_enabled;
+                cx.notify();
+            }),
+        ))
+        .child(render_toggle(
+            "Public DHT Session Discovery",
+            "Announce and browse game sessions publicly on BitTorrent DHT",
+            settings.peerparty_public_sessions,
+            cx.listener(|this, _, _, cx| {
+                this.app_settings.peerparty_public_sessions = !this.app_settings.peerparty_public_sessions;
+                cx.notify();
+            }),
+        ))
+        .child(render_toggle(
+            "PeerParty In-Game Voice Chat",
+            "Enable low-latency spatial Opus voice chat across peer instances",
+            settings.peerparty_voice_chat,
+            cx.listener(|this, _, _, cx| {
+                this.app_settings.peerparty_voice_chat = !this.app_settings.peerparty_voice_chat;
+                cx.notify();
+            }),
+        ))
+        .child(render_toggle(
+            "PeerParty In-Game Overlay",
+            "Display peer connection status and player list overlay inside game viewports",
+            settings.peerparty_overlay,
+            cx.listener(|this, _, _, cx| {
+                this.app_settings.peerparty_overlay = !this.app_settings.peerparty_overlay;
+                cx.notify();
+            }),
+        ))
+        .into_any_element()
+}
+
 /// Renders Tab 7: Network & Loopback Emulation.
 fn render_network_tab(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
     div()
         .flex()
         .flex_col()
         .gap_5()
+        .child(render_card_peerparty_config(win, cx))
         .child(render_card_network_isolation(win, cx))
         .child(render_card_goldberg_config(win, cx))
         .child(render_card_launch_timer_config(win, cx))
@@ -3835,5 +3892,26 @@ mod tests {
         // Nonexistent query returns 0 matches
         let none_matches = filter_settings_cards("nonexistentxyz999");
         assert!(none_matches.is_empty());
+
+        // PeerParty card match
+        let pp_matches = filter_settings_cards("peerparty");
+        assert!(pp_matches.iter().any(|c| c.id == "card-peerparty-config"));
+        let dht_matches = filter_settings_cards("DHT");
+        assert!(dht_matches.iter().any(|c| c.id == "card-peerparty-config"));
+    }
+
+    #[test]
+    fn test_peerparty_settings_card_registration() {
+        let card = SETTINGS_CARDS
+            .iter()
+            .find(|c| c.id == "card-peerparty-config");
+        assert!(
+            card.is_some(),
+            "card-peerparty-config must be registered in SETTINGS_CARDS"
+        );
+
+        let card = card.unwrap();
+        assert_eq!(card.category, SettingsCategory::Network);
+        assert!(card.title.contains("PeerParty"));
     }
 }

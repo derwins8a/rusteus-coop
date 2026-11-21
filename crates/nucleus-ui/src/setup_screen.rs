@@ -1880,6 +1880,48 @@ pub fn render_setup_view(
                         )
                     },
                 )
+                // Section 7.5: Multiplayer Backend & PeerParty P2P Co-op
+                .child(
+                    NefosCard::surface("setup-multiplayer-backend-card")
+                        .title_text("Multiplayer Backend & PeerParty P2P Co-op")
+                        .description_text("Select emulator backend (Auto, PeerParty, Goldberg, Nemirtingas)")
+                        .child({
+                            let emu_val = selected_handler_options
+                                .get("preferred_emulator")
+                                .cloned()
+                                .unwrap_or_else(|| "Auto".to_string());
+                            let emu_options = vec![
+                                "Auto".to_string(),
+                                "PeerParty (P2P DHT)".to_string(),
+                                "Goldberg (Offline LAN)".to_string(),
+                                "Nemirtingas (Epic/Galaxy)".to_string(),
+                            ];
+                            let emu_options_prev = emu_options.clone();
+                            let emu_options_next = emu_options.clone();
+                            let cur_val_prev = emu_val.clone();
+                            let cur_val_next = emu_val.clone();
+
+                            NefosOptionRow::new(
+                                "setup-emu-backend-row",
+                                "Preferred Emulator Backend",
+                                "Switch between decentralized P2P co-op and offline LAN emulators",
+                                emu_val,
+                            )
+                            .on_prev(cx.listener(move |this, _, _, cx| {
+                                let pos = emu_options_prev.iter().position(|v| v == &cur_val_prev).unwrap_or(0);
+                                let prev_idx = if pos == 0 { emu_options_prev.len() - 1 } else { pos - 1 };
+                                this.selected_handler_options.insert("preferred_emulator".to_string(), emu_options_prev[prev_idx].clone());
+                                cx.notify();
+                            }))
+                            .on_next(cx.listener(move |this, _, _, cx| {
+                                let pos = emu_options_next.iter().position(|v| v == &cur_val_next).unwrap_or(0);
+                                let next_idx = (pos + 1) % emu_options_next.len();
+                                this.selected_handler_options.insert("preferred_emulator".to_string(), emu_options_next[next_idx].clone());
+                                cx.notify();
+                            }))
+                            .into_any_element()
+                        })
+                )
                 // Section 8: Save Slots & "Start Session" Buttons
                 .child(
                     div()
