@@ -11,10 +11,15 @@ use std::path::Path;
 #[cfg(windows)]
 use windows::Win32::Foundation::{CloseHandle, STILL_ACTIVE, WAIT_OBJECT_0};
 #[cfg(windows)]
+use windows::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
+};
+#[cfg(windows)]
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
 #[cfg(windows)]
 use windows::Win32::System::Threading::{
-    CreateRemoteThread, GetExitCodeProcess, GetExitCodeThread, WaitForSingleObject,
+    CreateRemoteThread, GetExitCodeProcess, GetExitCodeThread, OpenThread, QueueUserAPC,
+    WaitForSingleObject, THREAD_SET_CONTEXT,
 };
 
 /// Utilities for injecting custom dynamic libraries into remote target processes.
@@ -114,6 +119,45 @@ impl DllInjector {
                         return Err(NucleusError::Platform("LoadLibraryW symbol not found in kernel32".to_string()));
                     }
                 };
+
+                if config.method == nucleus_common::dll_injection::InjectionMethod::QueueUserApc {
+                    let tid = match Self::find_primary_thread_id(pid) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let _ = CloseHandle(process);
+                            return Err(e);
+                        }
+                    };
+
+                    let thread = match OpenThread(THREAD_SET_CONTEXT, false, tid) {
+                        Ok(t) => t,
+                        Err(e) => {
+                            let _ = CloseHandle(process);
+                            return Err(NucleusError::Platform(format!("Failed to open thread {}: {}", tid, e)));
+                        }
+                    };
+
+                    let res = QueueUserAPC(
+                        Some(std::mem::transmute(load_library_w)),
+                        thread,
+                        mem_guard.address() as usize,
+                    );
+                    let _ = CloseHandle(thread);
+
+                    if res == 0 {
+                        let _ = CloseHandle(process);
+                        return Err(NucleusError::Platform(format!(
+                            "QueueUserAPC failed to queue LoadLibraryW on thread {}",
+                            tid
+                        )));
+                    }
+
+                    // Leak memory guard so DLL path buffer remains valid until the suspended thread resumes
+                    let leaked_addr = mem_guard.leak() as usize;
+                    let _ = CloseHandle(process);
+                    tracing::info!("Queued QueueUserAPC on thread {} for DLL {:?}", tid, dll_path);
+                    return Ok(leaked_addr);
+                }
 
                 let thread_res = CreateRemoteThread(
                     process,
@@ -268,5 +312,33 @@ impl DllInjector {
         }
 
         Ok(())
+    }
+
+    /// Finds the primary thread ID of a given process using ToolHelp snapshot.
+    #[cfg(windows)]
+    pub fn find_primary_thread_id(pid: u32) -> NucleusResult<u32> {
+        unsafe {
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
+                .map_err(|e| NucleusError::Platform(format!("Failed to create thread snapshot: {}", e)))?;
+            let mut entry = THREADENTRY32 {
+                dwSize: std::mem::size_of::<THREADENTRY32>() as u32,
+                ..Default::default()
+            };
+            let mut first = true;
+            while if first {
+                first = false;
+                Thread32First(snapshot, &mut entry).is_ok()
+            } else {
+                Thread32Next(snapshot, &mut entry).is_ok()
+            } {
+                if entry.th32OwnerProcessID == pid {
+                    let tid = entry.th32ThreadID;
+                    let _ = CloseHandle(snapshot);
+                    return Ok(tid);
+                }
+            }
+            let _ = CloseHandle(snapshot);
+            Err(NucleusError::Platform(format!("No thread found for PID {}", pid)))
+        }
     }
 }

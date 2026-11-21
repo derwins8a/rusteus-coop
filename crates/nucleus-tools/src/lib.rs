@@ -21,6 +21,7 @@ pub mod hex_edit;
 pub mod ludusavi;
 pub mod ludusavi_config;
 pub mod network;
+pub mod peerparty;
 pub mod peerparty_types;
 pub mod sdl2;
 pub mod steam_emu;
@@ -49,6 +50,7 @@ pub use ludusavi::{
 };
 pub use ludusavi_config::{LudusaviInstanceTarget, LudusaviRedirect, write_isolated_config};
 pub use network::{ForceBindIpOptions, NetworkInterfaceInfo, NetworkTool};
+pub use peerparty::PeerPartyTool;
 pub use peerparty_types::{PeerPartyConfig, PeerPartyLaunchMode, PeerPartyService};
 pub use sdl2::Sdl2Tool;
 pub use steam_emu::{
