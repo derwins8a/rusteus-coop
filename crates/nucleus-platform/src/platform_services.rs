@@ -1,6 +1,7 @@
 //! Unified platform services trait bundling all manager interfaces.
 
 use crate::display::DisplayManager;
+use crate::dll_manager::{DllInjectionManager, ProcessMemoryManager};
 use crate::elevation::ElevationManager;
 use crate::filesystem::FilesystemManager;
 use crate::input_hook::InputHookManager;
@@ -49,6 +50,16 @@ pub trait PlatformServices: Send + Sync {
 
     /// Returns the OSD manager implementation.
     fn osd_manager(&self) -> &dyn crate::osd::OsdManager;
+
+    /// Returns the DLL injection manager implementation, or `None` if unsupported on the current platform.
+    fn dll_injection_manager(&self) -> Option<&dyn DllInjectionManager> {
+        None
+    }
+
+    /// Returns the process memory manipulation manager implementation, or `None` if unsupported on the current platform.
+    fn process_memory_manager(&self) -> Option<&dyn ProcessMemoryManager> {
+        None
+    }
 
     /// Returns the secure credential store implementation.
     fn credential_store(&self) -> &dyn crate::credentials::CredentialStore;

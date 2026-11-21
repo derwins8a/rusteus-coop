@@ -3,6 +3,7 @@
 //! Foundational crate for NucleusCoop providing shared types, error handling,
 //! logging initialization, global path definitions, and utility helpers.
 
+pub mod dll_injection;
 pub mod error;
 pub mod file_util;
 pub mod globals;
@@ -21,6 +22,12 @@ pub use globals::Globals;
 
 // Re-export process utilities
 pub use process::{get_exe_architecture, is_64bit_executable};
+
+// Re-export DLL injection configuration types
+pub use dll_injection::{
+    DllInjectionConfig, InjectionMethod, InjectionTiming, IpcChannelKind, TargetArchitecture,
+    TargetInstanceFilter,
+};
 
 // Re-export shared types
 pub use types::{

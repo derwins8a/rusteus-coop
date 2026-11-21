@@ -49,6 +49,18 @@ pub enum NucleusError {
     #[error("Plugin error: {0}")]
     Plugin(String),
 
+    /// DLL injection or remote thread execution error.
+    #[error("DLL injection error: {0}")]
+    DllInjection(String),
+
+    /// Portable Executable (PE) inspection or architecture verification error.
+    #[error("PE inspection error: {0}")]
+    PeInspection(String),
+
+    /// Inter-process communication (IPC) channel error.
+    #[error("IPC error: {0}")]
+    Ipc(String),
+
     /// Generic error with an explanatory message.
     #[error("{0}")]
     Other(String),

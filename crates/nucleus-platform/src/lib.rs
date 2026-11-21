@@ -10,6 +10,7 @@
 
 pub mod credentials;
 pub mod display;
+pub mod dll_manager;
 pub mod elevation;
 pub mod filesystem;
 pub mod input_hook;
@@ -26,6 +27,7 @@ pub mod window;
 // Re-export all traits at crate root
 pub use credentials::{CredentialStore, InMemoryCredentialStore};
 pub use display::DisplayManager;
+pub use dll_manager::{DllInjectionManager, ProcessMemoryManager};
 pub use elevation::ElevationManager;
 pub use filesystem::FilesystemManager;
 pub use input_hook::InputHookManager;
