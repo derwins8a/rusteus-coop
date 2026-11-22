@@ -6,10 +6,7 @@ use nucleus_engine::GameManager;
 use nucleus_input::InputManager;
 use nucleus_input::gamepad::GamepadDevice;
 use nucleus_profile::AppSettings;
-use nucleus_ui::{
-    DeviceItem, DevicePanelComponent, GameListView, HandlerItem, HubPackageItem, MainView,
-    SetupScreenView,
-};
+use nucleus_ui::{DeviceItem, HandlerItem, HubPackageItem};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tracing::info;
@@ -294,15 +291,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         gamepads.len()
     );
 
-    // Initialize UI View State hierarchy
-    let main_view = MainView::new();
-    let game_list = GameListView::new();
-    let mut device_panel = DevicePanelComponent::new();
-    let mut setup_screen = SetupScreenView::new();
-
-    device_panel.detected_devices = gamepads.len();
-    setup_screen.set_player_count(std::cmp::max(gamepads.len(), 2));
-
     println!("==================================================");
     println!("NucleusCoop - Rust Rewrite v0.1.0 (Modular Engine)");
     println!("Platform services ready.");
@@ -313,15 +301,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             guid, handler.game_name, handler.max_players
         );
     }
-    println!(
-        "Detected gamepads: {} (device panel: {})",
-        gamepads.len(),
-        device_panel.detected_devices
-    );
-    println!(
-        "Active UI View: {:?} (library filter: '{}', assigned players: {})",
-        main_view.active_tab, game_list.search_query, setup_screen.player_count
-    );
+    println!("Detected gamepads: {}", gamepads.len());
     println!("System ready for splitscreen sessions.");
     println!("==================================================");
 

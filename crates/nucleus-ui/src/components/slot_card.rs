@@ -283,7 +283,10 @@ impl CouchSlotCard {
                         .text_xs()
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(theme::text_muted())
-                        .on_click(move |ev, win, cx| h(ev, win, cx))
+                        .on_click(move |ev, win, cx| {
+                            cx.stop_propagation();
+                            h(ev, win, cx);
+                        })
                         .child(Icon::new(IconName::X).size_3())
                         .child("Remove (X)"),
                 );
@@ -311,7 +314,10 @@ impl CouchSlotCard {
                     .child("Split K&M");
 
                 if let Some(h) = self.on_split {
-                    split_btn = split_btn.on_click(move |ev, win, cx| h(ev, win, cx));
+                    split_btn = split_btn.on_click(move |ev, win, cx| {
+                        cx.stop_propagation();
+                        h(ev, win, cx);
+                    });
                 }
                 bar = bar.child(split_btn);
             } else if self.is_raw_device {
@@ -343,7 +349,10 @@ impl CouchSlotCard {
                         .text_xs()
                         .font_weight(FontWeight::MEDIUM)
                         .text_color(theme::danger())
-                        .on_click(move |ev, win, cx| h(ev, win, cx))
+                        .on_click(move |ev, win, cx| {
+                            cx.stop_propagation();
+                            h(ev, win, cx);
+                        })
                         .child(Icon::new(IconName::TriangleAlert).size_3())
                         .child("Ignore (Y)"),
                 );

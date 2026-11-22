@@ -103,34 +103,41 @@ fn test_big_picture_screen_default_and_variants() {
 fn test_big_picture_screen_cycle_next() {
     let screen = BigPictureScreen::Carousel;
     let next = screen.next();
-    assert_eq!(next, BigPictureScreen::CouchSetup);
+    assert_eq!(next, BigPictureScreen::CouchHub);
 
     let next2 = next.next();
-    assert_eq!(next2, BigPictureScreen::CouchHub);
+    assert_eq!(next2, BigPictureScreen::Sessions);
 
     let next3 = next2.next();
-    assert_eq!(next3, BigPictureScreen::Carousel);
+    assert_eq!(next3, BigPictureScreen::Settings);
+
+    let next4 = next3.next();
+    assert_eq!(next4, BigPictureScreen::Carousel);
 }
 
 #[test]
 fn test_big_picture_screen_cycle_prev() {
     let screen = BigPictureScreen::Carousel;
     let prev = screen.prev();
-    assert_eq!(prev, BigPictureScreen::CouchHub);
+    assert_eq!(prev, BigPictureScreen::Settings);
 
     let prev2 = prev.prev();
-    assert_eq!(prev2, BigPictureScreen::CouchSetup);
+    assert_eq!(prev2, BigPictureScreen::Sessions);
 
     let prev3 = prev2.prev();
-    assert_eq!(prev3, BigPictureScreen::Carousel);
+    assert_eq!(prev3, BigPictureScreen::CouchHub);
+
+    let prev4 = prev3.prev();
+    assert_eq!(prev4, BigPictureScreen::Carousel);
 }
 
 #[test]
 fn test_big_picture_screen_bidirectional_inverses() {
     for screen in [
         BigPictureScreen::Carousel,
-        BigPictureScreen::CouchSetup,
         BigPictureScreen::CouchHub,
+        BigPictureScreen::Sessions,
+        BigPictureScreen::Settings,
     ] {
         assert_eq!(screen.next().prev(), screen);
         assert_eq!(screen.prev().next(), screen);

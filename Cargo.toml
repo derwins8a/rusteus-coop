@@ -168,13 +168,11 @@ version = "0.8.1"
 package = "gpui-kit-assets"
 
 [profile.dev]
-debug = 1
-split-debuginfo = "unpacked"
+debug = 0
 incremental = true
 
 [profile.test]
-debug = 1
-split-debuginfo = "unpacked"
+debug = 0
 incremental = true
 
 [profile.dev.package."*"]

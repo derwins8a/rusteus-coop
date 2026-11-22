@@ -1087,6 +1087,7 @@ pub fn render_couch_setup_view(win: &MainWindow, cx: &mut Context<MainWindow>) -
         .flex_col()
         .size_full()
         .p_8()
+        .pb_16()
         .gap_6()
         .overflow_y_scroll()
         .child(render_couch_setup_header(win, state, cx))
@@ -1144,21 +1145,25 @@ fn render_step_1_players(
                 .child(render_slots_grid(win, state, cx))
                 .children(render_unassigned_tray(state, cx))
                 .children(render_ignored_controllers_tray(win, state, cx))
-                .child(
+                .child({
+                    let is_next_focused = state.focused_slot == state.slots.len();
                     div()
                         .flex()
                         .items_center()
                         .justify_end()
                         .pt_4()
                         .child(
-                            CouchButton::primary("btn-next-step-layout", "Next: Screen layout →")
+                            CouchButton::primary("btn-next-step-layout", "Next: Screen layout")
+                                .icon(IconName::ArrowRight)
                                 .size(CouchButtonSize::Lg)
+                                .focused(is_next_focused)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.next_step();
+                                    this.couch_setup_state.focused_slot = 0;
                                     cx.notify();
                                 })),
-                        ),
-                )
+                        )
+                })
                 .into_any_element(),
         )
         // Right Column: Your Screen Preview & Let each player join card (~40% / 440px)
@@ -1320,8 +1325,11 @@ fn render_step_2_layout(
                         .grid()
                         .grid_cols(2)
                         .gap_3()
+                        .max_h(px(320.0))
+                        .overflow_y_scroll()
                         .children(AVAILABLE_LAYOUTS.iter().enumerate().map(|(idx, &layout)| {
                             let is_selected = state.selected_layout == layout;
+                            let is_card_focused = state.focused_slot == idx;
                             let icon = layout_icon_for_name(layout);
                             let min_players = match layout {
                                 "Fullscreen (1 Player)" => 1,
@@ -1343,8 +1351,18 @@ fn render_step_2_layout(
                                 .p_3p5()
                                 .rounded_xl()
                                 .border_2()
-                                .border_color(if is_selected { theme::accent() } else { theme::border_subtle() })
-                                .bg(if is_selected { theme::accent().opacity(0.12) } else { theme::bg_panel() })
+                                .border_color(if is_card_focused {
+                                    rgb(0x22c55e).into()
+                                } else if is_selected {
+                                    theme::accent()
+                                } else {
+                                    theme::border_subtle()
+                                })
+                                .bg(if is_card_focused || is_selected {
+                                    theme::accent().opacity(0.12)
+                                } else {
+                                    theme::bg_panel()
+                                })
                                 .hover(|s| s.bg(theme::bg_hover()))
                                 .on_click(cx.listener(move |this, _, _, cx| {
                                     this.couch_setup_state.selected_layout = layout_str.clone();
@@ -1403,7 +1421,8 @@ fn render_step_2_layout(
                         .justify_between()
                         .pt_4()
                         .child(
-                            CouchButton::secondary("btn-back-to-players", "← Back to Players")
+                            CouchButton::secondary("btn-back-to-players", "Back to Players")
+                                .icon(IconName::ArrowLeft)
                                 .size(CouchButtonSize::Lg)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.prev_step();
@@ -1411,10 +1430,13 @@ fn render_step_2_layout(
                                 })),
                         )
                         .child(
-                            CouchButton::primary("btn-next-to-options", "Next: Game options →")
+                            CouchButton::primary("btn-next-to-options", "Next: Game options")
+                                .icon(IconName::ArrowRight)
                                 .size(CouchButtonSize::Lg)
+                                .focused(state.focused_slot >= AVAILABLE_LAYOUTS.len())
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.next_step();
+                                    this.couch_setup_state.focused_slot = 0;
                                     cx.notify();
                                 })),
                         ),
@@ -1445,13 +1467,19 @@ fn render_step_2_layout(
                                 .flex()
                                 .items_center()
                                 .justify_between()
-                                .child(
+                                .child({
+                                    let active_disp_idx = win.player_monitor_assignments.first().copied().unwrap_or(0);
+                                    let (disp_name, disp_res, is_primary) = if let Some(d) = win.connected_displays.get(active_disp_idx) {
+                                        (d.name.clone(), format!("{} × {}", d.bounds.width, d.bounds.height), d.is_primary)
+                                    } else {
+                                        ("Display 1".to_string(), "1920 × 1080".to_string(), true)
+                                    };
                                     div()
                                         .text_sm()
                                         .font_weight(FontWeight::BOLD)
                                         .text_color(theme::text_primary())
-                                        .child("Display 1 — 1920 × 1080 · Primary display"),
-                                )
+                                        .child(format!("{} — {} · {}", disp_name, disp_res, if is_primary { "Primary display" } else { "Display" }))
+                                })
                                 .child(
                                     div()
                                         .text_xs()
@@ -1479,7 +1507,19 @@ fn render_step_2_layout(
                                         .size(CouchButtonSize::Sm)
                                         .icon(IconName::Monitor)
                                         .on_click(cx.listener(|this, _, _, cx| {
-                                            this.status_message = "Active Display: Display 1 (Primary 1920x1080)".to_string();
+                                            if !this.connected_displays.is_empty() {
+                                                let current_disp = this.player_monitor_assignments.first().copied().unwrap_or(0);
+                                                let next_disp = (current_disp + 1) % this.connected_displays.len();
+                                                let num_players = this.couch_setup_state.slots.len().max(1);
+                                                this.player_monitor_assignments.resize(num_players, next_disp);
+                                                for slot in 0..this.player_monitor_assignments.len() {
+                                                    this.player_monitor_assignments[slot] = next_disp;
+                                                }
+                                                let d = &this.connected_displays[next_disp];
+                                                this.status_message = format!("Switched to {}: {} ({}x{})", if d.is_primary { "Primary Display" } else { "Display" }, d.name, d.bounds.width, d.bounds.height);
+                                            } else {
+                                                this.status_message = "No additional displays detected.".to_string();
+                                            }
                                             cx.notify();
                                         })),
                                 ),
@@ -1493,7 +1533,7 @@ fn render_step_2_layout(
 /// Step 3: "Game options"
 fn render_step_3_options(
     win: &MainWindow,
-    _state: &CouchSetupState,
+    state: &CouchSetupState,
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
     let game_name = win.selected_game.as_deref().unwrap_or("No Game Selected");
@@ -1539,17 +1579,28 @@ fn render_step_3_options(
                 )
                 .child(
                     div()
+                        .id("game-options-scroll-list")
                         .flex()
                         .flex_col()
                         .gap_3()
+                        .max_h(px(340.0))
+                        .overflow_y_scroll()
                         .children(if has_options {
                             let opts = handler.unwrap().options.clone();
+                            let entity = cx.entity().clone();
                             opts.into_iter().enumerate().map(|(idx, opt)| {
                                 let values = opt.values.clone();
                                 let opt_count = values.len();
                                 let current_val = win.selected_handler_options.get(&opt.key).cloned().unwrap_or_else(|| values.first().cloned().unwrap_or_default());
 
                                 if opt_count > 4 {
+                                    let opt_key_for_select = opt.key.clone();
+                                    let opt_key_for_toggle = opt.key.clone();
+                                    let is_open = win.setup_screen.combobox_open_key.as_deref() == Some(opt.key.as_str());
+                                    let draft = if is_open { win.setup_screen.combobox_search_draft.clone() } else { String::new() };
+                                    let validation_error = if is_open { win.setup_screen.combobox_validation_error.clone() } else { None };
+                                    let entity_select = entity.clone();
+
                                     CouchOptionCombobox::new(
                                         format!("opt-combo-{}", idx),
                                         opt.name.clone(),
@@ -1557,14 +1608,59 @@ fn render_step_3_options(
                                         current_val,
                                         values,
                                     )
+                                    .focused(state.focused_slot == idx)
+                                    .is_open(is_open)
+                                    .search_draft(draft)
+                                    .validation_error(validation_error)
+                                    .on_toggle(cx.listener(move |this, _, _, cx| {
+                                        this.setup_screen.toggle_combobox(&opt_key_for_toggle);
+                                        cx.notify();
+                                    }))
+                                    .on_select(move |val, _window, app| {
+                                        let _ = entity_select.update(app, |this, cx| {
+                                            this.selected_handler_options.insert(opt_key_for_select.clone(), val);
+                                            this.setup_screen.close_combobox();
+                                            cx.notify();
+                                        });
+                                    })
                                     .into_any_element()
                                 } else {
+                                    let opt_key_prev = opt.key.clone();
+                                    let opt_key_next = opt.key.clone();
+                                    let vals_prev = values.clone();
+                                    let vals_next = values.clone();
+                                    let cur_prev = current_val.clone();
+                                    let cur_next = current_val.clone();
+
                                     CouchOptionRow::new(
                                         format!("opt-row-{}", idx),
                                         opt.name.clone(),
                                         opt.description.clone(),
                                         current_val,
                                     )
+                                    .focused(state.focused_slot == idx)
+                                    .on_prev(cx.listener(move |this, _, _, cx| {
+                                        if let Some(pos) = vals_prev.iter().position(|v| v == &cur_prev) {
+                                            let prev_idx = (pos + vals_prev.len() - 1) % vals_prev.len();
+                                            if let Some(new_val) = vals_prev.get(prev_idx) {
+                                                this.selected_handler_options.insert(opt_key_prev.clone(), new_val.clone());
+                                            }
+                                        } else if let Some(first) = vals_prev.first() {
+                                            this.selected_handler_options.insert(opt_key_prev.clone(), first.clone());
+                                        }
+                                        cx.notify();
+                                    }))
+                                    .on_next(cx.listener(move |this, _, _, cx| {
+                                        if let Some(pos) = vals_next.iter().position(|v| v == &cur_next) {
+                                            let next_idx = (pos + 1) % vals_next.len();
+                                            if let Some(new_val) = vals_next.get(next_idx) {
+                                                this.selected_handler_options.insert(opt_key_next.clone(), new_val.clone());
+                                            }
+                                        } else if let Some(first) = vals_next.first() {
+                                            this.selected_handler_options.insert(opt_key_next.clone(), first.clone());
+                                        }
+                                        cx.notify();
+                                    }))
                                     .into_any_element()
                                 }
                             }).collect()
@@ -1619,21 +1715,27 @@ fn render_step_3_options(
                         .justify_between()
                         .pt_4()
                         .child(
-                            CouchButton::secondary("btn-back-to-layout", "← Back to Screen layout")
+                            CouchButton::secondary("btn-back-to-layout", "Back to Screen layout")
+                                .icon(IconName::ArrowLeft)
                                 .size(CouchButtonSize::Lg)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.prev_step();
                                     cx.notify();
                                 })),
                         )
-                        .child(
-                            CouchButton::primary("btn-next-to-launch", "Next: Launch →")
+                        .child({
+                            let opts_count = if has_options { handler.as_ref().map(|h| h.options.len()).unwrap_or(0) } else { 0 };
+                            let is_next_focused = state.focused_slot >= opts_count;
+                            CouchButton::primary("btn-next-to-launch", "Next: Launch")
+                                .icon(IconName::ArrowRight)
                                 .size(CouchButtonSize::Lg)
+                                .focused(is_next_focused)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.next_step();
+                                    this.couch_setup_state.focused_slot = 0;
                                     cx.notify();
-                                })),
-                        ),
+                                }))
+                        }),
                 )
                 .into_any_element(),
         )
@@ -1809,7 +1911,8 @@ fn render_step_4_launch(
                             btn
                         })
                         .child(
-                            CouchButton::secondary("btn-back-to-options", "← Back to Game options")
+                            CouchButton::secondary("btn-back-to-options", "Back to Game options")
+                                .icon(IconName::ArrowLeft)
                                 .size(CouchButtonSize::Lg)
                                 .on_click(cx.listener(|this, _, _, cx| {
                                     this.couch_setup_state.prev_step();

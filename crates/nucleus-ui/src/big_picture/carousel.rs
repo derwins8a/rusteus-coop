@@ -4,7 +4,7 @@
 //! cover cards with focus highlight/glow, metadata badges, couch button prompts,
 //! and seamless desktop/couch mode switching.
 
-use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
+use crate::components::{CouchButton, CouchButtonSize};
 use crate::models::HandlerItem;
 use crate::theme;
 use crate::window::MainWindow;
@@ -15,32 +15,99 @@ use gpui::*;
 /// Active screen within Couch Big Picture mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BigPictureScreen {
-    /// 10-foot game library carousel browsing screen.
+    /// Screen 6: 10-foot game library carousel and hero banner.
     #[default]
     Carousel,
-    /// Couch controller slot auto-assignment and monitor partition setup.
+    /// Screen 7: Game details with artwork, setup shortcut, last session stats, and manage game button.
+    GameDetails,
+    /// Screen 1: Game management (tools, preferences, icon changer, open paths, remove).
+    GameManagement,
+    /// Screens 9 & 10: Couch controller slot auto-assignment and monitor partition setup.
     CouchSetup,
-    /// Couch community handler browser.
+    /// Screen 8: Couch community handler browser and drive scanner ("Add games").
     CouchHub,
+    /// Screens 2 & 3: Active session controls (running) or Saved profiles browser (idle).
+    Sessions,
+    /// Screens 4 & 5: Big Picture settings (General and Controllers with test/identify).
+    Settings,
+}
+
+/// The 4 universal top tabs for Big Picture mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BigPictureTab {
+    #[default]
+    Library,
+    AddGames,
+    Sessions,
+    Settings,
 }
 
 impl BigPictureScreen {
-    /// Returns the next Big Picture screen tab (Carousel -> CouchSetup -> CouchHub -> Carousel).
-    pub fn next(&self) -> Self {
+    /// Returns the top-level tab corresponding to this screen.
+    pub fn top_tab(&self) -> BigPictureTab {
         match self {
-            Self::Carousel => Self::CouchSetup,
-            Self::CouchSetup => Self::CouchHub,
-            Self::CouchHub => Self::Carousel,
+            Self::Carousel | Self::GameDetails | Self::GameManagement | Self::CouchSetup => {
+                BigPictureTab::Library
+            }
+            Self::CouchHub => BigPictureTab::AddGames,
+            Self::Sessions => BigPictureTab::Sessions,
+            Self::Settings => BigPictureTab::Settings,
         }
     }
 
-    /// Returns the previous Big Picture screen tab (Carousel -> CouchHub -> CouchSetup -> Carousel).
-    pub fn prev(&self) -> Self {
-        match self {
-            Self::Carousel => Self::CouchHub,
-            Self::CouchHub => Self::CouchSetup,
-            Self::CouchSetup => Self::Carousel,
+    /// Cycles to the next top-level Big Picture tab (Library -> Add games -> Sessions -> Settings -> Library).
+    pub fn next(&self) -> Self {
+        match self.top_tab() {
+            BigPictureTab::Library => Self::CouchHub,
+            BigPictureTab::AddGames => Self::Sessions,
+            BigPictureTab::Sessions => Self::Settings,
+            BigPictureTab::Settings => Self::Carousel,
         }
+    }
+
+    /// Cycles to the previous top-level Big Picture tab (Library -> Settings -> Sessions -> Add games -> Library).
+    pub fn prev(&self) -> Self {
+        match self.top_tab() {
+            BigPictureTab::Library => Self::Settings,
+            BigPictureTab::Settings => Self::Sessions,
+            BigPictureTab::Sessions => Self::CouchHub,
+            BigPictureTab::AddGames => Self::Carousel,
+        }
+    }
+}
+
+/// Returns the current local wall-clock time formatted as HH:MM.
+pub fn current_wall_clock_time() -> String {
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        #[derive(Default)]
+        struct SystemTime {
+            year: u16,
+            month: u16,
+            day_of_week: u16,
+            day: u16,
+            hour: u16,
+            minute: u16,
+            second: u16,
+            milliseconds: u16,
+        }
+        unsafe extern "system" {
+            fn GetLocalTime(lp_system_time: *mut SystemTime);
+        }
+        let mut st = SystemTime::default();
+        unsafe { GetLocalTime(&mut st) };
+        format!("{:02}:{:02}", st.hour, st.minute)
+    }
+    #[cfg(not(windows))]
+    {
+        let secs = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let hours = (secs / 3600) % 24;
+        let mins = (secs % 3600) / 60;
+        format!("{:02}:{:02}", hours, mins)
     }
 }
 
@@ -162,6 +229,15 @@ impl CarouselSortMode {
     }
 }
 
+/// Vertical focus zone in the Carousel screen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CarouselFocusZone {
+    HeaderTabs,
+    HeroBanner(usize), // 0: "Set up session", 1: "Game details", 2: "Search library"
+    #[default]
+    Cards,
+}
+
 /// State tracking selected item index and total items in the horizontal carousel.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct CarouselState {
@@ -181,6 +257,8 @@ pub struct CarouselState {
     pub filter_picker_open: bool,
     /// Whether the sort options list picker popover is currently open.
     pub sort_picker_open: bool,
+    /// Current vertical navigation focus zone.
+    pub focus_zone: CarouselFocusZone,
 }
 
 impl CarouselState {
@@ -195,6 +273,33 @@ impl CarouselState {
             search_input_open: false,
             filter_picker_open: false,
             sort_picker_open: false,
+            focus_zone: CarouselFocusZone::Cards,
+        }
+    }
+
+    /// Moves focus vertically upward.
+    pub fn move_up(&mut self) {
+        match self.focus_zone {
+            CarouselFocusZone::Cards => {
+                self.focus_zone = CarouselFocusZone::HeroBanner(0);
+            }
+            CarouselFocusZone::HeroBanner(_) => {
+                self.focus_zone = CarouselFocusZone::HeaderTabs;
+            }
+            CarouselFocusZone::HeaderTabs => {}
+        }
+    }
+
+    /// Moves focus vertically downward.
+    pub fn move_down(&mut self) {
+        match self.focus_zone {
+            CarouselFocusZone::HeaderTabs => {
+                self.focus_zone = CarouselFocusZone::HeroBanner(0);
+            }
+            CarouselFocusZone::HeroBanner(_) => {
+                self.focus_zone = CarouselFocusZone::Cards;
+            }
+            CarouselFocusZone::Cards => {}
         }
     }
 
@@ -354,11 +459,23 @@ pub fn render_big_picture_view(
                 .overflow_hidden()
                 .child(match win.big_picture_screen {
                     BigPictureScreen::Carousel => render_carousel_view(win, cx),
+                    BigPictureScreen::GameDetails => {
+                        crate::big_picture::render_game_details_view(win, cx)
+                    }
+                    BigPictureScreen::GameManagement => {
+                        crate::big_picture::render_game_management_view(win, cx)
+                    }
                     BigPictureScreen::CouchSetup => {
                         crate::big_picture::render_couch_setup_view(win, cx)
                     }
                     BigPictureScreen::CouchHub => {
                         crate::big_picture::render_couch_hub_view(win, cx)
+                    }
+                    BigPictureScreen::Sessions => {
+                        crate::big_picture::render_sessions_view(win, cx)
+                    }
+                    BigPictureScreen::Settings => {
+                        crate::big_picture::render_big_picture_settings_view(win, cx)
                     }
                 }),
         )
@@ -384,79 +501,114 @@ pub fn render_big_picture_view(
 }
 
 fn render_big_picture_header(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
-    let controller_label = if win.detected_devices == 1 {
-        "1 Controller Connected".to_string()
+    let dev_count = win.detected_devices_list.len().max(win.detected_devices);
+    let controller_label = if dev_count == 1 {
+        "1 controller".to_string()
     } else {
-        format!("{} Controllers Connected", win.detected_devices)
+        format!("{} controllers", dev_count)
     };
+
+    let clock_str = current_wall_clock_time();
+    let current_top_tab = win.big_picture_screen.top_tab();
 
     div()
         .id("big-picture-header")
         .flex()
         .items_center()
         .justify_between()
-        .h(px(60.0))
+        .h(px(64.0))
         .w_full()
-        .px_8()
+        .px_10()
         .bg(theme::bg_panel())
         .border_b_1()
-        .border_color(theme::border_color())
-        // Left Branding & Controller Count
+        .border_color(theme::border_subtle())
+        // Left: "n NUCLEUS CO-OP" Branding
         .child(
             div()
                 .flex()
                 .items_center()
-                .gap_4()
-                .min_w_0()
+                .gap_3()
                 .child(
                     div()
                         .flex()
                         .items_center()
                         .justify_center()
-                        .size(px(32.0))
-                        .rounded_lg()
+                        .size(px(28.0))
+                        .rounded_md()
                         .bg(theme::accent())
                         .text_color(theme::text_on_accent())
                         .font_weight(FontWeight::BOLD)
                         .text_sm()
-                        .child("NC"),
+                        .child("n"),
                 )
+                .child(
+                    div()
+                        .text_base()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(theme::text_primary())
+                        .child("NUCLEUS CO-OP"),
+                ),
+        )
+        // Center: 4 Universal Console Tabs with Bumper Hints (LB / RB)
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap_4()
+                .child(render_bumper_hint("LB"))
                 .child(
                     div()
                         .flex()
                         .items_center()
-                        .gap_2p5()
-                        .child(
-                            div()
-                                .text_base()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(theme::text_primary())
-                                .child("Nucleus Co-op"),
-                        )
-                        .child(div().text_sm().text_color(theme::text_muted()).child("•"))
-                        .child(
-                            div()
-                                .text_sm()
-                                .font_weight(FontWeight::MEDIUM)
-                                .text_color(theme::accent())
-                                .child("Big Picture"),
-                        ),
+                        .gap_6()
+                        .child(render_universal_header_tab(
+                            "Library",
+                            current_top_tab == BigPictureTab::Library,
+                            BigPictureScreen::Carousel,
+                            cx,
+                        ))
+                        .child(render_universal_header_tab(
+                            "Add games",
+                            current_top_tab == BigPictureTab::AddGames,
+                            BigPictureScreen::CouchHub,
+                            cx,
+                        ))
+                        .child(render_universal_header_tab(
+                            "Sessions",
+                            current_top_tab == BigPictureTab::Sessions,
+                            BigPictureScreen::Sessions,
+                            cx,
+                        ))
+                        .child(render_universal_header_tab(
+                            "Settings",
+                            current_top_tab == BigPictureTab::Settings,
+                            BigPictureScreen::Settings,
+                            cx,
+                        )),
                 )
+                .child(render_bumper_hint("RB")),
+        )
+        // Right: Controller Status Dot & Digital Clock + Exit Icon
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap_5()
+                // Controller status dot
                 .child(
                     div()
                         .flex()
                         .items_center()
                         .gap_2()
-                        .px_3()
-                        .py_1()
-                        .rounded_full()
-                        .bg(theme::bg_subtle())
-                        .border_1()
-                        .border_color(theme::border_subtle())
                         .child(
-                            Icon::new(IconName::Gamepad2)
-                                .size_4()
-                                .text_color(theme::accent()),
+                            div()
+                                .size(px(7.0))
+                                .rounded_full()
+                                .bg(if dev_count > 0 {
+                                    theme::accent()
+                                } else {
+                                    theme::text_muted()
+                                }),
                         )
                         .child(
                             div()
@@ -465,53 +617,38 @@ fn render_big_picture_header(win: &MainWindow, cx: &mut Context<MainWindow>) -> 
                                 .text_color(theme::text_primary())
                                 .child(controller_label),
                         ),
-                ),
-        )
-        // Center 3-Tab Navigation Bar with Bumper Hints
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .gap_3()
-                .min_w_0()
-                .child(render_bumper_hint("LB / Q"))
+                )
+                // Clock
                 .child(
                     div()
+                        .text_sm()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(theme::text_primary())
+                        .child(clock_str),
+                )
+                // Exit to desktop icon button
+                .child(
+                    div()
+                        .id("btn-couch-exit-icon")
+                        .cursor_pointer()
                         .flex()
                         .items_center()
-                        .gap_2()
-                        .min_w_0()
-                        .child(render_header_tab(
-                            "Library",
-                            IconName::Gamepad2,
-                            win.big_picture_screen == BigPictureScreen::Carousel,
-                            BigPictureScreen::Carousel,
-                            cx,
-                        ))
-                        .child(render_header_tab(
-                            "Setup",
-                            IconName::SlidersHorizontal,
-                            win.big_picture_screen == BigPictureScreen::CouchSetup,
-                            BigPictureScreen::CouchSetup,
-                            cx,
-                        ))
-                        .child(render_header_tab(
-                            "Community Hub",
-                            IconName::Globe,
-                            win.big_picture_screen == BigPictureScreen::CouchHub,
-                            BigPictureScreen::CouchHub,
-                            cx,
-                        )),
-                )
-                .child(render_bumper_hint("RB / E")),
-        )
-        // Right Exit to Desktop Button
-        .child(
-            CouchButton::secondary("btn-couch-exit", "Exit Couch Mode")
-                .size(CouchButtonSize::Md)
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.toggle_big_picture(cx);
-                })),
+                        .justify_center()
+                        .size(px(28.0))
+                        .rounded_md()
+                        .bg(theme::bg_subtle())
+                        .border_1()
+                        .border_color(theme::border_subtle())
+                        .hover(|s| s.bg(theme::bg_active()).border_color(theme::accent()))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.toggle_big_picture(cx);
+                        }))
+                        .child(
+                            Icon::new(IconName::LogOut)
+                                .size_3p5()
+                                .text_color(theme::text_muted()),
+                        ),
+                ),
         )
         .into_any_element()
 }
@@ -522,7 +659,7 @@ fn render_bumper_hint(badge: &'static str) -> AnyElement {
         .items_center()
         .justify_center()
         .px_2()
-        .py_1()
+        .py_0p5()
         .rounded_md()
         .bg(theme::bg_subtle())
         .border_1()
@@ -534,59 +671,65 @@ fn render_bumper_hint(badge: &'static str) -> AnyElement {
         .into_any_element()
 }
 
-fn render_header_tab(
+fn render_universal_header_tab(
     label: &'static str,
-    icon: IconName,
     is_active: bool,
     target_screen: BigPictureScreen,
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
     let tab_id = match target_screen {
         BigPictureScreen::Carousel => "couch-tab-library",
-        BigPictureScreen::CouchSetup => "couch-tab-setup",
-        BigPictureScreen::CouchHub => "couch-tab-hub",
+        BigPictureScreen::CouchHub => "couch-tab-add-games",
+        BigPictureScreen::Sessions => "couch-tab-sessions",
+        BigPictureScreen::Settings => "couch-tab-settings",
+        _ => "couch-tab-item",
     };
 
-    let mut pill = div()
+    div()
         .id(tab_id)
         .cursor_pointer()
         .flex()
+        .flex_col()
         .items_center()
-        .gap_2()
-        .px_3p5()
-        .py_1p5()
-        .rounded_lg()
-        .min_w_0()
-        .text_sm();
-
-    if is_active {
-        pill = pill
-            .bg(theme::accent_subtle())
-            .border_1()
-            .border_color(theme::accent())
-            .text_color(theme::accent())
-            .font_weight(FontWeight::BOLD)
-            .child(Icon::new(icon).size_4().text_color(theme::accent()))
-            .child(div().min_w_0().child(label));
-    } else {
-        pill = pill
-            .bg(theme::bg_subtle())
-            .border_1()
-            .border_color(theme::border_subtle())
-            .text_color(theme::text_muted())
-            .hover(|s| s.bg(theme::bg_hover()).text_color(theme::text_primary()))
-            .child(Icon::new(icon).size_4().text_color(theme::text_muted()))
-            .child(div().min_w_0().child(label));
-    }
-
-    pill.on_click(cx.listener(move |this, _, _, cx| {
-        this.big_picture_screen = target_screen;
-        if target_screen == BigPictureScreen::CouchHub && this.hub_packages.is_empty() {
-            this.trigger_hub_search_async(cx);
-        }
-        cx.notify();
-    }))
-    .into_any_element()
+        .gap_1()
+        .px_2()
+        .py_1()
+        .hover(|s| s.opacity(0.85))
+        .on_click(cx.listener(move |this, _, _, cx| {
+            this.big_picture_screen = target_screen;
+            if target_screen == BigPictureScreen::CouchHub && this.hub_packages.is_empty() {
+                this.trigger_hub_search_async(cx);
+            }
+            cx.notify();
+        }))
+        .child(
+            div()
+                .text_sm()
+                .font_weight(if is_active {
+                    FontWeight::BOLD
+                } else {
+                    FontWeight::MEDIUM
+                })
+                .text_color(if is_active {
+                    theme::text_primary()
+                } else {
+                    theme::text_muted()
+                })
+                .child(label),
+        )
+        // Emerald underline pill when active
+        .child(
+            div()
+                .h(px(2.5))
+                .w_full()
+                .rounded_full()
+                .bg(if is_active {
+                    theme::accent()
+                } else {
+                    gpui::transparent_black()
+                }),
+        )
+        .into_any_element()
 }
 
 /// Computes the sub-list of visible handler indices centered around `sel_idx`.
@@ -754,23 +897,77 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
     div()
         .flex()
         .flex_col()
-        .items_center()
-        .justify_between()
         .size_full()
-        .py_6()
-        .px_8()
-        // Top Action Bar with Search, Filter, Sort, and Index Indicator
-        .child(action_bar)
-        // Middle horizontal card row with left/right buttons
+        .py_4()
+        .px_10()
+        .gap_4()
+        .overflow_y_hidden()
+        // 1. Top Header Row: Library / Subtitle + Search Library button (Image 6)
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_between()
+                .w_full()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_0p5()
+                        .child(
+                            div()
+                                .text_3xl()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::text_primary())
+                                .child("Library"),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child("Good company. Great games."),
+                        ),
+                )
+                .child(action_bar),
+        )
+        // 2. Hero Banner Card (Image 6)
+        .child(render_carousel_hero_banner(win, selected_handler, cx))
+        // 3. Subheader: "Your games  {N} games" (Image 6)
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .justify_between()
+                .w_full()
+                .pt_1()
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_2p5()
+                        .child(
+                            div()
+                                .text_lg()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::text_primary())
+                                .child("Your games"),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child(format!("{} games", total_matching)),
+                        ),
+                ),
+        )
+        // 4. Horizontal cards row with left/right buttons (Image 6)
         .child(
             div()
                 .flex()
                 .flex_row()
                 .items_center()
-                .justify_center()
-                .gap_6()
+                .gap_4()
                 .w_full()
-                .py_2()
                 // Left Arrow Button
                 .child(
                     CouchButton::ghost("btn-carousel-left", "◀")
@@ -791,15 +988,17 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
                 // Cards Container
                 .child(
                     div()
+                        .flex_1()
                         .flex()
                         .flex_row()
                         .items_center()
-                        .justify_center()
-                        .gap_5()
+                        .gap_4()
+                        .overflow_hidden()
                         .children(visible_indices.iter().map(|&idx| {
                             let handler = filtered_handlers[idx];
                             let is_selected = idx == sel_idx;
-                            render_carousel_card(handler, idx, is_selected, cx)
+                            let is_focus_card = win.carousel_state.focus_zone == CarouselFocusZone::Cards;
+                            render_carousel_card(handler, idx, is_selected, is_focus_card, cx)
                         })),
                 )
                 // Right Arrow Button
@@ -820,8 +1019,167 @@ pub fn render_carousel_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> A
                         })),
                 ),
         )
-        // Bottom Metadata Strip for Selected Game
-        .child(render_selected_game_metadata(selected_handler, sel_idx, cx))
+        .into_any_element()
+}
+
+fn render_carousel_hero_banner(
+    win: &MainWindow,
+    handler: &HandlerItem,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
+    let focus_btn = match win.carousel_state.focus_zone {
+        CarouselFocusZone::HeroBanner(idx) => Some(idx),
+        _ => None,
+    };
+    let game_name_launch = handler.game_name.clone();
+    let game_name_details = handler.game_name.clone();
+    let cover_url = handler.cover_image_url.clone();
+
+    let player_text = if handler.max_players > 1 {
+        format!("1-{} players · Splitscreen co-op", handler.max_players)
+    } else {
+        "1-2 players · Splitscreen co-op".to_string()
+    };
+
+    div()
+        .id("carousel-hero-banner")
+        .relative()
+        .w_full()
+        .h(px(210.0))
+        .rounded_2xl()
+        .overflow_hidden()
+        .bg(theme::bg_panel())
+        .border_1()
+        .border_color(theme::border_subtle())
+        // Background cover art with dark gradient overlay
+        .children(cover_url.as_deref().map(|url| {
+            img(crate::make_image_source(url))
+                .absolute()
+                .inset_0()
+                .size_full()
+                .object_fit(gpui::ObjectFit::Cover)
+                .opacity(0.25)
+        }))
+        // Gradient overlay
+        .child(
+            div()
+                .absolute()
+                .inset_0()
+                .bg(theme::bg_dark().opacity(0.65)),
+        )
+        // Content container
+        .child(
+            div()
+                .relative()
+                .flex()
+                .flex_col()
+                .justify_between()
+                .size_full()
+                .p_6()
+                // Top: JUMP BACK IN pill + Title + Subtitle
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1p5()
+                        .child(
+                            div()
+                                .px_2p5()
+                                .py_0p5()
+                                .rounded_full()
+                                .bg(rgb(0x22c55e).opacity(0.18))
+                                .border_1()
+                                .border_color(rgb(0x22c55e).opacity(0.35))
+                                .text_xs()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(rgb(0x22c55e))
+                                .w_auto()
+                                .child("JUMP BACK IN"),
+                        )
+                        .child(
+                            div()
+                                .text_3xl()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::text_primary())
+                                .child(handler.game_name.clone()),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(theme::text_muted())
+                                .child(player_text),
+                        ),
+                )
+                // Bottom: Action Buttons
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        // Button 0: Set up session (emerald green)
+                        .child(
+                            div()
+                                .id("btn-hero-setup-session")
+                                .cursor_pointer()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .px_5()
+                                .py_2p5()
+                                .rounded_lg()
+                                .bg(rgb(0x22c55e))
+                                .text_color(rgb(0x0a0f1d))
+                                .font_weight(FontWeight::BOLD)
+                                .text_sm()
+                                .border_2()
+                                .border_color(if focus_btn == Some(0) {
+                                    rgb(0xffffff).into()
+                                } else {
+                                    gpui::transparent_black()
+                                })
+                                .shadow_md()
+                                .hover(|s| s.opacity(0.9))
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.enter_couch_setup(&game_name_launch, cx);
+                                }))
+                                .child(Icon::new(IconName::Play).size_3p5())
+                                .child("Set up session"),
+                        )
+                        // Button 1: Game details (dark subtle)
+                        .child(
+                            div()
+                                .id("btn-hero-game-details")
+                                .cursor_pointer()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .px_5()
+                                .py_2p5()
+                                .rounded_lg()
+                                .bg(theme::bg_subtle())
+                                .border_2()
+                                .border_color(if focus_btn == Some(1) {
+                                    rgb(0x22c55e).into()
+                                } else {
+                                    theme::border_subtle()
+                                })
+                                .text_color(theme::text_primary())
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_sm()
+                                .hover(|s| {
+                                    s.bg(theme::bg_hover())
+                                        .border_color(theme::border_color())
+                                })
+                                .on_click(cx.listener(move |this, _, _, cx| {
+                                    this.selected_game = Some(game_name_details.clone());
+                                    this.big_picture_screen = BigPictureScreen::GameDetails;
+                                    cx.notify();
+                                }))
+                                .child("Game details"),
+                        ),
+                ),
+        )
         .into_any_element()
 }
 
@@ -836,10 +1194,17 @@ fn render_carousel_action_bar(
         .selected_index
         .min(total_matching.saturating_sub(1));
     let has_search = !win.carousel_state.search_query.is_empty();
+    let is_search_focused = matches!(win.carousel_state.focus_zone, CarouselFocusZone::HeroBanner(2));
     let is_filtered = win.carousel_state.filter_mode != CarouselFilterMode::All;
     let is_sorted = win.carousel_state.sort_mode != CarouselSortMode::Alphabetical;
 
-    let search_label = if has_search {
+    let search_label = if win.carousel_state.search_input_open {
+        if has_search {
+            format!("{} █", win.carousel_state.search_query)
+        } else {
+            "Type to search... █".to_string()
+        }
+    } else if has_search {
         format!("Search: \"{}\"", win.carousel_state.search_query)
     } else {
         "Search".to_string()
@@ -873,13 +1238,15 @@ fn render_carousel_action_bar(
                         } else {
                             theme::bg_panel()
                         })
-                        .border_1()
-                        .border_color(if has_search || win.carousel_state.search_input_open {
+                        .border_2()
+                        .border_color(if is_search_focused {
+                            rgb(0x22c55e).into()
+                        } else if has_search || win.carousel_state.search_input_open {
                             theme::accent()
                         } else {
                             theme::border_subtle()
                         })
-                        .text_color(if has_search || win.carousel_state.search_input_open {
+                        .text_color(if is_search_focused || has_search || win.carousel_state.search_input_open {
                             theme::accent()
                         } else {
                             theme::text_primary()
@@ -1440,246 +1807,147 @@ fn render_carousel_card(
     handler: &HandlerItem,
     idx: usize,
     is_selected: bool,
+    is_focus_card: bool,
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
-    // Sizing: IGDB 600x900 aspect ratio (2:3)
-    let (w, h) = if is_selected {
-        (px(240.0), px(360.0))
+    let (w, h) = (px(190.0), px(110.0));
+    let cover_url_opt = handler.cover_image_url.clone();
+    let game_name = handler.game_name.clone();
+
+    let player_text = if !handler.is_installed {
+        "Handler available".to_string()
+    } else if handler.max_players > 1 {
+        format!("{} players", handler.max_players)
     } else {
-        (px(200.0), px(300.0))
+        "Co-op".to_string()
     };
 
-    // Prominent amber/warning status badge on top right of uninstalled cards
-    let status_badge: Option<AnyElement> = if !handler.is_installed {
-        Some(
+    let border_color: Hsla = if is_selected && is_focus_card {
+        rgb(0x22c55e).into()
+    } else if is_selected {
+        theme::accent()
+    } else {
+        theme::border_subtle()
+    };
+
+    let card_box = div()
+        .w(w)
+        .h(h)
+        .rounded_xl()
+        .overflow_hidden()
+        .bg(theme::bg_panel())
+        .border_2()
+        .border_color(border_color)
+        .shadow_md()
+        .child(if let Some(url) = cover_url_opt {
+            img(crate::make_image_source(&url))
+                .size_full()
+                .object_fit(gpui::ObjectFit::Cover)
+                .into_any_element()
+        } else {
             div()
-                .absolute()
-                .top_3()
-                .right_3()
-                .child(CouchTag::new("Uninstalled").tone(TagTone::Warning))
-                .into_any_element(),
-        )
-    } else {
-        None
-    };
+                .flex()
+                .items_center()
+                .justify_center()
+                .size_full()
+                .bg(theme::bg_subtle())
+                .child(
+                    Icon::new(IconName::Gamepad2)
+                        .size_8()
+                        .text_color(theme::text_muted()),
+                )
+                .into_any_element()
+        });
 
-    let cover = GameCover::new(handler.game_name.clone(), w, h)
-        .cover_url(handler.cover_image_url.clone())
-        .installed(handler.is_installed)
-        .selected(is_selected);
-
-    let cover = if let Some(badge) = status_badge {
-        cover.badge(badge)
-    } else {
-        cover
-    };
-
-    let card_element = div()
-        .id(("carousel-card", idx))
+    div()
+        .id(("carousel-card-wrap", idx))
         .cursor_pointer()
+        .flex()
+        .flex_col()
+        .gap_1p5()
+        .w(w)
         .on_click(cx.listener(move |this, _, _, cx| {
             this.select_carousel_game(idx, cx);
         }))
-        .child(cover)
-        .into_any_element();
-
-    if is_selected {
-        div()
-            .p(px(3.0))
-            .rounded_2xl()
-            .border_2()
-            .border_color(theme::accent())
-            .shadow_lg()
-            .bg(theme::accent().opacity(0.12))
-            .child(card_element)
-            .into_any_element()
-    } else {
-        card_element
-    }
-}
-
-fn render_selected_game_metadata(
-    handler: &HandlerItem,
-    sel_idx: usize,
-    cx: &mut Context<MainWindow>,
-) -> AnyElement {
-    let player_badge = if handler.max_players > 1 {
-        format!("1–{} Players", handler.max_players)
-    } else {
-        "1 Player".to_string()
-    };
-
-    let input_badge =
-        if handler.supports_gamepad || handler.supports_xinput || handler.supports_dinput {
-            "Gamepad Supported"
-        } else if handler.supports_keyboard {
-            "Keyboard & Mouse"
-        } else {
-            "Controller"
-        };
-
-    let play_time_text = if handler.play_time_seconds > 0 {
-        let hours = handler.play_time_seconds / 3600;
-        let mins = (handler.play_time_seconds % 3600) / 60;
-        if hours > 0 {
-            format!("{}h {}m played", hours, mins)
-        } else {
-            format!("{}m played", mins)
-        }
-    } else {
-        "Never played".to_string()
-    };
-
-    div()
-        .flex()
-        .flex_col()
-        .items_center()
-        .gap_3()
-        .max_w(px(700.0))
-        // Game Title
-        .child(
-            div()
-                .text_2xl()
-                .font_weight(FontWeight::BOLD)
-                .text_color(theme::text_primary())
-                .text_center()
-                .child(handler.game_name.clone()),
-        )
-        // Badges Row
+        .child(card_box)
         .child(
             div()
                 .flex()
-                .flex_row()
-                .items_center()
-                .justify_center()
-                .flex_wrap()
-                .gap_2p5()
-                // Player Count Badge
-                .child(render_metadata_badge(
-                    IconName::Users,
-                    &player_badge,
-                    theme::accent(),
-                ))
-                // Input Mode Badge
-                .child(render_metadata_badge(
-                    IconName::Gamepad2,
-                    input_badge,
-                    theme::accent(),
-                ))
-                // Play Time Badge
-                .child(render_metadata_badge(
-                    IconName::Clock,
-                    &play_time_text,
-                    theme::text_muted(),
-                ))
-                // Status Badge / Missing Executable Callout
+                .flex_col()
+                .gap_0p5()
                 .child(
                     div()
-                        .flex()
-                        .items_center()
-                        .gap_1p5()
-                        .px_3()
-                        .py_1()
-                        .rounded_full()
-                        .bg(if handler.is_installed {
-                            theme::success_subtle()
-                        } else {
-                            theme::warning_subtle()
-                        })
-                        .border_1()
-                        .border_color(if handler.is_installed {
-                            theme::success().opacity(0.4)
-                        } else {
-                            theme::warning().opacity(0.4)
-                        })
-                        .text_xs()
+                        .text_sm()
                         .font_weight(FontWeight::BOLD)
-                        .text_color(if handler.is_installed {
-                            theme::success()
-                        } else {
-                            theme::warning()
-                        })
-                        .child(if handler.is_installed {
-                            "Ready to Play"
-                        } else {
-                            MISSING_EXE_METADATA_CALLOUT
-                        }),
+                        .text_color(theme::text_primary())
+                        .line_clamp(1)
+                        .child(game_name),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme::text_muted())
+                        .child(player_text),
                 ),
-        )
-        // Action Button: Select Game / Locate .exe
-        .child(
-            CouchButton::primary("btn-carousel-select-game", "Configure / Launch Splitscreen")
-                .size(CouchButtonSize::Lg)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.select_carousel_game(sel_idx, cx);
-                })),
-        )
-        .into_any_element()
-}
-
-fn render_metadata_badge(icon: IconName, label: &str, icon_color: Hsla) -> AnyElement {
-    div()
-        .flex()
-        .items_center()
-        .gap_1p5()
-        .px_3()
-        .py_1()
-        .rounded_full()
-        .bg(theme::bg_panel())
-        .border_1()
-        .border_color(theme::border_color())
-        .shadow_sm()
-        .child(Icon::new(icon).size_3p5().text_color(icon_color))
-        .child(
-            div()
-                .text_xs()
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(theme::text_primary())
-                .child(label.to_string()),
         )
         .into_any_element()
 }
 
 fn render_couch_prompt_bar(screen: BigPictureScreen) -> AnyElement {
-    let mut bar = div()
-        .id("couch-prompt-bar")
+    let mut left_prompts = div()
         .flex()
         .items_center()
-        .justify_center()
-        .gap_8()
-        .h(px(52.0))
-        .w_full()
-        .bg(theme::bg_panel())
-        .border_t_1()
-        .border_color(theme::border_color());
+        .gap_6();
 
     match screen {
         BigPictureScreen::CouchSetup => {
-            bar = bar
-                .child(render_couch_prompt("A", "Grab / Swap Slot"))
-                .child(render_couch_prompt("X", "Remove Controller"))
-                .child(render_couch_prompt("Y", "Ignore Controller"))
-                .child(render_couch_prompt("Start", "Launch Session"))
-                .child(render_couch_prompt("LB / RB", "Switch Tab"))
-                .child(render_couch_prompt("B", "Back to Library"));
+            left_prompts = left_prompts
+                .child(render_couch_prompt("A", "Assign / swap"))
+                .child(render_couch_prompt("X", "Remove"))
+                .child(render_couch_prompt("Y", "Ignore device"))
+                .child(render_couch_prompt("B", "Back"))
+                .child(render_couch_prompt("LB RB", "Switch tabs"));
         }
-        BigPictureScreen::CouchHub => {
-            bar = bar
-                .child(render_couch_prompt("A", "Download & Play"))
-                .child(render_couch_prompt("LB / RB", "Switch Tab"))
-                .child(render_couch_prompt("B", "Back to Library Carousel"))
-                .child(render_couch_prompt("F11 / Mode", "Desktop Mode"));
+        BigPictureScreen::GameManagement => {
+            left_prompts = left_prompts
+                .child(render_couch_prompt("A", "Select"))
+                .child(render_couch_prompt("B", "Back"))
+                .child(render_couch_prompt("LB RB", "Switch tabs"));
         }
-        BigPictureScreen::Carousel => {
-            bar = bar
-                .child(render_couch_prompt("A", "Select Game"))
-                .child(render_couch_prompt("LB / RB", "Switch Tab"))
-                .child(render_couch_prompt("Start", "Quick Launch"))
-                .child(render_couch_prompt("F11 / Mode", "Desktop Mode"));
+        BigPictureScreen::Sessions => {
+            left_prompts = left_prompts
+                .child(render_couch_prompt("A", "Select"))
+                .child(render_couch_prompt("B", "Resume game"))
+                .child(render_couch_prompt("LB RB", "Switch tabs"));
+        }
+        _ => {
+            left_prompts = left_prompts
+                .child(render_couch_prompt("A", "Select"))
+                .child(render_couch_prompt("B", "Back"))
+                .child(render_couch_prompt("LB RB", "Switch tabs"));
         }
     }
 
-    bar.into_any_element()
+    div()
+        .id("couch-prompt-bar")
+        .flex()
+        .items_center()
+        .justify_between()
+        .h(px(48.0))
+        .w_full()
+        .px_10()
+        .bg(theme::bg_panel())
+        .border_t_1()
+        .border_color(theme::border_subtle())
+        .child(left_prompts)
+        .child(
+            div()
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme::text_muted())
+                .child("BIG PICTURE"),
+        )
+        .into_any_element()
 }
 
 fn render_couch_prompt(btn: &str, action: &str) -> AnyElement {

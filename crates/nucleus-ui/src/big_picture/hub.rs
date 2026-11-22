@@ -9,7 +9,8 @@ use gpui::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::components::{CouchButton, CouchButtonSize, CouchTag, TagTone, *};
+use crate::big_picture::carousel::BigPictureScreen;
+use crate::components::{CouchButton, TagTone, *};
 use crate::models::HubPackageItem;
 use crate::theme;
 use crate::window::MainWindow;
@@ -373,74 +374,715 @@ pub fn render_couch_hub_view(win: &MainWindow, cx: &mut Context<MainWindow>) -> 
         .map(|modal| render_custom_options_modal(modal, cx));
 
     div()
+        .id("couch-hub-scroll-view")
         .relative()
         .flex()
         .flex_col()
-        .items_center()
         .size_full()
-        .px_8()
-        .py_4()
+        .px_10()
+        .py_6()
+        .pb_12()
+        .gap_5()
+        .overflow_y_scroll()
         .bg(theme::bg_main())
         .text_color(theme::text_primary())
-        // Top Header
-        .child(render_couch_hub_header())
-        // Category Filter Strip
-        .child(render_couch_hub_categories(win, cx))
-        // Package Cards Grid / Carousel Area
+        // 1. Top Screen Header (Image 8)
         .child(
             div()
                 .flex()
                 .flex_col()
-                .items_center()
-                .justify_center()
+                .gap_1()
+                .child(
+                    div()
+                        .text_3xl()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(theme::text_primary())
+                        .child("More games. More together."),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(theme::text_muted())
+                        .child("Find a supported game, install its handler, and make it local co-op."),
+                ),
+        )
+        // 2. Top Action Cards Row (Image 8)
+        .child(render_top_action_cards(win, cx))
+        // 3. Section Header: "Browse game handlers" + Search Bar
+        .child(render_hub_section_header(win, cx))
+        // 3b. Categories & Tag Filter Strip
+        .child(render_couch_hub_categories(win, cx))
+        // 4. Split 2-Column Handlers Browser (List on left, Details on right)
+        .child(
+            div()
+                .flex()
                 .flex_1()
-                .w_full()
                 .min_h_0()
-                .child(if total_packages == 0 {
-                    render_empty_hub_state(win.hub_loading)
-                } else {
-                    render_package_cards_row(win, &filtered_packages, sel_idx, cx)
-                }),
+                .gap_6()
+                .child(render_handlers_list(win, &filtered_packages, sel_idx, cx))
+                .child(render_handler_detail_pane(win, &filtered_packages, sel_idx, cx)),
         )
         .children(missing_exe_modal)
         .children(custom_options_modal)
         .into_any_element()
 }
 
-fn render_couch_hub_header() -> AnyElement {
+fn render_top_action_cards(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+    let is_scanning = win.is_scanning_games;
+    let is_card1_focused = win.hub_focus_zone == 0 && win.hub_top_card_index == 0;
+    let is_card2_focused = win.hub_focus_zone == 0 && win.hub_top_card_index == 1;
+
     div()
-        .id("couch-hub-header")
         .flex()
-        .flex_col()
-        .items_center()
-        .gap_1()
-        .pt_2()
-        .pb_1()
+        .flex_row()
+        .gap_5()
+        .w_full()
+        // Card 1: Find games on this PC
         .child(
             div()
+                .id("card-find-games")
+                .flex_1()
+                .p_4()
+                .rounded_xl()
+                .bg(theme::bg_panel())
+                .border_2()
+                .border_color(if is_card1_focused {
+                    rgb(0x22c55e).into()
+                } else {
+                    theme::border_subtle()
+                })
                 .flex()
-                .items_center()
-                .gap_2p5()
+                .flex_col()
+                .justify_between()
+                .gap_3()
                 .child(
-                    Icon::new(IconName::Globe)
-                        .size_6()
-                        .text_color(theme::accent()),
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::text_primary())
+                                .child("Find games on this PC"),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child("Scan your drives for supported games."),
+                        ),
                 )
                 .child(
                     div()
-                        .text_2xl()
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(theme::text_primary())
-                        .child("Community Game Handlers"),
+                        .flex()
+                        .justify_end()
+                        .child(
+                            div()
+                                .id("btn-scan-games")
+                                .cursor_pointer()
+                                .px_4()
+                                .py_2()
+                                .rounded_lg()
+                                .bg(if is_scanning { theme::bg_subtle() } else { rgb(0x22c55e).into() })
+                                .text_color(if is_scanning { theme::text_muted() } else { rgb(0x0a0f1d).into() })
+                                .font_weight(FontWeight::BOLD)
+                                .text_sm()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .hover(|s| if !is_scanning { s.opacity(0.9) } else { s })
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.trigger_scan_games_async(cx);
+                                }))
+                                .child(div().child(if is_scanning { "Scanning drives..." } else { "Scan for games" }))
+                                .when(!is_scanning, |s| {
+                                    s.child(Icon::new(IconName::ArrowRight).size_3p5())
+                                }),
+                        ),
                 ),
+        )
+        // Card 2: Already know where it is?
+        .child(
+            div()
+                .id("card-browse-files")
+                .flex_1()
+                .p_4()
+                .rounded_xl()
+                .bg(theme::bg_panel())
+                .border_2()
+                .border_color(if is_card2_focused {
+                    rgb(0x22c55e).into()
+                } else {
+                    theme::border_subtle()
+                })
+                .flex()
+                .flex_col()
+                .justify_between()
+                .gap_3()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap_1()
+                        .child(
+                            div()
+                                .text_base()
+                                .font_weight(FontWeight::BOLD)
+                                .text_color(theme::text_primary())
+                                .child("Already know where it is?"),
+                        )
+                        .child(
+                            div()
+                                .text_xs()
+                                .text_color(theme::text_muted())
+                                .child("Choose a game executable to get started."),
+                        ),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .justify_end()
+                        .child(
+                            div()
+                                .id("btn-browse-files")
+                                .cursor_pointer()
+                                .px_4()
+                                .py_2()
+                                .rounded_lg()
+                                .bg(theme::bg_subtle())
+                                .border_1()
+                                .border_color(theme::border_subtle())
+                                .text_color(theme::text_primary())
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_sm()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.trigger_browse_game_exe_async(cx);
+                                }))
+                                .child(div().child("Browse files"))
+                                .child(Icon::new(IconName::ArrowRight).size_3p5()),
+                        ),
+                ),
+        )
+        .into_any_element()
+}
+
+fn render_hub_section_header(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
+    let has_search = !win.couch_hub_state.search_query.is_empty();
+    let is_focused = win.hub_focus_zone == 1;
+    let search_label = if win.couch_hub_state.search_input_open {
+        if has_search {
+            format!("{} █", win.couch_hub_state.search_query)
+        } else {
+            "Type to search... █".to_string()
+        }
+    } else if has_search {
+        format!("Search: \"{}\"", win.couch_hub_state.search_query)
+    } else {
+        "Search supported games".to_string()
+    };
+
+    div()
+        .flex()
+        .items_center()
+        .justify_between()
+        .w_full()
+        .child(
+            div()
+                .text_lg()
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme::text_primary())
+                .child("Browse game handlers"),
         )
         .child(
             div()
-                .text_xs()
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(theme::text_muted())
-                .child("[Browse & 1-Click Install Splitscreen Me Handlers]"),
+                .relative()
+                .child(
+                    div()
+                        .id("btn-couch-hub-search-bar")
+                        .cursor_pointer()
+                        .flex()
+                        .items_center()
+                        .gap_2()
+                        .px_4()
+                        .py_1p5()
+                        .rounded_full()
+                        .bg(theme::bg_panel())
+                        .border_2()
+                        .border_color(if is_focused {
+                            rgb(0x22c55e).into()
+                        } else if has_search || win.couch_hub_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::border_subtle()
+                        })
+                        .text_color(if is_focused || has_search || win.couch_hub_state.search_input_open {
+                            theme::accent()
+                        } else {
+                            theme::text_muted()
+                        })
+                        .hover(|s| s.bg(theme::bg_hover()).border_color(theme::border_color()))
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.hub_focus_zone = 1;
+                            this.couch_hub_state.search_input_open =
+                                !this.couch_hub_state.search_input_open;
+                            cx.notify();
+                        }))
+                        .child(Icon::new(IconName::Search).size_3p5())
+                        .child(
+                            div()
+                                .text_xs()
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(search_label),
+                        )
+                        .children(if has_search {
+                            Some(
+                                div()
+                                    .id("btn-clear-hub-search-pill")
+                                    .cursor_pointer()
+                                    .ml_1()
+                                    .p_0p5()
+                                    .rounded_full()
+                                    .hover(|s| s.bg(theme::bg_hover()))
+                                    .on_click(cx.listener(|this, _, _, cx| {
+                                        this.couch_hub_state.search_query.clear();
+                                        this.couch_hub_state.selected_index = 0;
+                                        cx.notify();
+                                    }))
+                                    .child(Icon::new(IconName::X).size_3().text_color(theme::text_muted())),
+                            )
+                        } else {
+                            None
+                        }),
+                )
+                .when(win.couch_hub_state.search_input_open, |anchor| {
+                    anchor.child(
+                        gpui::deferred(
+                            div()
+                                .id("hub-search-popover-in-header")
+                                .occlude()
+                                .absolute()
+                                .top(px(36.0))
+                                .right_0()
+                                .flex()
+                                .flex_col()
+                                .min_w(px(300.0))
+                                .bg(theme::bg_panel())
+                                .border_1()
+                                .border_color(theme::accent())
+                                .rounded_lg()
+                                .shadow_lg()
+                                .p_3()
+                                .gap_2()
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .justify_between()
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::BOLD)
+                                                .child("Search Hub"),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("btn-close-hub-search-popover")
+                                                .cursor_pointer()
+                                                .text_xs()
+                                                .text_color(theme::text_muted())
+                                                .hover(|s| s.text_color(theme::danger()))
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.couch_hub_state.search_input_open = false;
+                                                    cx.notify();
+                                                }))
+                                                .child("Close"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_2()
+                                        .px_2p5()
+                                        .py_1p5()
+                                        .bg(theme::bg_main())
+                                        .border_1()
+                                        .border_color(theme::border_color())
+                                        .rounded_md()
+                                        .child(
+                                            Icon::new(IconName::Search)
+                                                .size_3p5()
+                                                .text_color(theme::accent()),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(if has_search {
+                                                    theme::text_primary()
+                                                } else {
+                                                    theme::text_muted()
+                                                })
+                                                .child(if has_search {
+                                                    format!("{} █", win.couch_hub_state.search_query)
+                                                } else {
+                                                    "Type on keyboard to search...".to_string()
+                                                }),
+                                        )
+                                        .children(if has_search {
+                                            Some(
+                                                div()
+                                                    .id("btn-clear-hub-popover-query")
+                                                    .cursor_pointer()
+                                                    .ml_auto()
+                                                    .p_0p5()
+                                                    .rounded_sm()
+                                                    .hover(|s| s.bg(theme::bg_hover()))
+                                                    .on_click(cx.listener(|this, _, _, cx| {
+                                                        this.couch_hub_state.search_query.clear();
+                                                        this.couch_hub_state.selected_index = 0;
+                                                        cx.notify();
+                                                    }))
+                                                    .child(Icon::new(IconName::X).size_3().text_color(theme::text_muted())),
+                                            )
+                                        } else {
+                                            None
+                                        }),
+                                )
+                                .child(
+                                    div().flex().flex_wrap().gap_1p5().children(
+                                        [
+                                            "Left 4 Dead",
+                                            "Halo",
+                                            "Borderlands",
+                                            "Portal",
+                                            "Resident Evil",
+                                            "Risk of Rain",
+                                        ]
+                                        .iter()
+                                        .enumerate()
+                                        .map(|(i, &preset)| {
+                                            div()
+                                                .id(("hub-preset-btn", i))
+                                                .cursor_pointer()
+                                                .px_2()
+                                                .py_1()
+                                                .rounded_full()
+                                                .bg(theme::bg_subtle())
+                                                .text_xs()
+                                                .text_color(theme::text_muted())
+                                                .hover(|s| {
+                                                    s.bg(theme::accent_subtle())
+                                                        .text_color(theme::accent())
+                                                })
+                                                .on_click(cx.listener(move |this, _, _, cx| {
+                                                    this.couch_hub_state.search_query =
+                                                        preset.to_string();
+                                                    this.couch_hub_state.search_input_open = false;
+                                                    this.couch_hub_state.selected_index = 0;
+                                                    cx.notify();
+                                                }))
+                                                .child(preset)
+                                        }),
+                                    ),
+                                ),
+                        ),
+                    )
+                }),
         )
+        .into_any_element()
+}
+
+fn render_handlers_list(
+    win: &MainWindow,
+    packages: &[&HubPackageItem],
+    sel_idx: usize,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
+    if packages.is_empty() {
+        return div()
+            .flex_1()
+            .flex()
+            .items_center()
+            .justify_center()
+            .child(render_empty_hub_state(win.hub_loading))
+            .into_any_element();
+    }
+
+    div()
+        .id("hub-handlers-list")
+        .flex_1()
+        .overflow_y_scroll()
+        .flex()
+        .flex_col()
+        .gap_2p5()
+        .pr_2()
+        .children(packages.iter().enumerate().map(|(idx, pkg)| {
+            let is_selected = idx == sel_idx;
+            let is_item_focused = win.hub_focus_zone == 2 && is_selected;
+            let is_installed = win.is_handler_or_pkg_installed(&pkg.id, &pkg.game_name);
+            let cover_url_opt = pkg.cover_image_url.clone();
+
+            div()
+                .id(("hub-list-item", idx))
+                .cursor_pointer()
+                .flex()
+                .items_center()
+                .justify_between()
+                .p_2p5()
+                .rounded_xl()
+                .bg(if is_selected {
+                    theme::bg_panel()
+                } else {
+                    theme::bg_subtle()
+                })
+                .border_2()
+                .border_color(if is_item_focused {
+                    rgb(0x22c55e).into()
+                } else if is_selected {
+                    theme::border_color()
+                } else {
+                    theme::border_subtle()
+                })
+                .hover(|s| {
+                    if !is_selected {
+                        s.bg(theme::bg_panel()).border_color(theme::border_color())
+                    } else {
+                        s
+                    }
+                })
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.couch_hub_state.selected_index = idx;
+                    cx.notify();
+                }))
+                // Left side: Thumbnail + Name + Status
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap_3()
+                        .min_w_0()
+                        // 16:9 Thumbnail Cover
+                        .child(
+                            div()
+                                .w(px(72.0))
+                                .h(px(42.0))
+                                .rounded_md()
+                                .overflow_hidden()
+                                .bg(theme::bg_main())
+                                .children(cover_url_opt.as_deref().map(|url| {
+                                    img(crate::make_image_source(url))
+                                        .size_full()
+                                        .object_fit(gpui::ObjectFit::Cover)
+                                })),
+                        )
+                        .child(
+                            div()
+                                .flex()
+                                .flex_col()
+                                .gap_0p5()
+                                .min_w_0()
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .font_weight(FontWeight::BOLD)
+                                        .text_color(theme::text_primary())
+                                        .child(pkg.title.clone()),
+                                 )
+                                .child(if is_installed {
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap_1()
+                                        .child(
+                                            Icon::new(IconName::Check)
+                                                .size_3()
+                                                .text_color(rgb(0x22c55e)),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::MEDIUM)
+                                                .text_color(rgb(0x22c55e))
+                                                .child("In your library"),
+                                        )
+                                } else {
+                                    div()
+                                        .text_xs()
+                                        .text_color(theme::text_muted())
+                                        .child(format!("by {}", pkg.author))
+                                }),
+                        ),
+                )
+                // Right side: Chevron
+                .child(
+                    Icon::new(IconName::ChevronRight)
+                        .size_3p5()
+                        .text_color(theme::text_muted()),
+                )
+        }))
+        .into_any_element()
+}
+
+fn render_handler_detail_pane(
+    win: &MainWindow,
+    packages: &[&HubPackageItem],
+    sel_idx: usize,
+    cx: &mut Context<MainWindow>,
+) -> AnyElement {
+    if packages.is_empty() {
+        return div().w(px(380.0)).into_any_element();
+    }
+
+    let pkg = packages[sel_idx];
+    let is_installed = win.is_handler_or_pkg_installed(&pkg.id, &pkg.game_name);
+    let is_installing = win.installing_handlers.contains_key(&pkg.id);
+    let install_pct = win.installing_handlers.get(&pkg.id).copied().unwrap_or(0.0);
+    let pkg_id = pkg.id.clone();
+    let game_name = pkg.game_name.clone();
+
+    div()
+        .w(px(380.0))
+        .p_6()
+        .rounded_2xl()
+        .bg(theme::bg_panel())
+        .border_1()
+        .border_color(theme::border_subtle())
+        .flex()
+        .flex_col()
+        .justify_between()
+        .gap_4()
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .gap_3()
+                .child(
+                    div()
+                        .text_xl()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(theme::text_primary())
+                        .child(pkg.title.clone()),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme::text_muted())
+                        .child("A handler tells Nucleus how to run multiple instances of your game."),
+                )
+                .children(if is_installed {
+                    Some(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap_1()
+                            .pt_2()
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap_1()
+                                    .child(
+                                        Icon::new(IconName::Check)
+                                            .size_3()
+                                            .text_color(rgb(0x22c55e)),
+                                    )
+                                    .child(
+                                        div()
+                                            .text_xs()
+                                            .font_weight(FontWeight::BOLD)
+                                            .text_color(rgb(0x22c55e))
+                                            .child("Handler installed"),
+                                    ),
+                            )
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .text_color(theme::text_muted())
+                                    .child("You already have this game in your library."),
+                            ),
+                    )
+                } else {
+                    None
+                }),
+        )
+        .child(if is_installed {
+            let is_action_focused = win.hub_focus_zone == 3;
+            div()
+                .id("btn-hub-open-game")
+                .cursor_pointer()
+                .w_full()
+                .py_2p5()
+                .rounded_lg()
+                .bg(theme::bg_subtle())
+                .border_2()
+                .border_color(if is_action_focused {
+                    rgb(0x22c55e).into()
+                } else {
+                    theme::border_color()
+                })
+                .text_color(theme::text_primary())
+                .font_weight(FontWeight::BOLD)
+                .text_sm()
+                .flex()
+                .items_center()
+                .justify_center()
+                .gap_2()
+                .hover(|s| s.bg(theme::bg_hover()))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.selected_game = Some(game_name.clone());
+                    this.big_picture_screen = BigPictureScreen::GameDetails;
+                    cx.notify();
+                }))
+                .child(div().child("Open game"))
+                .child(Icon::new(IconName::ArrowRight).size_3p5())
+                .into_any_element()
+        } else if is_installing {
+            div()
+                .w_full()
+                .py_2p5()
+                .rounded_lg()
+                .bg(theme::bg_subtle())
+                .text_center()
+                .text_xs()
+                .font_weight(FontWeight::BOLD)
+                .text_color(theme::accent())
+                .child(format!(
+                    "Installing handler ({:.0}%)...",
+                    install_pct * 100.0
+                ))
+                .into_any_element()
+        } else {
+            let is_action_focused = win.hub_focus_zone == 3;
+            div()
+                .id("btn-hub-install-handler")
+                .cursor_pointer()
+                .w_full()
+                .py_2p5()
+                .rounded_lg()
+                .bg(rgb(0x22c55e))
+                .border_2()
+                .border_color(if is_action_focused {
+                    Hsla::from(rgb(0xffffff))
+                } else {
+                    Hsla::from(rgb(0x22c55e))
+                })
+                .text_color(rgb(0x0a0f1d))
+                .font_weight(FontWeight::BOLD)
+                .text_sm()
+                .text_center()
+                .hover(|s| s.opacity(0.9))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.download_and_play_couch_package(&pkg_id, cx);
+                }))
+                .child("Download & Install")
+                .into_any_element()
+        })
         .into_any_element()
 }
 
@@ -877,244 +1519,6 @@ fn render_empty_hub_state(is_loading: bool) -> AnyElement {
                 }),
         )
         .into_any_element()
-}
-
-fn render_package_cards_row(
-    win: &MainWindow,
-    packages: &[&HubPackageItem],
-    sel_idx: usize,
-    cx: &mut Context<MainWindow>,
-) -> AnyElement {
-    let total = packages.len();
-    if total == 0 {
-        return div().into_any_element();
-    }
-
-    let window_size = 5.min(total);
-    let half_window = window_size / 2;
-    let window_start = if sel_idx <= half_window {
-        0
-    } else if sel_idx + half_window >= total {
-        total.saturating_sub(window_size)
-    } else {
-        sel_idx - half_window
-    };
-    let window_end = (window_start + window_size).min(total);
-
-    div()
-        .id("couch-hub-packages-carousel")
-        .flex()
-        .flex_row()
-        .items_center()
-        .justify_center()
-        .gap_4()
-        .py_4()
-        .px_4()
-        .w_full()
-        // Left Nav Button
-        .child(
-            CouchButton::ghost("btn-hub-nav-left", "◀")
-                .size(CouchButtonSize::Lg)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.couch_hub_state.move_left(total);
-                    cx.notify();
-                })),
-        )
-        // Windowed package cards centered around selected card
-        .children((window_start..window_end).map(|idx| {
-            let pkg = packages[idx];
-            render_package_card(win, pkg, idx, idx == sel_idx, cx)
-        }))
-        // Right Nav Button
-        .child(
-            CouchButton::ghost("btn-hub-nav-right", "▶")
-                .size(CouchButtonSize::Lg)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.couch_hub_state.move_right(total);
-                    cx.notify();
-                })),
-        )
-        .into_any_element()
-}
-
-fn render_package_card(
-    win: &MainWindow,
-    pkg: &HubPackageItem,
-    idx: usize,
-    is_selected: bool,
-    cx: &mut Context<MainWindow>,
-) -> AnyElement {
-    let is_installed = pkg.is_installed || win.installed_package_ids.contains(&pkg.id);
-    let install_progress = win.installing_handlers.get(&pkg.id).copied();
-    let pkg_id = pkg.id.clone();
-
-    let cover_content: AnyElement = if let Some(ref cover_url) = pkg.cover_image_url {
-        img(crate::make_image_source(cover_url))
-            .absolute()
-            .inset_0()
-            .size_full()
-            .aspect_ratio(2.0 / 3.0)
-            .object_fit(gpui::ObjectFit::Cover)
-            .rounded_lg()
-            .into_any_element()
-    } else {
-        div()
-            .flex()
-            .flex_col()
-            .items_center()
-            .justify_center()
-            .size_full()
-            .bg(theme::bg_subtle())
-            .p_4()
-            .child(
-                Icon::new(IconName::Gamepad2)
-                    .size_10()
-                    .text_color(theme::text_muted()),
-            )
-            .child(
-                div()
-                    .text_xs()
-                    .font_weight(FontWeight::BOLD)
-                    .text_center()
-                    .text_color(theme::text_muted())
-                    .child(pkg.game_name.clone()),
-            )
-            .into_any_element()
-    };
-
-    let action_btn = if let Some(p) = install_progress {
-        CouchButton::secondary(
-            format!("btn-hub-download-{}", pkg.id),
-            format!("Downloading {:.0}%", p * 100.0),
-        )
-        .icon(IconName::Loader)
-        .size(CouchButtonSize::Lg)
-        .disabled(true)
-    } else if is_installed {
-        let pid = pkg.id.clone();
-        CouchButton::primary(format!("btn-hub-play-{}", pkg.id), "Play (A)")
-            .icon(IconName::Play)
-            .size(CouchButtonSize::Lg)
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.couch_hub_state.selected_index = idx;
-                this.download_and_play_couch_package(&pid, cx);
-            }))
-    } else {
-        let pid = pkg.id.clone();
-        CouchButton::secondary(format!("btn-hub-install-{}", pkg.id), "Download & Play (A)")
-            .icon(IconName::Download)
-            .size(CouchButtonSize::Lg)
-            .on_click(cx.listener(move |this, _, _, cx| {
-                this.couch_hub_state.selected_index = idx;
-                this.download_and_play_couch_package(&pid, cx);
-            }))
-    };
-
-    let card_border = if is_selected {
-        theme::accent()
-    } else {
-        theme::border_color()
-    };
-
-    let card_inner = div()
-        .id(("couch-hub-package-card", idx))
-        .cursor_pointer()
-        .w(px(220.0))
-        .h(px(330.0))
-        .flex()
-        .flex_col()
-        .justify_between()
-        .rounded_xl()
-        .bg(theme::bg_panel())
-        .border_2()
-        .border_color(card_border)
-        .p_3()
-        .shadow_lg()
-        .on_click(cx.listener({
-            let pid = pkg_id.clone();
-            move |this, _, _, cx| {
-                this.couch_hub_state.selected_index = idx;
-                this.download_and_play_couch_package(&pid, cx);
-            }
-        }))
-        // Top Image & Badges
-        .child(
-            div()
-                .relative()
-                .w_full()
-                .h(px(180.0))
-                .rounded_lg()
-                .overflow_hidden()
-                .child(cover_content)
-                // Verified Badge
-                .children(if pkg.is_verified {
-                    Some(
-                        div().absolute().top_2().left_2().child(
-                            CouchTag::new("Verified")
-                                .icon(IconName::BadgeCheck)
-                                .tone(TagTone::Success),
-                        ),
-                    )
-                } else {
-                    None
-                })
-                // Downloads Badge
-                .child(
-                    div()
-                        .absolute()
-                        .bottom_2()
-                        .right_2()
-                        .px_2()
-                        .py_0p5()
-                        .rounded_full()
-                        .bg(theme::bg_dark().opacity(0.8))
-                        .text_color(theme::text_primary())
-                        .text_xs()
-                        .font_weight(FontWeight::MEDIUM)
-                        .flex()
-                        .items_center()
-                        .gap_1()
-                        .child(Icon::new(IconName::Download).size_3())
-                        .child(format!("{}", pkg.downloads)),
-                ),
-        )
-        // Middle Details
-        .child(
-            div()
-                .flex()
-                .flex_col()
-                .gap_0p5()
-                .px_1()
-                .child(
-                    div()
-                        .text_sm()
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(theme::text_primary())
-                        .line_clamp(1)
-                        .child(pkg.title.clone()),
-                )
-                .child(
-                    div()
-                        .text_xs()
-                        .text_color(theme::text_muted())
-                        .line_clamp(1)
-                        .child(format!("by {}", pkg.author)),
-                ),
-        )
-        // Bottom Action Button
-        .child(action_btn)
-        .into_any_element();
-
-    if is_selected {
-        div()
-            .p(px(4.0))
-            .rounded_2xl()
-            .bg(theme::focus_glow())
-            .child(card_inner)
-            .into_any_element()
-    } else {
-        card_inner
-    }
 }
 
 /// Renders the missing executable fallback modal dialog card.

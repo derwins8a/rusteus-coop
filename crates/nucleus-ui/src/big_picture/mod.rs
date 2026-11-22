@@ -4,9 +4,13 @@
 //! and in-game couch OSD overlay.
 
 pub mod carousel;
+pub mod details;
 pub mod hub;
 pub mod input;
+pub mod management;
 pub mod overlay;
+pub mod sessions;
+pub mod settings;
 pub mod setup;
 pub mod spatial;
 
@@ -15,6 +19,7 @@ pub use carousel::{
     MISSING_EXE_METADATA_CALLOUT, UNINSTALLED_BADGE_TEXT, carousel_card_opacity,
     render_big_picture_view, render_carousel_view,
 };
+pub use details::render_game_details_view;
 pub use hub::{
     CouchHubState, CouchOptionItem, CouchOptionsModalState, PathResolution, get_filtered_packages,
     render_couch_hub_view, render_custom_options_modal, render_missing_exe_modal,
@@ -23,9 +28,12 @@ pub use hub::{
 pub use input::{
     DirectionalRepeatState, GamepadInputDispatcher, StickDirection, map_key_to_couch_action_name,
 };
+pub use management::render_game_management_view;
 pub use overlay::{
     InGameOsdState, OsdAction, OsdSubView, format_duration_hhmmss, render_in_game_osd,
 };
+pub use sessions::render_sessions_view;
+pub use settings::render_big_picture_settings_view;
 pub use setup::{
     AVAILABLE_LAYOUTS, CouchPlayerSlot, CouchSetupState, CouchSetupStep, DisconnectStatus,
     PartitionLayoutKind, create_keyboard_mouse_device, is_keyboard_device, render_couch_setup_view,

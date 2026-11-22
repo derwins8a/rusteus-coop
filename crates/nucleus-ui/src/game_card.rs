@@ -389,24 +389,13 @@ pub fn render_game_card(
                                             NefosButton::primary(format!("btn-play-card-{}", h.guid), "Play")
                                                 .size(NefosButtonSize::Sm)
                                                 .icon(IconName::Play)
-                                                .tooltip("Launch Splitscreen Session")
+                                                .tooltip("Open Layout Selector & Set Up Session")
                                                 .on_click(cx.listener(move |this, _, _, cx| {
-                                                    println!("Launch clicked for game: {}", name_launch_btn);
                                                     this.selected_game = Some(name_launch_btn.clone());
-                                                    if let Some(ref launcher) = this.callbacks.on_launch {
-                                                        launcher(
-                                                            &name_launch_btn,
-                                                            this.player_count,
-                                                            &this.selected_layout,
-                                                            &this.selected_handler_options,
-                                                            &this.player_device_assignments,
-                                                            &this.player_monitor_assignments,
-                                                            &this.player_audio_device_assignments,
-                                                        );
-                                                        this.status_message = format!("Launched session for '{}'! Press Ctrl+Q to toggle input lock.", name_launch_btn);
-                                                    } else {
-                                                        this.status_message = format!("Session launched for '{}'. Press Ctrl+Q to toggle input lock.", name_launch_btn);
-                                                    }
+                                                    this.game_list.select_game(Some(name_launch_btn.clone()));
+                                                    this.active_tab = ActiveTab::Setup;
+                                                    this.refresh_saved_profiles();
+                                                    this.status_message = format!("Choose screen layout for '{}'...", name_launch_btn);
                                                     cx.notify();
                                                 })),
                                         )

@@ -11,10 +11,7 @@ pub mod big_picture;
 pub mod callbacks;
 pub mod components;
 pub mod debugger_view;
-pub mod device_panel;
 pub mod dialogs;
-pub mod disk_scanner;
-pub mod download_dialog;
 pub mod extensions_view;
 pub mod game_card;
 pub mod game_list;
@@ -23,12 +20,10 @@ pub mod http_client;
 pub mod hub_account_modal;
 pub mod hub_browser;
 pub mod hub_details;
-pub mod main_view;
 pub mod markdown;
 pub mod models;
 pub mod nefos;
 pub mod osd;
-pub mod profile_editor;
 pub mod save_slots_modal;
 pub mod settings_view;
 pub mod setup_screen;
@@ -39,9 +34,6 @@ pub use actions::UiAction;
 pub use callbacks::{EngineToGui, MainWindowCallbacks};
 pub use components::*;
 pub use debugger_view::{DebuggerViewState, render_debugger_view};
-pub use device_panel::DevicePanelComponent;
-pub use disk_scanner::DiskScannerView;
-pub use download_dialog::DownloadDialog;
 pub use extensions_view::{
     ExtensionItem, ExtensionType, ExtensionsViewState, render_extensions_view,
 };
@@ -56,15 +48,13 @@ pub use http_client::NucleusHttpClient;
 pub use hub_account_modal::{HubAccountModalState, render_hub_account_modal};
 pub use hub_browser::HubBrowserView;
 pub use hub_details::{HubDetailTab, render_hub_details_screen};
-pub use main_view::MainView;
 pub use markdown::{render_markdown, render_markdown_with_id};
 pub use models::{
     ConfirmAction, ConfirmDialogState, DeviceItem, HandlerItem, HubInstallProgressMsg,
-    HubPackageItem, LaunchPromptRequest,
+    HubPackageItem, LaunchPromptRequest, SavedProfileItem,
 };
 pub use nefos::*;
 pub use osd::{parse_osd_color, render_hotkey_recording_modal, render_osd_overlay};
-pub use profile_editor::ProfileEditorView;
 pub use save_slots_modal::{SaveSlotsModalState, render_save_slots_modal};
 pub use settings_view::{SettingsCategory, SettingsView};
 pub use setup_screen::SetupScreenView;

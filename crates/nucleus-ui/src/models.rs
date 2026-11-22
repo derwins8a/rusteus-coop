@@ -647,3 +647,15 @@ pub struct LaunchPromptRequest {
     /// One-shot response channel: true = proceed, false = cancel launch.
     pub response_tx: tokio::sync::oneshot::Sender<bool>,
 }
+
+/// Saved game session configuration profile item for Big Picture mode.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SavedProfileItem {
+    pub game_guid: String,
+    pub game_title: String,
+    pub profile_number: usize,
+    pub profile_title: String,
+    pub player_count: usize,
+    pub layout: String,
+    pub cover_url: Option<String>,
+}

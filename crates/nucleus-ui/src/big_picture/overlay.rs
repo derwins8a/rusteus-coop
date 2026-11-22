@@ -505,12 +505,14 @@ pub fn drop_in_candidate_devices(win: &MainWindow) -> Vec<(Option<usize>, String
         }
     }
 
-    candidates.push((
-        None,
-        "Virtual Gamepad (Mock / Test)".to_string(),
-        "Virtual Gamepad".to_string(),
-        false,
-    ));
+    if win.app_settings.developer_mode {
+        candidates.push((
+            None,
+            "Virtual Gamepad (Mock / Test)".to_string(),
+            "Virtual Gamepad".to_string(),
+            false,
+        ));
+    }
 
     let kb_used = active_labels
         .iter()

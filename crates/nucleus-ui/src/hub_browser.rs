@@ -366,6 +366,7 @@ pub fn render_hub_view(
                             if event.keystroke.modifiers.control || event.keystroke.modifiers.alt || event.keystroke.modifiers.platform {
                                 return;
                             }
+                            cx.stop_propagation();
                             let key = event.keystroke.key.as_str();
                             if key == "backspace" {
                                 this.hub_search_query.pop();

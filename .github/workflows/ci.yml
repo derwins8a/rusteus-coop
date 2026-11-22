@@ -113,23 +113,46 @@ jobs:
           cargo clippy --workspace --all-targets
 
   build_release:
-    name: Release Binary Build
+    name: Release Binary Build & Packaging
     runs-on: windows-latest
     needs: [check, test]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Release Binary
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target_ci_release/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+
+      - name: Build Release Binaries
         run: |
           $env:CARGO_TARGET_DIR = "target_ci_release"
-          cargo build --release --bin nucleus-coop
+          cargo build --release --bin nucleus-coop --bin elevator -j 4
 
-      - name: Upload Binary Artifact
+      - name: Package Release Bundle (Password: nucleus)
+        run: |
+          powershell -ExecutionPolicy Bypass -File ./scripts/package_release.ps1 `
+            -TargetDir "target_ci_release/release" `
+            -OutputDir "." `
+            -ZipName "rusteus-coop-windows-x64.zip" `
+            -Password "nucleus"
+
+      - name: Upload Release Archive
         uses: actions/upload-artifact@v4
         with:
           name: rusteus-coop-windows-x64
-          path: target_ci_release/release/nucleus-coop.exe
+          path: rusteus-coop-windows-x64.zip

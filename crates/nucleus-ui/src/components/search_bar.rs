@@ -1,7 +1,7 @@
 use gpui::prelude::FluentBuilder;
 use gpui::{
     AnyElement, App, ClickEvent, ElementId, FocusHandle, FontWeight, InteractiveElement,
-    IntoElement, KeyDownEvent, ParentElement, SharedString, StatefulInteractiveElement, Styled,
+    IntoElement, KeyDownEvent, MouseButton, ParentElement, SharedString, StatefulInteractiveElement, Styled,
     Window, div, px,
 };
 use gpui_component::Icon;
@@ -16,6 +16,7 @@ pub struct CouchSearchBar {
     placeholder: SharedString,
     query: SharedString,
     focus_handle: Option<FocusHandle>,
+    is_focused: bool,
     on_clear: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
     on_key_down: Option<Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>>,
 }
@@ -27,6 +28,7 @@ impl CouchSearchBar {
             placeholder: "Search...".into(),
             query: String::new().into(),
             focus_handle: None,
+            is_focused: false,
             on_clear: None,
             on_key_down: None,
         }
@@ -44,6 +46,11 @@ impl CouchSearchBar {
 
     pub fn focus_handle(mut self, handle: &FocusHandle) -> Self {
         self.focus_handle = Some(handle.clone());
+        self
+    }
+
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.is_focused = focused;
         self
     }
 
@@ -76,7 +83,11 @@ impl CouchSearchBar {
             .bg(theme::bg_panel())
             .rounded_lg()
             .border_1()
-            .border_color(theme::border_color())
+            .border_color(if self.is_focused {
+                theme::accent()
+            } else {
+                theme::border_color()
+            })
             .hover(|s| s.border_color(theme::accent()))
             .flex()
             .items_center()
@@ -88,6 +99,12 @@ impl CouchSearchBar {
             let focus_clone = focus.clone();
             input_box = input_box.on_click(move |_event, window, cx| {
                 focus_clone.focus(window, cx);
+                cx.stop_propagation();
+            });
+            let focus_clone_down = focus.clone();
+            input_box = input_box.on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                focus_clone_down.focus(window, cx);
+                cx.stop_propagation();
             });
         }
 
@@ -107,7 +124,11 @@ impl CouchSearchBar {
             .child(
                 Icon::new(IconName::Search)
                     .size_4()
-                    .text_color(theme::text_muted()),
+                    .text_color(if self.is_focused {
+                        theme::accent()
+                    } else {
+                        theme::text_muted()
+                    }),
             )
             .child(
                 div()
@@ -116,12 +137,22 @@ impl CouchSearchBar {
                     .text_sm()
                     .truncate()
                     .when(is_empty, |this| {
-                        this.text_color(theme::text_muted()).child(self.placeholder)
+                        if self.is_focused {
+                            this.text_color(theme::text_primary()).child("█")
+                        } else {
+                            this.text_color(theme::text_muted()).child(self.placeholder)
+                        }
                     })
                     .when(!is_empty, |this| {
-                        this.text_color(theme::text_primary())
-                            .font_weight(FontWeight::MEDIUM)
-                            .child(self.query)
+                        if self.is_focused {
+                            this.text_color(theme::text_primary())
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(format!("{} █", self.query))
+                        } else {
+                            this.text_color(theme::text_primary())
+                                .font_weight(FontWeight::MEDIUM)
+                                .child(self.query)
+                        }
                     }),
             );
 

@@ -1314,29 +1314,35 @@ pub fn render_setup_view(
                                 .items_center()
                                 .gap_2()
                                 .child(
-                                    NefosTag::new(format!(
-                                        "{} Ready ({} Virtual)",
-                                        detected_devices.len(),
-                                        detected_devices.iter().filter(|d| d.is_virtual).count()
-                                    )),
+                                    NefosTag::new(if app_settings.developer_mode && detected_devices.iter().any(|d| d.is_virtual) {
+                                        format!(
+                                            "{} Ready ({} Virtual)",
+                                            detected_devices.len(),
+                                            detected_devices.iter().filter(|d| d.is_virtual).count()
+                                        )
+                                    } else {
+                                        format!("{} Ready", detected_devices.len())
+                                    }),
                                 )
-                                .child(
-                                    NefosButton::secondary("btn-add-mock-pad", "+ Add Virtual Gamepad")
-                                        .size(NefosButtonSize::Sm)
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            this.add_virtual_gamepad();
-                                            cx.notify();
-                                        })),
-                                )
-                                .when(detected_devices.iter().any(|d| d.is_virtual), |el| {
+                                .when(app_settings.developer_mode, |el| {
                                     el.child(
-                                        NefosButton::danger("btn-clear-mock-pads", "Clear Mock Pads")
+                                        NefosButton::secondary("btn-add-mock-pad", "+ Add Virtual Gamepad")
                                             .size(NefosButtonSize::Sm)
                                             .on_click(cx.listener(|this, _, _, cx| {
-                                                this.clear_virtual_gamepads();
+                                                this.add_virtual_gamepad();
                                                 cx.notify();
                                             })),
                                     )
+                                    .when(detected_devices.iter().any(|d| d.is_virtual), |el| {
+                                        el.child(
+                                            NefosButton::danger("btn-clear-mock-pads", "Clear Mock Pads")
+                                                .size(NefosButtonSize::Sm)
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.clear_virtual_gamepads();
+                                                    cx.notify();
+                                                })),
+                                        )
+                                    })
                                 }),
                         )
                         .child(

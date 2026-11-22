@@ -142,6 +142,7 @@ pub fn render_library_view(
                             if event.keystroke.modifiers.control || event.keystroke.modifiers.alt || event.keystroke.modifiers.platform {
                                 return;
                             }
+                            cx.stop_propagation();
                             let key = event.keystroke.key.as_str();
                             if key == "backspace" {
                                 this.game_list.search_query.pop();
@@ -170,27 +171,44 @@ pub fn render_library_view(
                         .icon(IconName::FolderOpen)
                         .tooltip("Add a custom game executable to your library")
                         .on_click(cx.listener(|this, _, _, cx| {
-                            if let Some(exe) = crate::dialogs::pick_file("Select Game Executable", "Executables (*.exe)|*.exe|All Files (*.*)|*.*") {
-                                let exe_path = exe.to_string_lossy().to_string();
-                                let mut added_handler = None;
-                                if let Some(ref cb) = this.callbacks.on_add_game {
-                                    added_handler = cb(&exe_path);
-                                }
-                                if let Some(h) = added_handler {
-                                    let name = h.game_name.clone();
-                                    if !this.handlers.iter().any(|existing| existing.guid == h.guid) {
-                                        this.handlers.push(h);
-                                    }
-                                    if !this.handler_names.contains(&name) {
-                                        this.handler_names.push(name.clone());
-                                    }
-                                    this.selected_game = Some(name.clone());
-                                    this.status_message = format!("Added game: {}", name);
+                            this.status_message = "Browsing for game executable...".to_string();
+                            cx.notify();
+                            cx.spawn(async move |this, cx| {
+                                let exe_opt = crate::dialogs::pick_file_async(
+                                    "Select Game Executable",
+                                    "Executables (*.exe)|*.exe|All Files (*.*)|*.*",
+                                )
+                                .await;
+                                if let Some(exe) = exe_opt {
+                                    let exe_path = exe.to_string_lossy().to_string();
+                                    let _ = this.update(&mut *cx, |this, cx| {
+                                        let mut added_handler = None;
+                                        if let Some(ref cb) = this.callbacks.on_add_game {
+                                            added_handler = cb(&exe_path);
+                                        }
+                                        if let Some(h) = added_handler {
+                                            let name = h.game_name.clone();
+                                            if !this.handlers.iter().any(|existing| existing.guid == h.guid) {
+                                                this.handlers.push(h);
+                                            }
+                                            if !this.handler_names.contains(&name) {
+                                                this.handler_names.push(name.clone());
+                                            }
+                                            this.selected_game = Some(name.clone());
+                                            this.status_message = format!("Added game: {}", name);
+                                        } else {
+                                            this.status_message = format!("Selected game executable: {}", exe_path);
+                                        }
+                                        cx.notify();
+                                    });
                                 } else {
-                                    this.status_message = format!("Selected game executable: {}", exe_path);
+                                    let _ = this.update(&mut *cx, |this, cx| {
+                                        this.status_message = "Executable selection cancelled.".to_string();
+                                        cx.notify();
+                                    });
                                 }
-                                cx.notify();
-                            }
+                            })
+                            .detach();
                         }))
                 ),
         )
@@ -380,27 +398,44 @@ pub fn render_library_view(
                                                             .icon(IconName::FolderOpen)
                                                             .size(NefosButtonSize::Sm)
                                                             .on_click(cx.listener(|this, _, _, cx| {
-                                                                if let Some(exe) = crate::dialogs::pick_file("Select Game Executable", "Executables (*.exe)|*.exe|All Files (*.*)|*.*") {
-                                                                    let exe_path = exe.to_string_lossy().to_string();
-                                                                    let mut added_handler = None;
-                                                                    if let Some(ref cb) = this.callbacks.on_add_game {
-                                                                        added_handler = cb(&exe_path);
-                                                                    }
-                                                                    if let Some(h) = added_handler {
-                                                                        let name = h.game_name.clone();
-                                                                        if !this.handlers.iter().any(|existing| existing.guid == h.guid) {
-                                                                            this.handlers.push(h);
-                                                                        }
-                                                                        if !this.handler_names.contains(&name) {
-                                                                            this.handler_names.push(name.clone());
-                                                                        }
-                                                                        this.selected_game = Some(name.clone());
-                                                                        this.status_message = format!("Added game: {}", name);
+                                                                this.status_message = "Browsing for game executable...".to_string();
+                                                                cx.notify();
+                                                                cx.spawn(async move |this, cx| {
+                                                                    let exe_opt = crate::dialogs::pick_file_async(
+                                                                        "Select Game Executable",
+                                                                        "Executables (*.exe)|*.exe|All Files (*.*)|*.*",
+                                                                    )
+                                                                    .await;
+                                                                    if let Some(exe) = exe_opt {
+                                                                        let exe_path = exe.to_string_lossy().to_string();
+                                                                        let _ = this.update(&mut *cx, |this, cx| {
+                                                                            let mut added_handler = None;
+                                                                            if let Some(ref cb) = this.callbacks.on_add_game {
+                                                                                added_handler = cb(&exe_path);
+                                                                            }
+                                                                            if let Some(h) = added_handler {
+                                                                                let name = h.game_name.clone();
+                                                                                if !this.handlers.iter().any(|existing| existing.guid == h.guid) {
+                                                                                    this.handlers.push(h);
+                                                                                }
+                                                                                if !this.handler_names.contains(&name) {
+                                                                                    this.handler_names.push(name.clone());
+                                                                                }
+                                                                                this.selected_game = Some(name.clone());
+                                                                                this.status_message = format!("Added game: {}", name);
+                                                                            } else {
+                                                                                this.status_message = format!("Selected game executable: {}", exe_path);
+                                                                            }
+                                                                            cx.notify();
+                                                                        });
                                                                     } else {
-                                                                        this.status_message = format!("Selected game executable: {}", exe_path);
+                                                                        let _ = this.update(&mut *cx, |this, cx| {
+                                                                            this.status_message = "Executable selection cancelled.".to_string();
+                                                                            cx.notify();
+                                                                        });
                                                                     }
-                                                                    cx.notify();
-                                                                }
+                                                                })
+                                                                .detach();
                                                             })),
                                                     ),
                                             ),

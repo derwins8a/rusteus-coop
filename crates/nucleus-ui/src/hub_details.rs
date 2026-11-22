@@ -173,28 +173,89 @@ fn perform_uninstall(
     this: &mut MainWindow,
     cx: &mut Context<MainWindow>,
 ) {
-    this.installed_package_ids.remove(pkg_id);
-    if let Some(p) = this.hub_packages.iter_mut().find(|it| it.id == pkg_id) {
-        p.is_installed = false;
-        p.has_update = false;
-        p.is_up_to_date = false;
-        p.installed_version = None;
-    }
-    if let Some(ref mut inspecting) = this.inspecting_hub_package {
-        if inspecting.id == pkg_id {
-            inspecting.is_installed = false;
-            inspecting.has_update = false;
-            inspecting.is_up_to_date = false;
-            inspecting.installed_version = None;
+    let norm_game = crate::hub_browser::normalize_for_match(game_name);
+    let norm_id = crate::hub_browser::normalize_for_match(pkg_id);
+
+    // 1. Gather all matching handler GUIDs to remove
+    let mut matching_guids = Vec::new();
+    for h in &this.handlers {
+        let norm_h_name = crate::hub_browser::normalize_for_match(&h.game_name);
+        let norm_h_guid = crate::hub_browser::normalize_for_match(&h.guid);
+        if norm_h_name == norm_game
+            || norm_h_name == norm_id
+            || norm_h_guid == norm_game
+            || norm_h_guid == norm_id
+            || h.guid.eq_ignore_ascii_case(pkg_id)
+            || h.game_name.eq_ignore_ascii_case(game_name)
+        {
+            matching_guids.push(h.guid.clone());
         }
     }
-    let norm_game = crate::hub_browser::normalize_for_match(game_name);
-    this.handlers.retain(|h| {
-        let norm_h = crate::hub_browser::normalize_for_match(&h.game_name);
-        norm_h != norm_game && h.guid != pkg_id
+
+    // 2. Remove all matching identifiers from installed tracking sets
+    this.installed_package_ids.remove(pkg_id);
+    this.installed_package_ids.retain(|id| {
+        let n = crate::hub_browser::normalize_for_match(id);
+        !id.eq_ignore_ascii_case(pkg_id)
+            && !id.eq_ignore_ascii_case(game_name)
+            && n != norm_game
+            && n != norm_id
+            && !matching_guids.iter().any(|g| g.eq_ignore_ascii_case(id))
     });
-    this.handler_names
-        .retain(|n| crate::hub_browser::normalize_for_match(n) != norm_game);
+
+    // 3. Purge matching handlers from UI state
+    this.handlers.retain(|h| {
+        let norm_h_name = crate::hub_browser::normalize_for_match(&h.game_name);
+        let norm_h_guid = crate::hub_browser::normalize_for_match(&h.guid);
+        !(norm_h_name == norm_game
+            || norm_h_name == norm_id
+            || norm_h_guid == norm_game
+            || norm_h_guid == norm_id
+            || h.guid.eq_ignore_ascii_case(pkg_id)
+            || h.game_name.eq_ignore_ascii_case(game_name)
+            || matching_guids.contains(&h.guid))
+    });
+    this.handler_names.retain(|n| {
+        let norm_n = crate::hub_browser::normalize_for_match(n);
+        norm_n != norm_game
+            && norm_n != norm_id
+            && !n.eq_ignore_ascii_case(game_name)
+            && !matching_guids.iter().any(|g| g.eq_ignore_ascii_case(n))
+    });
+
+    // 4. Update Hub package list items
+    for p in &mut this.hub_packages {
+        let norm_p_game = crate::hub_browser::normalize_for_match(&p.game_name);
+        let norm_p_title = crate::hub_browser::normalize_for_match(&p.title);
+        if p.id.eq_ignore_ascii_case(pkg_id)
+            || norm_p_game == norm_game
+            || norm_p_title == norm_game
+            || matching_guids.iter().any(|g| g.eq_ignore_ascii_case(&p.id))
+        {
+            p.is_installed = false;
+            p.has_update = false;
+            p.is_up_to_date = false;
+            p.installed_version = None;
+        }
+    }
+
+    // 5. Update the inspecting modal package immediately
+    if let Some(ref mut inspecting) = this.inspecting_hub_package {
+        inspecting.is_installed = false;
+        inspecting.has_update = false;
+        inspecting.is_up_to_date = false;
+        inspecting.installed_version = None;
+    }
+
+    // 6. Notify GameManager backend to delete script from disk
+    if let Some(ref cb) = this.callbacks.on_remove_game {
+        for g in &matching_guids {
+            cb(g);
+        }
+        cb(pkg_id);
+        cb(game_name);
+    }
+
     this.status_message = format!("Uninstalled handler for '{}'.", game_name);
     this.show_osd(&format!("Uninstalled {}", game_name), 2000, cx);
     cx.notify();
