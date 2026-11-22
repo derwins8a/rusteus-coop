@@ -146,9 +146,21 @@ impl ExtensionManager {
         let mut dirs_to_scan = vec![self.plugins_dir.clone(), self.addons_dir.clone()];
 
         // Also check local workspace/portable fallback roots if they exist
+        if let Some(globals) = nucleus_common::Globals::try_get() {
+            let inst_addons = globals.install_root.join("addons");
+            if inst_addons.exists() && !dirs_to_scan.contains(&inst_addons) {
+                dirs_to_scan.push(inst_addons);
+            }
+            let inst_plugins = globals.install_root.join("plugins");
+            if inst_plugins.exists() && !dirs_to_scan.contains(&inst_plugins) {
+                dirs_to_scan.push(inst_plugins);
+            }
+        }
         for candidate in &[
             PathBuf::from("addons"),
             PathBuf::from("plugins"),
+            PathBuf::from("nucleus-coop").join("addons"),
+            PathBuf::from("nucleus-coop").join("plugins"),
             PathBuf::from("content").join("addons"),
             PathBuf::from("content").join("plugins"),
         ] {

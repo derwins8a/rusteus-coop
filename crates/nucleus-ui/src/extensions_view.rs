@@ -6,7 +6,6 @@ use crate::theme;
 use gpui::prelude::*;
 use gpui::*;
 use gpui_kit_assets::IconName;
-use std::sync::Arc;
 
 /// Presentation model for an installed extension entry in the UI.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,17 +56,10 @@ pub struct ExtensionsViewState {
 
 /// Renders the complete Extensions & Add-ons Ecosystem view pane.
 pub fn render_extensions_view(
-    _state: &ExtensionsViewState,
-    extensions: &[ExtensionItem],
-    on_toggle_extension: Option<Arc<dyn Fn(&str, bool) + Send + Sync>>,
-    on_install_extension: Option<Arc<dyn Fn() + Send + Sync>>,
-    on_rescan_extensions: Option<Arc<dyn Fn() + Send + Sync>>,
-    on_open_folder: Option<Arc<dyn Fn() + Send + Sync>>,
-    on_grant_permission: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    this: &crate::window::MainWindow,
+    cx: &mut Context<crate::window::MainWindow>,
 ) -> AnyElement {
-    let install_cb = on_install_extension.clone();
-    let rescan_cb = on_rescan_extensions.clone();
-    let open_cb = on_open_folder.clone();
+    let extensions = &this.installed_extensions;
 
     div()
         .flex()
@@ -113,31 +105,36 @@ pub fn render_extensions_view(
                             CouchButton::secondary("btn-open-ext-dir", "Open Folder")
                                 .size(CouchButtonSize::Sm)
                                 .icon(IconName::FolderOpen)
-                                .on_click(move |_ev, _win, _app| {
-                                    if let Some(ref cb) = open_cb {
-                                        cb();
-                                    }
-                                }),
+                                .on_click(cx.listener(|_this, _, _, _cx| {
+                                    let dir_to_open = if let Some(globals) = nucleus_common::Globals::try_get() {
+                                        globals.app_data_path.join("addons")
+                                    } else if let Ok(app_data) = std::env::var("APPDATA") {
+                                        std::path::PathBuf::from(app_data).join("NucleusCoop").join("addons")
+                                    } else {
+                                        std::path::PathBuf::from("addons")
+                                    };
+                                    let _ = std::fs::create_dir_all(&dir_to_open);
+                                    let _ = std::process::Command::new("explorer")
+                                        .arg(dir_to_open)
+                                        .spawn();
+                                })),
                         )
                         .child(
                             CouchButton::secondary("btn-rescan-ext", "Rescan")
                                 .size(CouchButtonSize::Sm)
                                 .icon(IconName::SlidersHorizontal)
-                                .on_click(move |_ev, _win, _app| {
-                                    if let Some(ref cb) = rescan_cb {
-                                        cb();
-                                    }
-                                }),
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.refresh_extensions();
+                                    cx.notify();
+                                })),
                         )
                         .child(
                             CouchButton::primary("btn-install-ext", "Install Extension")
                                 .size(CouchButtonSize::Sm)
                                 .icon(IconName::Plus)
-                                .on_click(move |_ev, _win, _app| {
-                                    if let Some(ref cb) = install_cb {
-                                        cb();
-                                    }
-                                }),
+                                .on_click(cx.listener(|this, _, _, cx| {
+                                    this.install_extension_dialog(cx);
+                                })),
                         ),
                 ),
         )
@@ -181,8 +178,6 @@ pub fn render_extensions_view(
                         .map(|ext| {
                             let ext_id = ext.id.clone();
                             let is_enabled = ext.is_enabled;
-                            let toggle_cb = on_toggle_extension.clone();
-                            let grant_cb = on_grant_permission.clone();
 
                             div()
                                 .id(ElementId::Name(format!("ext-card-{}", ext.id).into()))
@@ -244,14 +239,19 @@ pub fn render_extensions_view(
                                             } else {
                                                 IconName::X
                                             })
-                                            .on_click({
-                                                let id_str = ext_id.clone();
-                                                move |_ev, _win, _app| {
-                                                    if let Some(ref cb) = toggle_cb {
-                                                        cb(&id_str, !is_enabled);
+                                            .on_click(cx.listener({
+                                                let id_str = ext.id.clone();
+                                                let next_enabled = !is_enabled;
+                                                move |this, _, _, cx| {
+                                                    if let Some(ref cb) = this.callbacks.on_toggle_extension {
+                                                        cb(&id_str, next_enabled);
                                                     }
+                                                    if let Some(item) = this.installed_extensions.iter_mut().find(|e| e.id == id_str) {
+                                                        item.is_enabled = next_enabled;
+                                                    }
+                                                    cx.notify();
                                                 }
-                                            }),
+                                            })),
                                         ),
                                 )
                                 .child(
@@ -260,8 +260,8 @@ pub fn render_extensions_view(
                                         .text_color(theme::text_muted())
                                         .child(ext.description.clone()),
                                 )
-                                .when(!ext.permissions.is_empty(), |this| {
-                                    this.child(
+                                .when(!ext.permissions.is_empty(), |this_card| {
+                                    this_card.child(
                                         div()
                                             .flex()
                                             .items_center()
@@ -277,19 +277,24 @@ pub fn render_extensions_view(
                                             .children(ext.permissions.iter().map(|(perm_name, granted)| {
                                                 let p_name = perm_name.clone();
                                                 let e_id = ext_id.clone();
-                                                let g_cb = grant_cb.clone();
                                                 let is_granted = *granted;
 
                                                 div()
                                                     .id(ElementId::Name(format!("perm-{}-{}", ext_id, perm_name).into()))
                                                     .cursor_pointer()
-                                                    .on_click(move |_ev, _win, _app| {
-                                                        if !is_granted {
-                                                            if let Some(ref cb) = g_cb {
-                                                                cb(&e_id, &p_name);
+                                                    .on_click(cx.listener({
+                                                        let e_id = e_id.clone();
+                                                        let p_name = p_name.clone();
+                                                        move |this, _, _, cx| {
+                                                            if !is_granted {
+                                                                if let Some(ref cb) = this.callbacks.on_grant_extension_permission {
+                                                                    cb(&e_id, &p_name);
+                                                                }
+                                                                this.refresh_extensions();
+                                                                cx.notify();
                                                             }
                                                         }
-                                                    })
+                                                    }))
                                                     .child(
                                                         CouchTag::new(format!(
                                                             "{}{}",

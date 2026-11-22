@@ -1364,6 +1364,24 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
                 cx.notify();
             }),
         ))
+        .child(render_toggle(
+            "Developer Mode",
+            "Enable developer tools, virtual gamepad injection, and advanced diagnostics",
+            settings.developer_mode,
+            cx.listener(|this, _, _, cx| {
+                this.app_settings.developer_mode = !this.app_settings.developer_mode;
+                let _ = this.app_settings.save();
+                this.status_message = format!(
+                    "Developer mode {}",
+                    if this.app_settings.developer_mode {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                );
+                cx.notify();
+            }),
+        ))
         .into_any_element()
 }
 
@@ -1437,6 +1455,7 @@ pub fn render_card_general_integrations(
                         .icon(IconName::LayoutGrid)
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.active_tab = ActiveTab::Extensions;
+                            this.refresh_extensions();
                             cx.notify();
                         })),
                 ),
@@ -3336,24 +3355,36 @@ pub fn render_card_appearance_handlers_dir(
                         .icon(IconName::FolderOpen)
                         .size(CouchButtonSize::Sm)
                         .on_click(cx.listener(|this, _, _, cx| {
-                            if let Some(folder) =
-                                crate::dialogs::pick_folder("Select Game Handlers Directory")
-                            {
-                                let folder_str = folder.to_string_lossy().to_string();
-                                this.handlers_dir = folder_str.clone();
-                                this.app_settings.handlers_directory = folder_str.clone();
-                                if let Some(ref cb) = this.callbacks.on_handlers_dir_changed {
-                                    let updated = cb(&folder_str);
-                                    if !updated.is_empty() {
-                                        this.handlers = updated.clone();
-                                        this.handler_names =
-                                            updated.iter().map(|h| h.game_name.clone()).collect();
-                                    }
+                            this.status_message = "Browsing for game handlers directory...".to_string();
+                            cx.notify();
+                            cx.spawn(async move |this, cx| {
+                                let folder_opt =
+                                    crate::dialogs::pick_folder_async("Select Game Handlers Directory").await;
+                                if let Some(folder) = folder_opt {
+                                    let folder_str = folder.to_string_lossy().to_string();
+                                    let _ = this.update(&mut *cx, |this, cx| {
+                                        this.handlers_dir = folder_str.clone();
+                                        this.app_settings.handlers_directory = folder_str.clone();
+                                        if let Some(ref cb) = this.callbacks.on_handlers_dir_changed {
+                                            let updated = cb(&folder_str);
+                                            if !updated.is_empty() {
+                                                this.handlers = updated.clone();
+                                                this.handler_names =
+                                                    updated.iter().map(|h| h.game_name.clone()).collect();
+                                            }
+                                        }
+                                        this.status_message =
+                                            format!("Handlers directory set to: {}", folder_str);
+                                        cx.notify();
+                                    });
+                                } else {
+                                    let _ = this.update(&mut *cx, |this, cx| {
+                                        this.status_message = "Handlers directory selection cancelled.".to_string();
+                                        cx.notify();
+                                    });
                                 }
-                                this.status_message =
-                                    format!("Handlers directory set to: {}", folder_str);
-                                cx.notify();
-                            }
+                            })
+                            .detach();
                         })),
                 ),
         )

@@ -126,8 +126,6 @@ pub struct MainWindow {
     pub hub_browser: crate::HubBrowserView,
     /// Embedded settings view model.
     pub settings_view: crate::SettingsView,
-    /// Embedded device panel view model.
-    pub device_panel: crate::DevicePanelComponent,
     /// Active library sort criterion.
     pub library_sort: crate::models::LibrarySortOption,
     /// Active library sort direction.
@@ -231,29 +229,12 @@ impl MainWindow {
         let mut setup_screen = crate::SetupScreenView::new();
         setup_screen.set_player_count(initial_player_count);
 
-        let mut device_panel = crate::DevicePanelComponent::new();
-        device_panel.detected_devices = detected_devices;
-
         let mut game_list = crate::GameListView::new();
         if let Some(ref g) = selected_game {
             game_list.select_game(Some(g.clone()));
         }
 
-        let mut detected_devices_list = Vec::new();
-        for i in 0..detected_devices {
-            let name = match i {
-                0 => "Xbox Wireless Controller (XInput #0)",
-                1 => "DualSense / Wireless Controller (XInput #1)",
-                2 => "Generic DirectInput Gamepad #2",
-                _ => "Connected Gamepad Device",
-            };
-            detected_devices_list.push(DeviceItem::new(
-                i,
-                name,
-                format!("dev-guid-{:04}", i),
-                true,
-            ));
-        }
+        let detected_devices_list = Vec::new();
 
         let handlers: Vec<HandlerItem> = handler_names
             .iter()
@@ -309,7 +290,6 @@ impl MainWindow {
             setup_screen,
             hub_browser: crate::HubBrowserView::new(),
             settings_view: crate::SettingsView::new(),
-            device_panel,
             library_sort: crate::models::LibrarySortOption::Alphabetical,
             library_sort_dir: crate::models::LibrarySortDirection::Ascending,
             hub_loading: false,
@@ -362,8 +342,11 @@ impl MainWindow {
         win
     }
 
-    /// Injects a mock/virtual controller device for testing.
+    /// Injects a mock/virtual controller device for testing (Developer Mode only).
     pub fn add_virtual_gamepad(&mut self) {
+        if !self.app_settings.developer_mode {
+            return;
+        }
         let next_id = self
             .detected_devices_list
             .iter()
@@ -378,7 +361,6 @@ impl MainWindow {
         );
         self.detected_devices_list.push(dev);
         self.detected_devices = self.detected_devices_list.len();
-        self.device_panel.detected_devices = self.detected_devices;
         self.sync_player_assignments();
         self.status_message = format!(
             "Added Virtual Controller #{} (Ready for assignment)",
@@ -390,7 +372,6 @@ impl MainWindow {
     pub fn clear_virtual_gamepads(&mut self) {
         self.detected_devices_list.retain(|d| !d.is_virtual);
         self.detected_devices = self.detected_devices_list.len();
-        self.device_panel.detected_devices = self.detected_devices;
         self.sync_player_assignments();
         self.status_message = "Cleared virtual mock gamepads.".to_string();
     }
@@ -778,11 +759,7 @@ impl MainWindow {
                 } else if self.big_picture_screen == BigPictureScreen::Carousel {
                     self.carousel_state.move_up();
                 } else if self.big_picture_screen == BigPictureScreen::GameDetails {
-                    if self.details_focus_index == 0 {
-                        self.details_focus_index = 3;
-                    } else {
-                        self.details_focus_index = self.details_focus_index.saturating_sub(1);
-                    }
+                    self.details_focus_index = self.details_focus_index.saturating_sub(1);
                 } else if self.big_picture_screen == BigPictureScreen::GameManagement {
                     self.management_focus_index = match self.management_focus_index {
                         0 | 1 => 8,
@@ -807,18 +784,26 @@ impl MainWindow {
                         self.settings_item_index = self.settings_item_index.saturating_sub(1);
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
-                    if self.hub_focus_zone == 1 {
+                    if self.hub_focus_zone == 3 {
+                        self.hub_focus_zone = 1;
+                    } else if self.hub_focus_zone == 2 {
                         if self.couch_hub_state.selected_index == 0 {
-                            self.hub_focus_zone = 0;
+                            self.hub_focus_zone = 1;
                         } else {
                             self.couch_hub_state.selected_index -= 1;
                         }
-                    } else if self.hub_focus_zone == 2 {
+                    } else if self.hub_focus_zone == 1 {
                         self.hub_focus_zone = 0;
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
                     if self.couch_setup_state.focused_slot > 0 {
                         self.couch_setup_state.focused_slot -= 1;
+                    }
+                    if self.couch_setup_state.current_step == crate::big_picture::setup::CouchSetupStep::ScreenLayout
+                        && self.couch_setup_state.focused_slot < crate::big_picture::setup::AVAILABLE_LAYOUTS.len()
+                    {
+                        self.couch_setup_state.selected_layout = crate::big_picture::setup::AVAILABLE_LAYOUTS[self.couch_setup_state.focused_slot].to_string();
+                        self.selected_layout = self.couch_setup_state.selected_layout.clone();
                     }
                 }
                 cx.notify();
@@ -831,11 +816,7 @@ impl MainWindow {
                 } else if self.big_picture_screen == BigPictureScreen::Carousel {
                     self.carousel_state.move_down();
                 } else if self.big_picture_screen == BigPictureScreen::GameDetails {
-                    if self.details_focus_index == 3 {
-                        self.details_focus_index = 0;
-                    } else {
-                        self.details_focus_index = (self.details_focus_index + 1).min(2);
-                    }
+                    self.details_focus_index = (self.details_focus_index + 1).min(2);
                 } else if self.big_picture_screen == BigPictureScreen::GameManagement {
                     self.management_focus_index = match self.management_focus_index {
                         8 => 1,
@@ -857,22 +838,37 @@ impl MainWindow {
                     if self.settings_focus_zone == 0 {
                         self.big_picture_settings_tab = (self.big_picture_settings_tab + 1).min(1);
                     } else {
-                        let max_items = if self.big_picture_settings_tab == 0 { 5 } else { self.detected_devices_list.len() + 1 };
+                        let max_items = if self.big_picture_settings_tab == 0 { 6 } else { self.detected_devices_list.len() + 1 };
                         self.settings_item_index = (self.settings_item_index + 1).min(max_items);
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
                     if self.hub_focus_zone == 0 {
                         self.hub_focus_zone = 1;
                     } else if self.hub_focus_zone == 1 {
+                        self.hub_focus_zone = 2;
+                    } else if self.hub_focus_zone == 2 {
                         let count = self.get_filtered_couch_hub_packages().len();
                         if count > 0 && self.couch_hub_state.selected_index + 1 < count {
                             self.couch_hub_state.selected_index += 1;
                         }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
-                    let max_slots = self.couch_setup_state.slots.len();
-                    if max_slots > 0 && self.couch_setup_state.focused_slot + 1 < max_slots {
+                    let max_slots = match self.couch_setup_state.current_step {
+                        crate::big_picture::setup::CouchSetupStep::Players => self.couch_setup_state.slots.len(),
+                        crate::big_picture::setup::CouchSetupStep::ScreenLayout => crate::big_picture::setup::AVAILABLE_LAYOUTS.len(),
+                        crate::big_picture::setup::CouchSetupStep::GameOptions => {
+                            self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)).map(|h| h.options.len()).unwrap_or(0)
+                        }
+                        crate::big_picture::setup::CouchSetupStep::Launch => 0,
+                    };
+                    if self.couch_setup_state.focused_slot < max_slots {
                         self.couch_setup_state.focused_slot += 1;
+                    }
+                    if self.couch_setup_state.current_step == crate::big_picture::setup::CouchSetupStep::ScreenLayout
+                        && self.couch_setup_state.focused_slot < crate::big_picture::setup::AVAILABLE_LAYOUTS.len()
+                    {
+                        self.couch_setup_state.selected_layout = crate::big_picture::setup::AVAILABLE_LAYOUTS[self.couch_setup_state.focused_slot].to_string();
+                        self.selected_layout = self.couch_setup_state.selected_layout.clone();
                     }
                 }
                 cx.notify();
@@ -882,8 +878,10 @@ impl MainWindow {
                     m.cycle_choice(false);
                 } else if self.big_picture_screen == BigPictureScreen::Carousel {
                     match self.carousel_state.focus_zone {
-                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(_) => {
-                            self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(0);
+                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx) => {
+                            if btn_idx > 0 {
+                                self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx - 1);
+                            }
                         }
                         crate::big_picture::carousel::CarouselFocusZone::HeaderTabs => {
                             self.big_picture_screen = self.big_picture_screen.prev();
@@ -893,7 +891,7 @@ impl MainWindow {
                         }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::GameDetails {
-                    self.details_focus_index = 3;
+                    self.big_picture_screen = BigPictureScreen::Carousel;
                 } else if self.big_picture_screen == BigPictureScreen::GameManagement {
                     self.management_focus_index = match self.management_focus_index {
                         1 => 0,
@@ -904,21 +902,52 @@ impl MainWindow {
                         _ => self.management_focus_index,
                     };
                 } else if self.big_picture_screen == BigPictureScreen::Sessions {
-                    if !self.is_session_active() && self.sessions_focus_index > 1 {
-                        self.sessions_focus_index -= 1;
+                    if !self.is_session_active() {
+                        let total_profiles = self.get_all_saved_profiles_items().len();
+                        if self.sessions_focus_index > 1 {
+                            self.sessions_focus_index -= 1;
+                        } else if self.sessions_focus_index == 1 && total_profiles > 0 {
+                            self.sessions_focus_index = total_profiles;
+                        }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::Settings {
                     self.settings_focus_zone = 0;
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
                     if self.hub_focus_zone == 0 {
                         self.hub_top_card_index = 0;
-                    } else if self.hub_focus_zone == 2 {
-                        self.hub_focus_zone = 1;
+                    } else if self.hub_focus_zone == 3 {
+                        self.hub_focus_zone = 2;
                     } else {
                         self.couch_hub_state.prev_category();
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
-                    self.couch_setup_state.navigate_slot_left();
+                    match self.couch_setup_state.current_step {
+                        crate::big_picture::setup::CouchSetupStep::Players => {
+                            if self.couch_setup_state.focused_slot == self.couch_setup_state.slots.len() {
+                                self.couch_setup_state.focused_slot = 0;
+                            } else {
+                                self.couch_setup_state.navigate_slot_left();
+                            }
+                        }
+                        crate::big_picture::setup::CouchSetupStep::ScreenLayout => {
+                            self.couch_setup_state.focused_slot = 0;
+                        }
+                        crate::big_picture::setup::CouchSetupStep::GameOptions => {
+                            let cur_slot = self.couch_setup_state.focused_slot;
+                            if let Some(h) = self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)) {
+                                if let Some(opt) = h.options.get(cur_slot) {
+                                    let cur_val = self.selected_handler_options.get(&opt.key).cloned().unwrap_or_else(|| opt.values.first().cloned().unwrap_or_default());
+                                    if let Some(pos) = opt.values.iter().position(|v| v == &cur_val) {
+                                        let prev_idx = (pos + opt.values.len() - 1) % opt.values.len();
+                                        if let Some(nv) = opt.values.get(prev_idx) {
+                                            self.selected_handler_options.insert(opt.key.clone(), nv.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        crate::big_picture::setup::CouchSetupStep::Launch => {}
+                    }
                 } else {
                     self.carousel_state.move_left();
                 }
@@ -929,8 +958,10 @@ impl MainWindow {
                     m.cycle_choice(true);
                 } else if self.big_picture_screen == BigPictureScreen::Carousel {
                     match self.carousel_state.focus_zone {
-                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(_) => {
-                            self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(1);
+                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx) => {
+                            if btn_idx < 2 {
+                                self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx + 1);
+                            }
                         }
                         crate::big_picture::carousel::CarouselFocusZone::HeaderTabs => {
                             self.big_picture_screen = self.big_picture_screen.next();
@@ -940,9 +971,7 @@ impl MainWindow {
                         }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::GameDetails {
-                    if self.details_focus_index == 3 {
-                        self.details_focus_index = 0;
-                    }
+                    // Retain focus on right actions panel
                 } else if self.big_picture_screen == BigPictureScreen::GameManagement {
                     self.management_focus_index = match self.management_focus_index {
                         0 => 1,
@@ -954,8 +983,12 @@ impl MainWindow {
                 } else if self.big_picture_screen == BigPictureScreen::Sessions {
                     if !self.is_session_active() {
                         let total_profiles = self.get_all_saved_profiles_items().len();
-                        if self.sessions_focus_index < total_profiles {
+                        if self.sessions_focus_index == 0 {
+                            self.sessions_focus_index = 1;
+                        } else if self.sessions_focus_index < total_profiles {
                             self.sessions_focus_index += 1;
+                        } else if total_profiles > 0 {
+                            self.sessions_focus_index = 1;
                         }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::Settings {
@@ -963,13 +996,38 @@ impl MainWindow {
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
                     if self.hub_focus_zone == 0 {
                         self.hub_top_card_index = 1;
-                    } else if self.hub_focus_zone == 1 {
-                        self.hub_focus_zone = 2;
+                    } else if self.hub_focus_zone == 2 {
+                        self.hub_focus_zone = 3;
                     } else {
                         self.couch_hub_state.next_category();
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
-                    self.couch_setup_state.navigate_slot_right();
+                    match self.couch_setup_state.current_step {
+                        crate::big_picture::setup::CouchSetupStep::Players => {
+                            self.couch_setup_state.focused_slot = self.couch_setup_state.slots.len();
+                        }
+                        crate::big_picture::setup::CouchSetupStep::ScreenLayout => {
+                            self.couch_setup_state.focused_slot = crate::big_picture::setup::AVAILABLE_LAYOUTS.len();
+                        }
+                        crate::big_picture::setup::CouchSetupStep::GameOptions => {
+                            let cur_slot = self.couch_setup_state.focused_slot;
+                            let opts_len = self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)).map(|h| h.options.len()).unwrap_or(0);
+                            if cur_slot >= opts_len {
+                                // Already on next button
+                            } else if let Some(h) = self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)) {
+                                if let Some(opt) = h.options.get(cur_slot) {
+                                    let cur_val = self.selected_handler_options.get(&opt.key).cloned().unwrap_or_else(|| opt.values.first().cloned().unwrap_or_default());
+                                    if let Some(pos) = opt.values.iter().position(|v| v == &cur_val) {
+                                        let next_idx = (pos + 1) % opt.values.len();
+                                        if let Some(nv) = opt.values.get(next_idx) {
+                                            self.selected_handler_options.insert(opt.key.clone(), nv.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        crate::big_picture::setup::CouchSetupStep::Launch => {}
+                    }
                 } else {
                     self.carousel_state.move_right();
                 }
@@ -991,15 +1049,20 @@ impl MainWindow {
                 if self.big_picture_screen == BigPictureScreen::Carousel {
                     match self.carousel_state.focus_zone {
                         crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx) => {
-                            let filtered = self.carousel_state.filter_and_sort_handlers(&self.handlers, &self.carousel_state.search_query);
-                            let target = filtered.get(self.carousel_state.selected_index).map(|h| h.game_name.clone()).or_else(|| self.selected_game.clone());
-                            if let Some(name) = target {
-                                if btn_idx == 0 {
-                                    self.enter_couch_setup(&name, cx);
-                                } else {
-                                    self.selected_game = Some(name);
-                                    self.big_picture_screen = BigPictureScreen::GameDetails;
-                                    cx.notify();
+                            if btn_idx == 2 {
+                                self.carousel_state.search_input_open = true;
+                                cx.notify();
+                            } else {
+                                let filtered = self.carousel_state.filter_and_sort_handlers(&self.handlers, &self.carousel_state.search_query);
+                                let target = filtered.get(self.carousel_state.selected_index).map(|h| h.game_name.clone()).or_else(|| self.selected_game.clone());
+                                if let Some(name) = target {
+                                    if btn_idx == 0 {
+                                        self.enter_couch_setup(&name, cx);
+                                    } else {
+                                        self.selected_game = Some(name);
+                                        self.big_picture_screen = BigPictureScreen::GameDetails;
+                                        cx.notify();
+                                    }
                                 }
                             }
                         }
@@ -1057,18 +1120,48 @@ impl MainWindow {
                         _ => {}
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
+                    let total_slots = self.couch_setup_state.slots.len();
                     match self.couch_setup_state.current_step {
-                        crate::big_picture::setup::CouchSetupStep::Launch => {
-                            self.launch_couch_session(cx);
-                        }
-                        _ => {
-                            let focused = self.couch_setup_state.focused_slot;
-                            if self.couch_setup_state.grabbed_slot.is_some() {
-                                self.couch_setup_state.drop_swap_target(focused);
+                        crate::big_picture::setup::CouchSetupStep::Players => {
+                            if self.couch_setup_state.focused_slot == total_slots {
+                                self.couch_setup_state.next_step();
+                                self.couch_setup_state.focused_slot = 0;
                             } else {
-                                self.couch_setup_state.grab_slot(focused);
+                                let focused = self.couch_setup_state.focused_slot;
+                                if self.couch_setup_state.grabbed_slot.is_some() {
+                                    self.couch_setup_state.drop_swap_target(focused);
+                                } else {
+                                    self.couch_setup_state.grab_slot(focused);
+                                }
                             }
                             cx.notify();
+                        }
+                        crate::big_picture::setup::CouchSetupStep::ScreenLayout => {
+                            self.couch_setup_state.next_step();
+                            self.couch_setup_state.focused_slot = 0;
+                            cx.notify();
+                        }
+                        crate::big_picture::setup::CouchSetupStep::GameOptions => {
+                            let cur_slot = self.couch_setup_state.focused_slot;
+                            let opts_len = self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)).map(|h| h.options.len()).unwrap_or(0);
+                            if cur_slot >= opts_len {
+                                self.couch_setup_state.next_step();
+                                self.couch_setup_state.focused_slot = 0;
+                            } else if let Some(h) = self.selected_game.as_ref().and_then(|g| self.handlers.iter().find(|h| &h.game_name == g || &h.guid == g)) {
+                                if let Some(opt) = h.options.get(cur_slot) {
+                                    let cur_val = self.selected_handler_options.get(&opt.key).cloned().unwrap_or_else(|| opt.values.first().cloned().unwrap_or_default());
+                                    if let Some(pos) = opt.values.iter().position(|v| v == &cur_val) {
+                                        let next_idx = (pos + 1) % opt.values.len();
+                                        if let Some(nv) = opt.values.get(next_idx) {
+                                            self.selected_handler_options.insert(opt.key.clone(), nv.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            cx.notify();
+                        }
+                        crate::big_picture::setup::CouchSetupStep::Launch => {
+                            self.launch_couch_session(cx);
                         }
                     }
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
@@ -1078,6 +1171,9 @@ impl MainWindow {
                         } else {
                             self.trigger_browse_game_exe_async(cx);
                         }
+                    } else if self.hub_focus_zone == 1 {
+                        self.couch_hub_state.search_input_open = true;
+                        cx.notify();
                     } else {
                         let pkgs = self.get_filtered_couch_hub_packages();
                         if self.couch_hub_state.selected_index < pkgs.len() {
@@ -1137,6 +1233,20 @@ impl MainWindow {
                             3 => { self.show_osd("Sound effects toggled", 1200, cx); cx.notify(); }
                             4 => { self.show_osd("English (Default)", 1200, cx); cx.notify(); }
                             5 => { self.show_osd("Auto-updates enabled", 1200, cx); cx.notify(); }
+                            6 => {
+                                self.app_settings.developer_mode = !self.app_settings.developer_mode;
+                                let _ = self.app_settings.save();
+                                self.show_osd(
+                                    if self.app_settings.developer_mode {
+                                        "Developer mode enabled"
+                                    } else {
+                                        "Developer mode disabled"
+                                    },
+                                    1200,
+                                    cx,
+                                );
+                                cx.notify();
+                            }
                             _ => {}
                         }
                     } else {
@@ -1390,7 +1500,6 @@ impl MainWindow {
             }
         }
         self.detected_devices = devices.len();
-        self.device_panel.detected_devices = devices.len();
         self.detected_devices_list = devices;
         self.sync_player_assignments();
     }
@@ -1398,7 +1507,6 @@ impl MainWindow {
     /// Sets explicit detected hardware `DeviceItem` instances.
     pub fn with_device_items(mut self, devices: Vec<DeviceItem>) -> Self {
         self.detected_devices = devices.len();
-        self.device_panel.detected_devices = devices.len();
         self.detected_devices_list = devices;
         self.sync_player_assignments();
         self
@@ -2416,6 +2524,18 @@ impl MainWindow {
         self
     }
 
+    /// Sets callback for rescanning extensions from disk and immediately populates installed_extensions.
+    pub fn with_extension_rescanner<F>(mut self, callback: F) -> Self
+    where
+        F: Fn() -> Vec<crate::extensions_view::ExtensionItem> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_extension_rescanner(callback);
+        if let Some(ref cb) = self.callbacks.on_rescan_extensions {
+            self.installed_extensions = cb();
+        }
+        self
+    }
+
     /// Sets callback for granting an extension permission.
     pub fn with_extension_permission_granter<F>(mut self, callback: F) -> Self
     where
@@ -2780,6 +2900,43 @@ impl MainWindow {
         }
     }
 
+    /// Refreshes the list of installed extensions from the engine.
+    pub fn refresh_extensions(&mut self) {
+        if let Some(ref rescanner) = self.callbacks.on_rescan_extensions {
+            self.installed_extensions = rescanner();
+        }
+    }
+
+    /// Opens file dialog to install an extension package archive (*.nucplugin, *.nucaddon, *.zip).
+    pub fn install_extension_dialog(&mut self, cx: &mut Context<Self>) {
+        self.status_message = "Browsing for extension package archive...".to_string();
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let pkg_opt = crate::dialogs::pick_file_async(
+                "Select Extension Package",
+                "Extension Packages (*.nucplugin;*.nucaddon;*.zip)|*.nucplugin;*.nucaddon;*.zip|All Files (*.*)|*.*",
+            )
+            .await;
+            if let Some(pkg) = pkg_opt {
+                let pkg_path = pkg.to_string_lossy().to_string();
+                let _ = this.update(&mut *cx, |this, cx| {
+                    if let Some(ref cb) = this.callbacks.on_install_extension {
+                        match cb(&pkg_path) {
+                            Ok(id) => {
+                                this.status_message = format!("Successfully installed extension '{}'", id);
+                            }
+                            Err(e) => {
+                                this.status_message = format!("Failed installing extension: {}", e);
+                            }
+                        }
+                    }
+                    this.refresh_extensions();
+                    cx.notify();
+                });
+            }
+        }).detach();
+    }
+
     /// Attaches persistent application settings to the window.
     pub fn with_app_settings(mut self, settings: nucleus_profile::AppSettings) -> Self {
         self.handlers_dir = settings.handlers_directory.clone();
@@ -2992,6 +3149,8 @@ impl MainWindow {
             this.active_tab = *tab;
             if *tab == ActiveTab::Setup {
                 this.refresh_saved_profiles();
+            } else if *tab == ActiveTab::Extensions {
+                this.refresh_extensions();
             }
             cx.notify();
         });
@@ -4732,6 +4891,130 @@ impl Render for MainWindow {
                         let ctrl = event.keystroke.modifiers.control;
                         let shift = event.keystroke.modifiers.shift;
 
+                        // 1. If Carousel search popover is open, route typing directly into search query
+                        if this.carousel_state.search_input_open {
+                            if event.keystroke.modifiers.control
+                                || event.keystroke.modifiers.alt
+                                || event.keystroke.modifiers.platform
+                            {
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("escape")
+                                || key.eq_ignore_ascii_case("enter")
+                            {
+                                this.carousel_state.search_input_open = false;
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("backspace") {
+                                this.carousel_state.search_query.pop();
+                                this.carousel_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("space") {
+                                this.carousel_state.search_query.push(' ');
+                                this.carousel_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if let Some(ref s) = event.keystroke.key_char {
+                                this.carousel_state.search_query.push_str(s);
+                                this.carousel_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if key.chars().count() == 1 {
+                                this.carousel_state.search_query.push_str(key);
+                                this.carousel_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            return;
+                        }
+
+                        // 2. If Hub search popover is open, route typing directly into Hub search query
+                        if this.couch_hub_state.search_input_open {
+                            if event.keystroke.modifiers.control
+                                || event.keystroke.modifiers.alt
+                                || event.keystroke.modifiers.platform
+                            {
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("escape")
+                                || key.eq_ignore_ascii_case("enter")
+                            {
+                                this.couch_hub_state.search_input_open = false;
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("backspace") {
+                                this.couch_hub_state.search_query.pop();
+                                this.couch_hub_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("space") {
+                                this.couch_hub_state.search_query.push(' ');
+                                this.couch_hub_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if let Some(ref s) = event.keystroke.key_char {
+                                this.couch_hub_state.search_query.push_str(s);
+                                this.couch_hub_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            if key.chars().count() == 1 {
+                                this.couch_hub_state.search_query.push_str(key);
+                                this.couch_hub_state.selected_index = 0;
+                                cx.notify();
+                                return;
+                            }
+                            return;
+                        }
+
+                        // 3. If Setup combobox is open, route typing directly into draft
+                        if this.setup_screen.combobox_open_key.is_some() {
+                            if event.keystroke.modifiers.control
+                                || event.keystroke.modifiers.alt
+                                || event.keystroke.modifiers.platform
+                            {
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("escape") {
+                                this.setup_screen.close_combobox();
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("backspace") {
+                                this.setup_screen.combobox_search_draft.pop();
+                                this.setup_screen.combobox_validation_error = None;
+                                cx.notify();
+                                return;
+                            }
+                            if key.eq_ignore_ascii_case("space") {
+                                this.setup_screen.combobox_search_draft.push(' ');
+                                this.setup_screen.combobox_validation_error = None;
+                                cx.notify();
+                                return;
+                            }
+                            if let Some(ref s) = event.keystroke.key_char {
+                                this.setup_screen.combobox_search_draft.push_str(s);
+                                this.setup_screen.combobox_validation_error = None;
+                                cx.notify();
+                                return;
+                            }
+                            if key.chars().count() == 1 {
+                                this.setup_screen.combobox_search_draft.push_str(key);
+                                this.setup_screen.combobox_validation_error = None;
+                                cx.notify();
+                                return;
+                            }
+                            return;
+                        }
+
                         if let Some(action_name) =
                             crate::big_picture::input::map_key_to_couch_action_name(
                                 key, ctrl, shift,
@@ -4857,42 +5140,7 @@ impl Render for MainWindow {
                 cx,
             ),
             ActiveTab::Settings => crate::settings_view::render_settings_view(self, cx),
-            ActiveTab::Extensions => crate::extensions_view::render_extensions_view(
-                &self.extensions_view_state,
-                &self.installed_extensions,
-                self.callbacks.on_toggle_extension.clone(),
-                self.callbacks.on_install_extension.as_ref().map(|cb| {
-                    let c = cb.clone();
-                    Arc::new(move || {
-                        let c = c.clone();
-                        std::thread::spawn(move || {
-                            if let Some(path) = crate::dialogs::pick_file(
-                                "Select Extension Package (*.nucplugin, *.nucaddon, *.zip)",
-                                "*.nucplugin;*.nucaddon;*.zip",
-                            ) {
-                                let path_str = path.to_string_lossy();
-                                let _ = c(&path_str);
-                            }
-                        });
-                    }) as Arc<dyn Fn() + Send + Sync>
-                }),
-                self.callbacks.on_rescan_extensions.as_ref().map(|cb| {
-                    let cb = cb.clone();
-                    Arc::new(move || {
-                        let _ = cb();
-                    }) as Arc<dyn Fn() + Send + Sync>
-                }),
-                Some(Arc::new(|| {
-                    if let Some(globals) = nucleus_common::Globals::try_get() {
-                        let path = globals.app_data_path.join("addons");
-                        let _ = std::fs::create_dir_all(&path);
-                        let _ = std::process::Command::new("explorer")
-                            .arg(path)
-                            .spawn();
-                    }
-                })),
-                self.callbacks.on_grant_extension_permission.clone(),
-            ),
+            ActiveTab::Extensions => crate::extensions_view::render_extensions_view(self, cx),
             ActiveTab::Debugger => crate::debugger_view::render_debugger_view(
                 &self.debugger_view_state,
                 self.callbacks.on_debug_resume.clone(),
@@ -4935,6 +5183,38 @@ impl Render for MainWindow {
                     if this.settings_view.recording_hotkey.is_some() {
                         this.handle_key_recording(event, cx);
                         return;
+                    }
+                    if this.setup_screen.combobox_open_key.is_some() {
+                        let key = event.keystroke.key.as_str();
+                        if key.eq_ignore_ascii_case("escape") {
+                            this.setup_screen.close_combobox();
+                            cx.notify();
+                            return;
+                        }
+                        if key.eq_ignore_ascii_case("backspace") {
+                            this.setup_screen.combobox_search_draft.pop();
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                            return;
+                        }
+                        if key.eq_ignore_ascii_case("space") {
+                            this.setup_screen.combobox_search_draft.push(' ');
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                            return;
+                        }
+                        if let Some(ref s) = event.keystroke.key_char {
+                            this.setup_screen.combobox_search_draft.push_str(s);
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                            return;
+                        }
+                        if key.chars().count() == 1 {
+                            this.setup_screen.combobox_search_draft.push_str(key);
+                            this.setup_screen.combobox_validation_error = None;
+                            cx.notify();
+                            return;
+                        }
                     }
                     if let Some((idx, field)) = this.settings_view.editing_player {
                         let key = event.keystroke.key.as_str();
@@ -5204,6 +5484,28 @@ mod tests {
         let orig = window.player_device_assignments[0].clone();
         window.cycle_player_device(0);
         assert_ne!(window.player_device_assignments[0], orig);
+    }
+
+    #[test]
+    fn test_developer_mode_and_mock_device_lifecycle() {
+        let mut window = MainWindow::new(0, vec!["Game".to_string()]);
+        // Zero mockup devices should be present by default
+        assert!(window.detected_devices_list.is_empty());
+        assert!(!window.app_settings.developer_mode);
+
+        // Attempting to add virtual gamepad when developer_mode is false does nothing
+        window.add_virtual_gamepad();
+        assert!(window.detected_devices_list.is_empty());
+
+        // Enabling developer mode allows adding virtual gamepad
+        window.app_settings.developer_mode = true;
+        window.add_virtual_gamepad();
+        assert_eq!(window.detected_devices_list.len(), 1);
+        assert!(window.detected_devices_list[0].is_virtual);
+
+        // Clearing virtual gamepads removes them
+        window.clear_virtual_gamepads();
+        assert!(window.detected_devices_list.is_empty());
     }
 
     #[test]
