@@ -234,6 +234,23 @@ pub struct AppSettings {
     #[serde(default)]
     pub debugger_auto_attach: bool,
 
+    // --- Big Picture / Couch Mode ---
+    /// Whether to start Nucleus Co-op directly in Big Picture mode on application launch.
+    #[serde(default)]
+    pub start_in_big_picture: bool,
+    /// Interface scale preference ("Normal", "Large", "Large · TV").
+    #[serde(default = "default_interface_scale")]
+    pub interface_scale: String,
+    /// Whether interface navigation/confirmation sounds are enabled.
+    #[serde(default = "default_true")]
+    pub interface_sounds: bool,
+    /// Preferred display monitor index (0 = primary).
+    #[serde(default)]
+    pub preferred_display: usize,
+    /// Custom key-value preferences for individual game handlers.
+    #[serde(default)]
+    pub custom_preferences: std::collections::HashMap<String, String>,
+
     // --- PeerParty Online Multiplayer ---
     /// Whether PeerParty P2P multiplayer emulation is enabled globally.
     #[serde(default = "default_true")]
@@ -253,10 +270,19 @@ pub struct AppSettings {
     /// Preferred multiplayer emulator backend ("Auto", "Goldberg", "Nemirtingas", "PeerParty").
     #[serde(default = "default_preferred_emulator")]
     pub preferred_emulator: String,
+
+    // --- Developer Mode ---
+    /// Enable developer tools, mock device injection, and advanced diagnostics.
+    #[serde(default)]
+    pub developer_mode: bool,
 }
 
 fn default_preferred_emulator() -> String {
     "Auto".to_string()
+}
+
+fn default_interface_scale() -> String {
+    "Large · TV".to_string()
 }
 
 fn default_true() -> bool {
@@ -388,12 +414,19 @@ impl Default for AppSettings {
             plugins_enabled: true,
             debugger_auto_attach: false,
 
+            start_in_big_picture: false,
+            interface_scale: "Large · TV".to_string(),
+            interface_sounds: true,
+            preferred_display: 0,
+            custom_preferences: std::collections::HashMap::new(),
+
             peerparty_enabled: true,
             peerparty_default_room: None,
             peerparty_public_sessions: false,
             peerparty_voice_chat: false,
             peerparty_overlay: true,
             preferred_emulator: "Auto".to_string(),
+            developer_mode: false,
         }
     }
 }

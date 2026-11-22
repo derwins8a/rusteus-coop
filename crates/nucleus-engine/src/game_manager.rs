@@ -543,8 +543,20 @@ impl GameManager {
     }
 
     /// Deletes a game handler and associated files from disk, userprofile.json, and metaInfo.json.
-    pub fn delete_game_handler(&mut self, guid: &str) -> NucleusResult<()> {
-        tracing::info!("Deleting game handler for '{}'...", guid);
+    pub fn delete_game_handler(&mut self, guid_or_name: &str) -> NucleusResult<()> {
+        let actual_guid = if self.handlers.contains_key(guid_or_name) {
+            guid_or_name.to_string()
+        } else if let Some((g, _)) = self.handlers.iter().find(|(g, h)| {
+            g.eq_ignore_ascii_case(guid_or_name)
+                || h.game_name.eq_ignore_ascii_case(guid_or_name)
+                || h.hub_handler_id.as_deref().map_or(false, |hid| hid.eq_ignore_ascii_case(guid_or_name))
+        }) {
+            g.clone()
+        } else {
+            guid_or_name.to_string()
+        };
+        let guid = &actual_guid;
+        tracing::info!("Deleting game handler for '{}' (resolved guid: '{}')...", guid_or_name, guid);
 
         // 1. Delete handler script (.js) & .hubmeta.json sidecar from disk
         if let Some(h) = self.handlers.get(guid) {
