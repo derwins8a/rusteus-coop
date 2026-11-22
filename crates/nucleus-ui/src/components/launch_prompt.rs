@@ -27,6 +27,9 @@ pub struct NefosLaunchPromptModal {
     on_cancel: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
 }
 
+/// Alias for ergonomic framework usage.
+pub type LaunchPromptModal = NefosLaunchPromptModal;
+
 impl NefosLaunchPromptModal {
     pub fn new(player_index: usize, player_count: usize, message: impl Into<SharedString>) -> Self {
         Self {
