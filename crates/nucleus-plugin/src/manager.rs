@@ -143,7 +143,19 @@ impl ExtensionManager {
 
     /// Scans both plugins and addons directories, discovering and activating extensions.
     pub fn scan_all(&mut self) -> NucleusResult<()> {
-        let dirs_to_scan = vec![self.plugins_dir.clone(), self.addons_dir.clone()];
+        let mut dirs_to_scan = vec![self.plugins_dir.clone(), self.addons_dir.clone()];
+
+        // Also check local workspace/portable fallback roots if they exist
+        for candidate in &[
+            PathBuf::from("addons"),
+            PathBuf::from("plugins"),
+            PathBuf::from("content").join("addons"),
+            PathBuf::from("content").join("plugins"),
+        ] {
+            if candidate.exists() && !dirs_to_scan.contains(candidate) {
+                dirs_to_scan.push(candidate.clone());
+            }
+        }
 
         for scan_root in dirs_to_scan {
             if !scan_root.exists() {

@@ -1290,6 +1290,161 @@ fn launch_gui(
         None
     };
 
+    // Hub Historical Version Install callback
+    let gm_version_install = gm.clone();
+    let handlers_dir_version = handlers_dir.clone();
+    let hub_version_install_cb = move |handler_id: &str,
+                                       package_id: &str,
+                                       version_num: i32,
+                                       expected_size: Option<u64>,
+                                       progress_cb: Box<dyn Fn(f32) + Send + Sync>|
+          -> Option<HandlerItem> {
+        println!(
+            "[Game Engine] Downloading historical handler '{}' (package: '{}', v{}) from Hub...",
+            handler_id, package_id, version_num
+        );
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("[Game Engine] Failed to create Tokio runtime: {}", e);
+                return None;
+            }
+        };
+
+        let (hub_client, dest_dir) = if let Ok(mgr) = gm_version_install.lock() {
+            (mgr.hub().clone(), mgr.handlers_dir().to_path_buf())
+        } else {
+            (
+                nucleus_hub::HubClient::default(),
+                Path::new(&handlers_dir_version).to_path_buf(),
+            )
+        };
+
+        let existing_guids: std::collections::HashSet<String> = if let Ok(mgr) = gm_version_install.lock() {
+            mgr.get_handlers().keys().cloned().collect()
+        } else {
+            std::collections::HashSet::new()
+        };
+
+        let on_prog = {
+            let cb = progress_cb;
+            move |p: f32| {
+                cb(p);
+            }
+        };
+
+        match rt.block_on(
+            hub_client.download_and_extract_package_version_with_progress(
+                handler_id,
+                package_id,
+                version_num,
+                expected_size,
+                &dest_dir,
+                on_prog,
+            ),
+        ) {
+            Ok(files) => {
+                println!(
+                    "[Game Engine] Extracted {} files for handler version '{}'!",
+                    files.len(),
+                    handler_id
+                );
+                if let Ok(mut mgr) = gm_version_install.lock() {
+                    let _ = mgr.reload_handlers();
+
+                    let mut matched_entry: Option<(String, nucleus_engine::HandlerConfig)> = None;
+                    for (guid, h) in mgr.get_handlers() {
+                        if !existing_guids.contains(guid) {
+                            matched_entry = Some((guid.clone(), h.clone()));
+                            break;
+                        }
+                    }
+
+                    if matched_entry.is_none() {
+                        for (guid, h) in mgr.get_handlers() {
+                            if h.hub_handler_id.as_deref() == Some(handler_id)
+                                || guid.eq_ignore_ascii_case(handler_id)
+                                || files.iter().any(|f| {
+                                    let lossy = f.to_string_lossy().to_lowercase();
+                                    lossy.contains(&guid.to_lowercase())
+                                        || lossy.contains(&h.game_name.to_lowercase())
+                                })
+                            {
+                                matched_entry = Some((guid.clone(), h.clone()));
+                                break;
+                            }
+                        }
+                    }
+
+                    if let Some((guid, h)) = matched_entry {
+                        println!(
+                            "[Game Engine] Successfully associated Hub handler version '{}' with local GUID '{}' ('{}')",
+                            handler_id, guid, h.game_name
+                        );
+                        let profile = mgr.get_profile(&guid).cloned();
+                        let meta_info = mgr
+                            .meta_info()
+                            .find_entry(&guid)
+                            .or_else(|| mgr.meta_info().find_entry(&h.game_name))
+                            .map(|(_, e)| e)
+                            .cloned();
+                        return Some(build_handler_item(
+                            &guid,
+                            &h,
+                            profile.as_ref(),
+                            meta_info.as_ref(),
+                        ));
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "[Game Engine] Historical version download failed for '{}': {}",
+                    handler_id, e
+                );
+            }
+        }
+        None
+    };
+
+    // Hot Drop-In / Drop-Out callbacks for Couch OSD
+    let gm_drop_in = gm.clone();
+    let drop_in_cb = move |device_id: &str, layout_name: &str| -> Result<usize, String> {
+        println!(
+            "[Game Engine] Hot drop-in requested for device '{}' (layout: '{}')",
+            device_id, layout_name
+        );
+        if let Ok(mut mgr) = gm_drop_in.lock() {
+            mgr.drop_in_session_player(device_id, layout_name)
+                .map_err(|e| e.to_string())
+        } else {
+            Err("Game engine lock unavailable".to_string())
+        }
+    };
+
+    let gm_drop_out = gm.clone();
+    let drop_out_cb = move |slot_idx: usize, layout_name: &str| -> Result<usize, String> {
+        println!(
+            "[Game Engine] Hot drop-out requested for slot {} (new layout: '{}')",
+            slot_idx, layout_name
+        );
+        if let Ok(mut mgr) = gm_drop_out.lock() {
+            mgr.drop_out_session_player(slot_idx, layout_name)
+                .map_err(|e| e.to_string())
+        } else {
+            Err("Game engine lock unavailable".to_string())
+        }
+    };
+
+    let gm_query_session = gm.clone();
+    let query_session_cb = move || -> Option<nucleus_engine::session::ActiveSessionSnapshot> {
+        if let Ok(mgr) = gm_query_session.lock() {
+            mgr.active_session_snapshot()
+        } else {
+            None
+        }
+    };
+
     // Handlers directory changed callback
     let gm_dir = gm.clone();
     let settings_dir_arc = app_settings_shared.clone();
@@ -1345,6 +1500,34 @@ fn launch_gui(
             s.auto_scan_on_start = enabled;
             let _ = s.save();
         }
+    };
+
+    // Scan storage drives for supported game installations
+    let gm_drive_scan = gm.clone();
+    let scan_games_cb = move || -> Vec<HandlerItem> {
+        println!("[Game Engine] Scanning local drives for installed games...");
+        let mut results = Vec::new();
+        if let Ok(mut mgr) = gm_drive_scan.lock() {
+            if let Ok(found) = mgr.scan_disks() {
+                for fg in found {
+                    let exe_name = fg.exe_path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if let Some(h) = mgr.get_handlers().values().find(|h| {
+                        h.executable_name.eq_ignore_ascii_case(exe_name)
+                            || h.game_name.eq_ignore_ascii_case(&fg.name)
+                    }).cloned() {
+                        let profile = mgr.get_profile(&h.guid).cloned();
+                        let meta_info = mgr
+                            .meta_info()
+                            .find_entry(&h.guid)
+                            .or_else(|| mgr.meta_info().find_entry(&h.game_name))
+                            .map(|(_, e)| e)
+                            .cloned();
+                        results.push(build_handler_item(&h.guid, &h, profile.as_ref(), meta_info.as_ref()));
+                    }
+                }
+            }
+        }
+        results
     };
 
     // Favorite toggle callback
@@ -1660,6 +1843,52 @@ fn launch_gui(
     };
 
     // Extensions & Add-ons callbacks
+    let load_ui_extension_items = |engine: &Arc<Mutex<GameManager>>| -> Vec<nucleus_ui::extensions_view::ExtensionItem> {
+        if let Ok(mgr) = engine.lock() {
+            if let Some(ext_mgr) = mgr.extension_manager() {
+                let loaded = ext_mgr.lock();
+                let mut items: Vec<_> = loaded
+                    .loaded_plugins()
+                    .values()
+                    .map(|p| {
+                        let ext_type = match p.manifest.kind {
+                            nucleus_plugin::PluginKind::Wasm => {
+                                nucleus_ui::extensions_view::ExtensionType::WasmPlugin
+                            }
+                            nucleus_plugin::PluginKind::JsAddon => {
+                                nucleus_ui::extensions_view::ExtensionType::JsAddon
+                            }
+                            _ => nucleus_ui::extensions_view::ExtensionType::LegacyPlugin,
+                        };
+                        let perms = p
+                            .manifest
+                            .permissions
+                            .iter()
+                            .map(|perm| (perm.display_title().to_string(), true))
+                            .collect();
+                        nucleus_ui::extensions_view::ExtensionItem {
+                            id: p.manifest.id.clone(),
+                            name: p.manifest.name.clone(),
+                            version: p.manifest.version.to_string(),
+                            author: p
+                                .manifest
+                                .author
+                                .clone()
+                                .unwrap_or_else(|| "Community".to_string()),
+                            description: p.manifest.description.clone().unwrap_or_default(),
+                            is_enabled: p.status == nucleus_plugin::PluginStatus::Active,
+                            extension_type: ext_type,
+                            permissions: perms,
+                        }
+                    })
+                    .collect();
+                items.sort_by(|a, b| a.name.cmp(&b.name));
+                return items;
+            }
+        }
+        Vec::new()
+    };
+
     let gm_toggle_ext = gm.clone();
     let toggle_ext_cb = move |ext_id: &str, enabled: bool| {
         println!("[Game Engine] Toggle extension '{}' -> {}", ext_id, enabled);
@@ -1668,6 +1897,17 @@ fn launch_gui(
                 let _ = ext_mgr.lock().set_extension_enabled(ext_id, enabled);
             }
         }
+    };
+
+    let gm_rescan_ext = gm.clone();
+    let rescan_ext_cb = move || -> Vec<nucleus_ui::extensions_view::ExtensionItem> {
+        println!("[Game Engine] Rescanning extensions from disk...");
+        if let Ok(mgr) = gm_rescan_ext.lock() {
+            if let Some(ext_mgr) = mgr.extension_manager() {
+                let _ = ext_mgr.lock().scan_all();
+            }
+        }
+        load_ui_extension_items(&gm_rescan_ext)
     };
 
     let gm_install_ext = gm.clone();
@@ -1798,6 +2038,7 @@ fn launch_gui(
                         .with_handlers_dir_changer(dir_change_cb)
                         .with_theme_changer(theme_change_cb)
                         .with_auto_scan_changer(auto_scan_cb)
+                        .with_game_scanner(scan_games_cb)
                         .with_numbered_profile_lister(list_profiles_cb)
                         .with_numbered_profile_loader(load_profile_cb)
                         .with_numbered_profile_saver(save_numbered_profile_cb)
@@ -1819,6 +2060,7 @@ fn launch_gui(
                         .with_player_save_slot_setter(set_player_save_slot_cb)
                         .with_extension_toggler(toggle_ext_cb)
                         .with_extension_installer(install_ext_cb)
+                        .with_extension_rescanner(rescan_ext_cb)
                         .with_extension_permission_granter(grant_perm_cb)
                         .with_debugger_resume(debug_resume_cb)
                         .with_debugger_step_over(debug_step_over_cb)
@@ -1827,7 +2069,11 @@ fn launch_gui(
                         .with_debugger_pause(debug_pause_cb)
                         .with_debugger_stop(debug_stop_cb)
                         .with_debugger_eval(debug_eval_cb)
-                        .with_debugger_breakpoint_toggler(debug_toggle_bp_cb);
+                        .with_debugger_breakpoint_toggler(debug_toggle_bp_cb)
+                        .with_hub_version_installer(hub_version_install_cb)
+                        .with_drop_in_player(drop_in_cb)
+                        .with_drop_out_player(drop_out_cb)
+                        .with_active_session_querier(query_session_cb);
 
                     if let Ok(mgr) = gm.lock() {
                         if let Some(creds) = mgr.get_hub_credentials() {
@@ -1854,6 +2100,7 @@ fn launch_gui(
                     win.audio_devices = audio_devices.clone();
                     win.preflight_warning = preflight_warn_win.clone();
                     win.preflight_danger = preflight_danger_win.clone();
+                    win.installed_extensions = load_ui_extension_items(&gm);
                     win.sync_player_assignments();
 
                     // Apply CLI initial states

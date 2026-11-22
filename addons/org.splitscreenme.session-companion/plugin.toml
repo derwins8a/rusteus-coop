@@ -1,0 +1,81 @@
+# ==============================================================================
+# Rusteus-Coop Extension Manifest: Session Companion & Co-op Diagnostics
+# ==============================================================================
+# This manifest serves as a normative reference and template for developing
+# extensions, add-ons, and plugins for the Rusteus-Coop (Nucleus Co-op) engine.
+#
+# Extensions are packaged either as unpacked folders or as zip archives with
+# the extension '.nucaddon' (for JavaScript add-ons) or '.nucplugin' (for WebAssembly).
+# ==============================================================================
+
+# Unique reverse-DNS identifier for this extension.
+# Recommended convention: <domain-reverse>.<author-or-tool>.<extension-name>
+id = "org.splitscreenme.session-companion"
+
+# JavaScript identifier exposed on the global `Plugins` namespace.
+# Handlers and other scripts can access this extension via `Plugins.<js_namespace>`.
+# Must be a valid ECMAScript identifier (alphanumeric and underscore, starting with letter or underscore).
+js_namespace = "sessionCompanion"
+
+# Human-readable display name rendered in the Nucleus Co-op UI and Extension Manager.
+name = "Session Companion & Diagnostics"
+
+# Semantic version of this extension release (SemVer 2.0).
+version = "1.0.0"
+
+# Author, maintainer, or community organization.
+author = "Rusteus-Coop Community"
+
+# Brief description summarizing what this extension provides.
+description = "Exemplary splitscreen session telemetry, viewport aspect ratio & FOV optimizer, and automatic diagnostic HTML/JSON report generator."
+
+# Minimum required Nucleus Co-op engine version (optional).
+min_nucleus_version = "0.2.0"
+
+# Extension classification / runtime kind:
+# - "js-addon": Pure JavaScript runtime module evaluated inside Boa ECMAScript engine.
+# - "wasm": Sandboxed WebAssembly binary executed with wasmi fuel-metered bounds.
+# - "theme-pack": Visual theme or UI styling pack.
+# - "dotnet-legacy": C# .NET assembly bridge for legacy plugins.
+kind = "js-addon"
+
+# Relative path to the primary entrypoint file inside this package.
+entrypoint = "index.js"
+
+# Explicit capability permissions requested by this extension.
+# Available permissions:
+# - "instance_fs_read": Read access to files inside the assigned instance folder.
+# - "instance_fs_write": Write access to files inside the assigned instance folder.
+# - "environment_fs": Read/write access inside player environment (%USERPROFILE%\NucleusCoop\<Player>).
+# - "registry_ops": Read and write operations to Windows registry keys.
+# - "process_spawn_scoped": Spawning whitelisted child processes or tool utilities.
+# - "window_control": Manipulating game window bounds, styles, or focus.
+# - "script_api_export": Exposing functions into the handler JavaScript runtime under `Plugins.<namespace>`.
+# - "lifecycle_hooks": Intercepting multi-instance lifecycle events.
+# - "network_outbound": Making outbound network HTTP requests.
+# - "unrestricted_native": Unrestricted native execution (only for trusted legacy C# binaries).
+permissions = [
+    "instance_fs_read",
+    "instance_fs_write",
+    "lifecycle_hooks",
+    "script_api_export"
+]
+
+# Multi-instance lifecycle stages where this extension subscribes to events:
+# - "pre_prepare": Dispatched before instances are staged and partitioned.
+# - "post_stage": Dispatched immediately after an instance directory is populated.
+# - "pre_launch": Dispatched right before a game instance process is executed.
+# - "post_window": Dispatched after the instance HWND is discovered and positioned.
+# - "on_tick": Dispatched periodically on the session heartbeat loop.
+# - "on_stop": Dispatched when the splitscreen session is terminated and cleaned up.
+hooks = [
+    "pre_prepare",
+    "post_stage",
+    "pre_launch",
+    "post_window",
+    "on_stop"
+]
+
+# Optional dependencies on other extensions with SemVer constraints.
+[dependencies]
+# Example: "com.community.core-lib" = "^1.0.0"

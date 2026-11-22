@@ -106,6 +106,12 @@ pub struct PluginManifest {
     pub name: String,
     /// Semantic version of this plugin release.
     pub version: Version,
+    /// Author or organization developing the extension.
+    #[serde(default)]
+    pub author: Option<String>,
+    /// Brief description of the extension functionality.
+    #[serde(default)]
+    pub description: Option<String>,
     /// Minimum required Nucleus Co-op engine version.
     #[serde(default)]
     pub min_nucleus_version: Option<Version>,

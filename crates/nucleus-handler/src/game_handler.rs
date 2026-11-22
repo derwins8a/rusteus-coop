@@ -811,6 +811,14 @@ impl GameHandler {
         if let Some(ref script) = self.script_source {
             let mut engine = ScriptEngine::new()?;
             let folder_path = self.config.handler_folder.as_deref().map(Path::new);
+
+            // Inject active JavaScript add-ons into global context before script evaluation
+            if let Some(ref mgr) = self.extension_manager {
+                let addons_code = mgr.lock().get_combined_js_addons_code();
+                if !addons_code.is_empty() {
+                    let _ = engine.execute(&addons_code);
+                }
+            }
             if let Some(ref ctrl) = self.debug_controller {
                 ctrl.set_stage(nucleus_debug::protocol::PipelineStage::ScriptEvaluate);
                 let file_id = if !self.config.executable_name.is_empty() {

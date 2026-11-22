@@ -64,6 +64,8 @@ pub struct MainWindowCallbacks {
     pub on_handlers_dir_changed: Option<Arc<dyn Fn(&str) -> Vec<HandlerItem> + Send + Sync>>,
     /// Optional callback invoked when visual theme is changed.
     pub on_theme_changed: Option<Arc<dyn Fn(&str) + Send + Sync>>,
+    /// Optional callback to scan local storage drives for installed games matching discovered handlers.
+    pub on_scan_games: Option<Arc<dyn Fn() -> Vec<HandlerItem> + Send + Sync>>,
     /// Optional callback invoked when auto-scan toggle is changed.
     pub on_auto_scan_changed: Option<Arc<dyn Fn(bool) + Send + Sync>>,
     /// Optional callback to list saved numbered profiles for a game GUID: returns Vec<(profile_number, title)>.
@@ -122,6 +124,8 @@ pub struct MainWindowCallbacks {
     pub on_toggle_extension: Option<Arc<dyn Fn(&str, bool) + Send + Sync>>,
     /// Optional callback to install an extension archive from path.
     pub on_install_extension: Option<Arc<dyn Fn(&str) -> Result<String, String> + Send + Sync>>,
+    /// Optional callback to rescan extensions from disk: returns updated list.
+    pub on_rescan_extensions: Option<Arc<dyn Fn() -> Vec<crate::extensions_view::ExtensionItem> + Send + Sync>>,
     /// Optional callback to grant a permission to an extension: `(id, perm_name)`.
     pub on_grant_extension_permission: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
     /// Optional callback for debugger resume.
@@ -247,6 +251,15 @@ impl MainWindowCallbacks {
         F: Fn(bool) + Send + Sync + 'static,
     {
         self.on_auto_scan_changed = Some(Arc::new(callback));
+        self
+    }
+
+    /// Sets callback for scanning local storage drives for supported game installations.
+    pub fn with_game_scanner<F>(mut self, callback: F) -> Self
+    where
+        F: Fn() -> Vec<HandlerItem> + Send + Sync + 'static,
+    {
+        self.on_scan_games = Some(Arc::new(callback));
         self
     }
 
@@ -481,6 +494,15 @@ impl MainWindowCallbacks {
         F: Fn(&str) -> Result<String, String> + Send + Sync + 'static,
     {
         self.on_install_extension = Some(Arc::new(callback));
+        self
+    }
+
+    /// Sets callback for rescanning extensions.
+    pub fn with_extension_rescanner<F>(mut self, callback: F) -> Self
+    where
+        F: Fn() -> Vec<crate::extensions_view::ExtensionItem> + Send + Sync + 'static,
+    {
+        self.on_rescan_extensions = Some(Arc::new(callback));
         self
     }
 

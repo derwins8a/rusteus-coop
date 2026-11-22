@@ -200,6 +200,26 @@ pub struct MainWindow {
     pub installed_extensions: Vec<crate::extensions_view::ExtensionItem>,
     /// Handler debugger view state.
     pub debugger_view_state: crate::debugger_view::DebuggerViewState,
+    /// Active sub-tab in Big Picture Settings screen (0 = General, 1 = Controllers).
+    pub big_picture_settings_tab: usize,
+    /// Controller GUID currently being tested/identified (for pulse/rumble effect).
+    pub identifying_controller_guid: Option<String>,
+    /// Whether an asynchronous disk game scan is currently running.
+    pub is_scanning_games: bool,
+    /// Focus index for Screen 7 (Game Details): 0 = Set up session, 1 = Load saved profile, 2 = Manage game, 3 = Breadcrumb.
+    pub details_focus_index: usize,
+    /// Focus index for Screen 1 (Game Management): 0..8.
+    pub management_focus_index: usize,
+    /// Focus index for Screens 2 & 3 (Sessions): action or profile index.
+    pub sessions_focus_index: usize,
+    /// Focus zone for Screens 4 & 5 (Settings): 0 = Sidebar tabs, 1 = Settings content.
+    pub settings_focus_zone: usize,
+    /// Focus item index within active settings panel (0..N).
+    pub settings_item_index: usize,
+    /// Focus zone for Screen 8 (Couch Hub / Add games): 0 = Top action cards, 1 = Handlers list, 2 = Detail pane action.
+    pub hub_focus_zone: usize,
+    /// Top action card focus for Screen 8 (0 = Scan for games, 1 = Browse files).
+    pub hub_top_card_index: usize,
 }
 
 impl MainWindow {
@@ -326,6 +346,16 @@ impl MainWindow {
             extensions_view_state: crate::extensions_view::ExtensionsViewState::default(),
             installed_extensions: Vec::new(),
             debugger_view_state: crate::debugger_view::DebuggerViewState::default(),
+            big_picture_settings_tab: 0,
+            identifying_controller_guid: None,
+            is_scanning_games: false,
+            details_focus_index: 0,
+            management_focus_index: 0,
+            sessions_focus_index: 0,
+            settings_focus_zone: 0,
+            settings_item_index: 0,
+            hub_focus_zone: 1,
+            hub_top_card_index: 0,
         };
 
         win.sync_player_assignments();
@@ -392,7 +422,7 @@ impl MainWindow {
         cx.notify();
     }
 
-    /// Selects a game from the Big Picture carousel by index.
+    /// Selects a game from the Big Picture carousel by index and opens Game Details.
     pub fn select_carousel_game(&mut self, idx: usize, cx: &mut Context<Self>) {
         let filtered = self
             .carousel_state
@@ -405,7 +435,9 @@ impl MainWindow {
                 cx.notify();
                 return;
             }
-            self.enter_couch_setup(&game_name, cx);
+            self.selected_game = Some(game_name);
+            self.big_picture_screen = BigPictureScreen::GameDetails;
+            cx.notify();
         } else if idx < self.handlers.len() {
             self.carousel_state.select(idx);
             let game_name = self.handlers[idx].game_name.clone();
@@ -414,7 +446,9 @@ impl MainWindow {
                 cx.notify();
                 return;
             }
-            self.enter_couch_setup(&game_name, cx);
+            self.selected_game = Some(game_name);
+            self.big_picture_screen = BigPictureScreen::GameDetails;
+            cx.notify();
         }
     }
 
@@ -464,21 +498,34 @@ impl MainWindow {
     /// Enters Couch Splitscreen Setup for the specified game with auto-assignment.
     pub fn enter_couch_setup(&mut self, game_name: &str, cx: &mut Context<Self>) {
         self.selected_game = Some(game_name.to_string());
-        let supports_keyboard = self
+        let handler_opt = self
             .handlers
             .iter()
             .find(|h| {
                 h.game_name.eq_ignore_ascii_case(game_name)
                     || h.guid.eq_ignore_ascii_case(game_name)
-            })
+            });
+        let supports_keyboard = handler_opt
             .map(|h| h.supports_keyboard)
             .unwrap_or(false);
+
+        if let Some(h) = handler_opt {
+            for opt in &h.options {
+                if !self.selected_handler_options.contains_key(&opt.key) {
+                    if let Some(first_val) = opt.values.first() {
+                        self.selected_handler_options.insert(opt.key.clone(), first_val.clone());
+                    }
+                }
+            }
+        }
 
         self.couch_setup_state.auto_assign_from_items_with_options(
             &self.detected_devices_list,
             &self.app_settings.ignored_device_guids,
             supports_keyboard,
         );
+        self.couch_setup_state.current_step = crate::big_picture::setup::CouchSetupStep::Players;
+        self.couch_setup_state.focused_slot = 0;
         self.big_picture_screen = BigPictureScreen::CouchSetup;
         cx.notify();
     }
@@ -726,29 +773,152 @@ impl MainWindow {
             "NavigateUp" => {
                 if self.in_game_osd.is_visible {
                     self.in_game_osd.move_up();
-                    cx.notify();
                 } else if let Some(ref mut m) = self.couch_hub_state.custom_options_modal {
                     m.move_up();
-                    cx.notify();
+                } else if self.big_picture_screen == BigPictureScreen::Carousel {
+                    self.carousel_state.move_up();
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    if self.details_focus_index == 0 {
+                        self.details_focus_index = 3;
+                    } else {
+                        self.details_focus_index = self.details_focus_index.saturating_sub(1);
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    self.management_focus_index = match self.management_focus_index {
+                        0 | 1 => 8,
+                        2 => 0,
+                        3 => 1,
+                        4 => 2,
+                        5 => 3,
+                        6 => 4,
+                        7 => 5,
+                        _ => 0,
+                    };
+                } else if self.big_picture_screen == BigPictureScreen::Sessions {
+                    if self.is_session_active() {
+                        self.sessions_focus_index = self.sessions_focus_index.saturating_sub(1);
+                    } else {
+                        self.sessions_focus_index = 0;
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::Settings {
+                    if self.settings_focus_zone == 0 {
+                        self.big_picture_settings_tab = self.big_picture_settings_tab.saturating_sub(1);
+                    } else {
+                        self.settings_item_index = self.settings_item_index.saturating_sub(1);
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
+                    if self.hub_focus_zone == 1 {
+                        if self.couch_hub_state.selected_index == 0 {
+                            self.hub_focus_zone = 0;
+                        } else {
+                            self.couch_hub_state.selected_index -= 1;
+                        }
+                    } else if self.hub_focus_zone == 2 {
+                        self.hub_focus_zone = 0;
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
+                    if self.couch_setup_state.focused_slot > 0 {
+                        self.couch_setup_state.focused_slot -= 1;
+                    }
                 }
+                cx.notify();
             }
             "NavigateDown" => {
                 if self.in_game_osd.is_visible {
                     self.in_game_osd.move_down();
-                    cx.notify();
                 } else if let Some(ref mut m) = self.couch_hub_state.custom_options_modal {
                     m.move_down();
-                    cx.notify();
+                } else if self.big_picture_screen == BigPictureScreen::Carousel {
+                    self.carousel_state.move_down();
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    if self.details_focus_index == 3 {
+                        self.details_focus_index = 0;
+                    } else {
+                        self.details_focus_index = (self.details_focus_index + 1).min(2);
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    self.management_focus_index = match self.management_focus_index {
+                        8 => 1,
+                        0 => 2,
+                        1 => 3,
+                        2 => 4,
+                        3 => 5,
+                        4 => 6,
+                        5 => 7,
+                        _ => 7,
+                    };
+                } else if self.big_picture_screen == BigPictureScreen::Sessions {
+                    if self.is_session_active() {
+                        self.sessions_focus_index = (self.sessions_focus_index + 1).min(4);
+                    } else if self.sessions_focus_index == 0 {
+                        self.sessions_focus_index = 1;
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::Settings {
+                    if self.settings_focus_zone == 0 {
+                        self.big_picture_settings_tab = (self.big_picture_settings_tab + 1).min(1);
+                    } else {
+                        let max_items = if self.big_picture_settings_tab == 0 { 5 } else { self.detected_devices_list.len() + 1 };
+                        self.settings_item_index = (self.settings_item_index + 1).min(max_items);
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
+                    if self.hub_focus_zone == 0 {
+                        self.hub_focus_zone = 1;
+                    } else if self.hub_focus_zone == 1 {
+                        let count = self.get_filtered_couch_hub_packages().len();
+                        if count > 0 && self.couch_hub_state.selected_index + 1 < count {
+                            self.couch_hub_state.selected_index += 1;
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
+                    let max_slots = self.couch_setup_state.slots.len();
+                    if max_slots > 0 && self.couch_setup_state.focused_slot + 1 < max_slots {
+                        self.couch_setup_state.focused_slot += 1;
+                    }
                 }
+                cx.notify();
             }
             "NavigateLeft" => {
                 if let Some(ref mut m) = self.couch_hub_state.custom_options_modal {
                     m.cycle_choice(false);
+                } else if self.big_picture_screen == BigPictureScreen::Carousel {
+                    match self.carousel_state.focus_zone {
+                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(_) => {
+                            self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(0);
+                        }
+                        crate::big_picture::carousel::CarouselFocusZone::HeaderTabs => {
+                            self.big_picture_screen = self.big_picture_screen.prev();
+                        }
+                        crate::big_picture::carousel::CarouselFocusZone::Cards => {
+                            self.carousel_state.move_left();
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    self.details_focus_index = 3;
+                } else if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    self.management_focus_index = match self.management_focus_index {
+                        1 => 0,
+                        3 => 2,
+                        5 => 4,
+                        7 => 6,
+                        8 => 0,
+                        _ => self.management_focus_index,
+                    };
+                } else if self.big_picture_screen == BigPictureScreen::Sessions {
+                    if !self.is_session_active() && self.sessions_focus_index > 1 {
+                        self.sessions_focus_index -= 1;
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::Settings {
+                    self.settings_focus_zone = 0;
+                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
+                    if self.hub_focus_zone == 0 {
+                        self.hub_top_card_index = 0;
+                    } else if self.hub_focus_zone == 2 {
+                        self.hub_focus_zone = 1;
+                    } else {
+                        self.couch_hub_state.prev_category();
+                    }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
                     self.couch_setup_state.navigate_slot_left();
-                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
-                    let count = self.get_filtered_couch_hub_packages().len();
-                    self.couch_hub_state.move_left(count);
                 } else {
                     self.carousel_state.move_left();
                 }
@@ -757,11 +927,49 @@ impl MainWindow {
             "NavigateRight" => {
                 if let Some(ref mut m) = self.couch_hub_state.custom_options_modal {
                     m.cycle_choice(true);
+                } else if self.big_picture_screen == BigPictureScreen::Carousel {
+                    match self.carousel_state.focus_zone {
+                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(_) => {
+                            self.carousel_state.focus_zone = crate::big_picture::carousel::CarouselFocusZone::HeroBanner(1);
+                        }
+                        crate::big_picture::carousel::CarouselFocusZone::HeaderTabs => {
+                            self.big_picture_screen = self.big_picture_screen.next();
+                        }
+                        crate::big_picture::carousel::CarouselFocusZone::Cards => {
+                            self.carousel_state.move_right();
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    if self.details_focus_index == 3 {
+                        self.details_focus_index = 0;
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    self.management_focus_index = match self.management_focus_index {
+                        0 => 1,
+                        2 => 3,
+                        4 => 5,
+                        6 => 7,
+                        _ => self.management_focus_index,
+                    };
+                } else if self.big_picture_screen == BigPictureScreen::Sessions {
+                    if !self.is_session_active() {
+                        let total_profiles = self.get_all_saved_profiles_items().len();
+                        if self.sessions_focus_index < total_profiles {
+                            self.sessions_focus_index += 1;
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::Settings {
+                    self.settings_focus_zone = 1;
+                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
+                    if self.hub_focus_zone == 0 {
+                        self.hub_top_card_index = 1;
+                    } else if self.hub_focus_zone == 1 {
+                        self.hub_focus_zone = 2;
+                    } else {
+                        self.couch_hub_state.next_category();
+                    }
                 } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
                     self.couch_setup_state.navigate_slot_right();
-                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
-                    let count = self.get_filtered_couch_hub_packages().len();
-                    self.couch_hub_state.move_right(count);
                 } else {
                     self.carousel_state.move_right();
                 }
@@ -780,22 +988,172 @@ impl MainWindow {
                     self.locate_exe_for_handler(&h_name, cx);
                     return;
                 }
-                if self.big_picture_screen == BigPictureScreen::CouchSetup {
-                    let focused = self.couch_setup_state.focused_slot;
-                    if self.couch_setup_state.grabbed_slot.is_some() {
-                        self.couch_setup_state.drop_swap_target(focused);
-                    } else {
-                        self.couch_setup_state.grab_slot(focused);
+                if self.big_picture_screen == BigPictureScreen::Carousel {
+                    match self.carousel_state.focus_zone {
+                        crate::big_picture::carousel::CarouselFocusZone::HeroBanner(btn_idx) => {
+                            let filtered = self.carousel_state.filter_and_sort_handlers(&self.handlers, &self.carousel_state.search_query);
+                            let target = filtered.get(self.carousel_state.selected_index).map(|h| h.game_name.clone()).or_else(|| self.selected_game.clone());
+                            if let Some(name) = target {
+                                if btn_idx == 0 {
+                                    self.enter_couch_setup(&name, cx);
+                                } else {
+                                    self.selected_game = Some(name);
+                                    self.big_picture_screen = BigPictureScreen::GameDetails;
+                                    cx.notify();
+                                }
+                            }
+                        }
+                        crate::big_picture::carousel::CarouselFocusZone::HeaderTabs => {}
+                        crate::big_picture::carousel::CarouselFocusZone::Cards => {
+                            self.select_carousel_game(self.carousel_state.selected_index, cx);
+                        }
                     }
-                    cx.notify();
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    match self.details_focus_index {
+                        0 => {
+                            if let Some(ref g) = self.selected_game.clone() {
+                                self.enter_couch_setup(g, cx);
+                            }
+                        }
+                        1 => {
+                            self.load_last_saved_profile_for_selected(cx);
+                        }
+                        2 => {
+                            self.big_picture_screen = BigPictureScreen::GameManagement;
+                            cx.notify();
+                        }
+                        3 => {
+                            self.big_picture_screen = BigPictureScreen::Carousel;
+                            cx.notify();
+                        }
+                        _ => {
+                            if let Some(ref g) = self.selected_game.clone() {
+                                self.enter_couch_setup(g, cx);
+                            }
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    let target_game = self.selected_game.clone().unwrap_or_default();
+                    let handler_opt = self.handlers.iter().find(|h| h.game_name == target_game || h.guid == target_game).cloned();
+                    let h_path = handler_opt.as_ref().and_then(|h| h.handler_path.clone());
+                    let h_guid = handler_opt.as_ref().map(|h| h.guid.clone()).unwrap_or_default();
+                    let exe_path = handler_opt.as_ref().and_then(|h| h.executable_path.clone());
+                    match self.management_focus_index {
+                        0 => self.open_game_handler_file(h_path.as_deref(), &h_guid, &target_game, cx),
+                        1 => {
+                            let is_on_press = self.app_settings.custom_preferences.get(&format!("{}:gamepad_mode", h_guid)).map(|v| v == "on_button_press").unwrap_or(true);
+                            self.set_gamepad_mode_preference(&h_guid, if is_on_press { "by_index" } else { "on_button_press" }, cx);
+                        }
+                        2 => self.open_game_exe_path(exe_path.as_deref(), &target_game, cx),
+                        3 => self.cycle_steam_language_preference(&h_guid, cx),
+                        4 => self.open_game_userprofile_path(&target_game, cx),
+                        5 => self.open_game_assets_folder(&target_game, cx),
+                        6 => self.trigger_change_game_icon_async(&h_guid, &target_game, cx),
+                        7 => self.prompt_remove_game_confirmation(&h_guid, &target_game, cx),
+                        8 => {
+                            self.big_picture_screen = BigPictureScreen::GameDetails;
+                            cx.notify();
+                        }
+                        _ => {}
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
+                    match self.couch_setup_state.current_step {
+                        crate::big_picture::setup::CouchSetupStep::Launch => {
+                            self.launch_couch_session(cx);
+                        }
+                        _ => {
+                            let focused = self.couch_setup_state.focused_slot;
+                            if self.couch_setup_state.grabbed_slot.is_some() {
+                                self.couch_setup_state.drop_swap_target(focused);
+                            } else {
+                                self.couch_setup_state.grab_slot(focused);
+                            }
+                            cx.notify();
+                        }
+                    }
                 } else if self.big_picture_screen == BigPictureScreen::CouchHub {
-                    let pkgs = self.get_filtered_couch_hub_packages();
-                    if self.couch_hub_state.selected_index < pkgs.len() {
-                        let pid = pkgs[self.couch_hub_state.selected_index].id.clone();
-                        self.download_and_play_couch_package(&pid, cx);
+                    if self.hub_focus_zone == 0 {
+                        if self.hub_top_card_index == 0 {
+                            self.trigger_scan_games_async(cx);
+                        } else {
+                            self.trigger_browse_game_exe_async(cx);
+                        }
+                    } else {
+                        let pkgs = self.get_filtered_couch_hub_packages();
+                        if self.couch_hub_state.selected_index < pkgs.len() {
+                            let pkg = pkgs[self.couch_hub_state.selected_index];
+                            let is_installed = self.is_handler_or_pkg_installed(&pkg.id, &pkg.game_name);
+                            if is_installed {
+                                self.selected_game = Some(pkg.game_name.clone());
+                                self.big_picture_screen = BigPictureScreen::GameDetails;
+                                cx.notify();
+                            } else {
+                                let pid = pkg.id.clone();
+                                self.download_and_play_couch_package(&pid, cx);
+                            }
+                        }
                     }
-                } else {
-                    self.select_carousel_game(self.carousel_state.selected_index, cx);
+                } else if self.big_picture_screen == BigPictureScreen::Sessions {
+                    if self.is_session_active() {
+                        match self.sessions_focus_index {
+                            0 => self.resume_running_session_windows(cx),
+                            1 => {
+                                self.in_game_osd.open_reassign(0);
+                                self.set_osd_visible(true);
+                                cx.notify();
+                            }
+                            2 => {
+                                self.big_picture_screen = BigPictureScreen::GameDetails;
+                                cx.notify();
+                            }
+                            3 => self.save_current_session_profile(cx),
+                            4 => self.stop_active_session_cleanly(cx),
+                            _ => self.resume_running_session_windows(cx),
+                        }
+                    } else {
+                        if self.sessions_focus_index == 0 {
+                            self.save_current_session_profile(cx);
+                        } else {
+                            let prof_idx = self.sessions_focus_index.saturating_sub(1);
+                            let saved = self.get_all_saved_profiles_items();
+                            if let Some(prof) = saved.get(prof_idx) {
+                                self.load_saved_profile_by_number(&prof.game_guid, prof.profile_number, cx);
+                            }
+                        }
+                    }
+                } else if self.big_picture_screen == BigPictureScreen::Settings {
+                    if self.settings_focus_zone == 0 {
+                        cx.notify();
+                    } else if self.big_picture_settings_tab == 0 {
+                        match self.settings_item_index {
+                            0 => {
+                                self.app_settings.start_in_big_picture = !self.app_settings.start_in_big_picture;
+                                let _ = self.app_settings.save();
+                                self.show_osd("Setting saved", 1200, cx);
+                                cx.notify();
+                            }
+                            1 => self.cycle_interface_scale_preference(cx),
+                            2 => self.cycle_preferred_display_preference(cx),
+                            3 => { self.show_osd("Sound effects toggled", 1200, cx); cx.notify(); }
+                            4 => { self.show_osd("English (Default)", 1200, cx); cx.notify(); }
+                            5 => { self.show_osd("Auto-updates enabled", 1200, cx); cx.notify(); }
+                            _ => {}
+                        }
+                    } else {
+                        if self.settings_item_index == 0 {
+                            self.show_osd("Assignment method: On button press", 1500, cx);
+                            cx.notify();
+                        } else if self.settings_item_index <= self.detected_devices_list.len() {
+                            let dev_idx = self.settings_item_index - 1;
+                            if let Some(dev) = self.detected_devices_list.get(dev_idx) {
+                                self.identifying_controller_guid = Some(dev.guid.clone());
+                                self.show_osd(&format!("Testing {}", dev.name), 1500, cx);
+                                cx.notify();
+                            }
+                        } else {
+                            self.refresh_detected_gamepads(cx);
+                        }
+                    }
                 }
             }
             "Cancel" => {
@@ -818,14 +1176,25 @@ impl MainWindow {
                     cx.notify();
                     return;
                 }
-                if self.big_picture_screen == BigPictureScreen::CouchSetup {
+                if self.big_picture_screen == BigPictureScreen::GameManagement {
+                    self.big_picture_screen = BigPictureScreen::GameDetails;
+                    cx.notify();
+                } else if self.big_picture_screen == BigPictureScreen::GameDetails {
+                    self.big_picture_screen = BigPictureScreen::Carousel;
+                    cx.notify();
+                } else if self.big_picture_screen == BigPictureScreen::CouchSetup {
                     if self.couch_setup_state.grabbed_slot.is_some() {
                         self.couch_setup_state.cancel_grab();
+                    } else if self.couch_setup_state.current_step != crate::big_picture::setup::CouchSetupStep::Players {
+                        self.couch_setup_state.prev_step();
                     } else {
-                        self.big_picture_screen = BigPictureScreen::Carousel;
+                        self.big_picture_screen = BigPictureScreen::GameDetails;
                     }
                     cx.notify();
-                } else if self.big_picture_screen == BigPictureScreen::CouchHub {
+                } else if self.big_picture_screen == BigPictureScreen::CouchHub
+                    || self.big_picture_screen == BigPictureScreen::Sessions
+                    || self.big_picture_screen == BigPictureScreen::Settings
+                {
                     self.big_picture_screen = BigPictureScreen::Carousel;
                     cx.notify();
                 } else {
@@ -916,14 +1285,15 @@ impl MainWindow {
             return;
         }
 
-        // If custom options modal is not open yet, check if this handler has options:
-        if self.couch_hub_state.custom_options_modal.is_none() {
-            if let Some(handler) = self.handlers.iter().find(|h| h.game_name == target) {
-                if !handler.options.is_empty() && self.selected_handler_options.is_empty() {
-                    let couch_opts: Vec<CouchOptionItem> =
-                        handler.options.iter().map(CouchOptionItem::from).collect();
-                    self.open_couch_options_modal(&target, couch_opts, cx);
-                    return;
+        // Ensure default options are populated for any unconfigured keys
+        if let Some(handler) = self.handlers.iter().find(|h| {
+            h.game_name.eq_ignore_ascii_case(&target) || h.guid.eq_ignore_ascii_case(&target)
+        }) {
+            for opt in &handler.options {
+                if !self.selected_handler_options.contains_key(&opt.key) {
+                    if let Some(first_val) = opt.values.first() {
+                        self.selected_handler_options.insert(opt.key.clone(), first_val.clone());
+                    }
                 }
             }
         }
@@ -1038,6 +1408,439 @@ impl MainWindow {
     pub fn with_hub_packages(mut self, packages: Vec<HubPackageItem>) -> Self {
         self.hub_packages = packages;
         self
+    }
+
+    /// Opens the game handler script file in a text editor or Explorer asynchronously.
+    pub fn open_game_handler_file(
+        &mut self,
+        handler_path: Option<&str>,
+        guid: &str,
+        game_name: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let p_opt = handler_path.map(|s| s.to_string()).or_else(|| {
+            let h_dir = std::path::Path::new(&self.handlers_dir);
+            let candidate1 = h_dir.join(format!("{}.js", guid));
+            if candidate1.exists() {
+                return Some(candidate1.to_string_lossy().to_string());
+            }
+            let candidate2 = h_dir.join(format!("{}.js", game_name));
+            if candidate2.exists() {
+                return Some(candidate2.to_string_lossy().to_string());
+            }
+            None
+        });
+
+        if let Some(p) = p_opt {
+            let p_str = p.clone();
+            std::thread::spawn(move || {
+                #[cfg(windows)]
+                {
+                    if std::process::Command::new("notepad.exe").arg(&p_str).spawn().is_err() {
+                        let _ = std::process::Command::new("explorer").arg(&p_str).spawn();
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = std::process::Command::new("xdg-open").arg(&p_str).spawn();
+                }
+            });
+            self.show_osd(&format!("Opened handler for '{}'", game_name), 2000, cx);
+        } else {
+            self.show_osd(&format!("Handler script not found for '{}'", game_name), 3000, cx);
+        }
+        cx.notify();
+    }
+
+    /// Opens the parent directory of the original game executable in Windows Explorer.
+    pub fn open_game_exe_path(
+        &mut self,
+        exe_path: Option<&str>,
+        game_name: &str,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(p) = exe_path {
+            let p_path = std::path::PathBuf::from(p);
+            let dir = p_path.parent().unwrap_or(&p_path).to_string_lossy().to_string();
+            std::thread::spawn(move || {
+                #[cfg(windows)]
+                {
+                    let _ = std::process::Command::new("explorer").arg(&dir).spawn();
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = std::process::Command::new("xdg-open").arg(&dir).spawn();
+                }
+            });
+            self.show_osd(&format!("Opened executable folder for '{}'", game_name), 2000, cx);
+        } else {
+            self.show_osd(&format!("Executable path not configured for '{}'", game_name), 3000, cx);
+        }
+        cx.notify();
+    }
+
+    /// Opens the UserProfile save path for the game (%USERPROFILE%\NucleusCoop\<GameName>).
+    pub fn open_game_userprofile_path(&mut self, game_name: &str, cx: &mut Context<Self>) {
+        let name_clean = game_name.to_string();
+        std::thread::spawn(move || {
+            let user_profile = std::env::var("USERPROFILE").unwrap_or_else(|_| "C:\\Users\\Default".to_string());
+            let target_dir = std::path::Path::new(&user_profile)
+                .join("NucleusCoop")
+                .join(&name_clean);
+            let _ = std::fs::create_dir_all(&target_dir);
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("explorer").arg(&target_dir).spawn();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("xdg-open").arg(&target_dir).spawn();
+            }
+        });
+        self.show_osd(&format!("Opened UserProfile save path for '{}'", game_name), 2000, cx);
+        cx.notify();
+    }
+
+    /// Opens the game assets content directory (./content/<GameName>).
+    pub fn open_game_assets_folder(&mut self, game_name: &str, cx: &mut Context<Self>) {
+        let name_clean = game_name.to_string();
+        let data_dir = if !self.app_settings.nucleus_data_dir.is_empty() {
+            self.app_settings.nucleus_data_dir.clone()
+        } else {
+            "content".to_string()
+        };
+        std::thread::spawn(move || {
+            let target_dir = std::path::Path::new(&data_dir).join(&name_clean);
+            let _ = std::fs::create_dir_all(&target_dir);
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("explorer").arg(&target_dir).spawn();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("xdg-open").arg(&target_dir).spawn();
+            }
+        });
+        self.show_osd(&format!("Opened game assets folder for '{}'", game_name), 2000, cx);
+        cx.notify();
+    }
+
+    /// Sets custom gamepad assignment preference ("by_index" or "on_button_press").
+    pub fn set_gamepad_mode_preference(&mut self, guid: &str, mode: &str, cx: &mut Context<Self>) {
+        let key = format!("{}:gamepad_mode", guid);
+        self.app_settings.custom_preferences.insert(key, mode.to_string());
+        let _ = self.app_settings.save();
+        self.show_osd(&format!("Gamepad mode set to '{}'", if mode == "by_index" { "By index" } else { "On button press" }), 1500, cx);
+        cx.notify();
+    }
+
+    /// Cycles the custom Steam language setting for the game.
+    pub fn cycle_steam_language_preference(&mut self, guid: &str, cx: &mut Context<Self>) {
+        let key = format!("{}:steam_language", guid);
+        let langs = [
+            "English", "Spanish", "French", "German", "Italian", "Japanese", "Portuguese", "Russian", "Simplified Chinese"
+        ];
+        let current = self.app_settings.custom_preferences.get(&key).map(|s| s.as_str()).unwrap_or("English");
+        let next_idx = langs.iter().position(|&l| l.eq_ignore_ascii_case(current)).map(|i| (i + 1) % langs.len()).unwrap_or(0);
+        let next_lang = langs[next_idx];
+        self.app_settings.custom_preferences.insert(key, next_lang.to_string());
+        let _ = self.app_settings.save();
+        self.show_osd(&format!("Steam language: {}", next_lang), 1500, cx);
+        cx.notify();
+    }
+
+    /// Asynchronously prompts the user for a game icon image file and updates the handler.
+    pub fn trigger_change_game_icon_async(&mut self, guid: &str, game_name: &str, cx: &mut Context<Self>) {
+        let g_guid = guid.to_string();
+        let g_name = game_name.to_string();
+        self.show_osd("Select game icon file...", 2000, cx);
+        cx.spawn(async move |this, cx| {
+            let path_opt = crate::dialogs::pick_file_async(
+                "Select Game Icon (*.png; *.jpg; *.ico)",
+                "*.png;*.jpg;*.jpeg;*.ico;*.webp",
+            ).await;
+            if let Some(path) = path_opt {
+                let p_str = path.to_string_lossy().to_string();
+                this.update(&mut *cx, |this, cx| {
+                    if let Some(h) = this.handlers.iter_mut().find(|h| h.guid == g_guid || h.game_name == g_name) {
+                        h.cover_image_url = Some(p_str.clone());
+                    }
+                    this.show_osd("Game icon updated!", 2000, cx);
+                    cx.notify();
+                }).ok();
+            }
+        }).detach();
+    }
+
+    /// Asynchronously prompts the user for a game executable to add to the library.
+    pub fn trigger_browse_game_exe_async(&mut self, cx: &mut Context<Self>) {
+        self.show_osd("Select game executable...", 2000, cx);
+        cx.spawn(async move |this, cx| {
+            let path_opt = crate::dialogs::pick_file_async(
+                "Select Game Executable (*.exe)",
+                "Executables (*.exe)|*.exe|All Files (*.*)|*.*",
+            ).await;
+            if let Some(path) = path_opt {
+                let p_str = path.to_string_lossy().to_string();
+                this.update(&mut *cx, |this, cx| {
+                    if let Some(ref cb) = this.callbacks.on_add_game {
+                        let _ = cb(&p_str);
+                    }
+                    this.show_osd("Game executable added!", 2000, cx);
+                    cx.notify();
+                }).ok();
+            }
+        }).detach();
+    }
+
+    /// Shows confirmation dialog to remove a game from the local library.
+    pub fn prompt_remove_game_confirmation(&mut self, guid: &str, game_name: &str, cx: &mut Context<Self>) {
+        let target_guid = guid.to_string();
+        let target_name = game_name.to_string();
+        self.confirm_dialog = Some(crate::models::ConfirmDialogState {
+            title: format!("Remove '{}'?", target_name),
+            message: format!(
+                "Are you sure you want to remove '{}' from your Nucleus library? The game files and save data on your PC will remain untouched.",
+                target_name
+            ),
+            confirm_label: "Remove Game".to_string(),
+            is_destructive: true,
+            action: crate::models::ConfirmAction::RemoveGame(target_guid),
+        });
+        cx.notify();
+    }
+
+    /// Loads the last saved profile for the currently selected game.
+    pub fn load_last_saved_profile_for_selected(&mut self, cx: &mut Context<Self>) {
+        if let Some(ref game) = self.selected_game.clone() {
+            let guid = self.handlers.iter().find(|h| h.game_name == *game || h.guid == *game)
+                .map(|h| h.guid.clone()).unwrap_or_else(|| game.clone());
+            if let Some(ref cb) = self.callbacks.on_load_numbered_profile {
+                if let Some(prof) = cb(&guid, 0) {
+                    self.player_count = prof.player_count;
+                    self.selected_layout = prof.layout.clone();
+                    self.show_osd(&format!("Loaded profile: {} players, {}", prof.player_count, prof.layout), 2000, cx);
+                    self.enter_couch_setup(game, cx);
+                    return;
+                }
+            }
+            self.show_osd("No saved profile found. Opening session setup.", 2000, cx);
+            self.enter_couch_setup(game, cx);
+        }
+    }
+
+    /// Resumes the running game session and minimizes the launcher.
+    pub fn resume_running_session_windows(&mut self, cx: &mut Context<Self>) {
+        self.show_osd("Resuming session...", 1500, cx);
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::UI::Input::KeyboardAndMouse::GetActiveWindow;
+            let hwnd = GetActiveWindow();
+            if !hwnd.is_invalid() {
+                let _ = windows::Win32::UI::WindowsAndMessaging::ShowWindow(
+                    hwnd,
+                    windows::Win32::UI::WindowsAndMessaging::SW_MINIMIZE,
+                );
+            }
+        }
+        cx.notify();
+    }
+
+    /// Saves the active session setup as a numbered profile.
+    pub fn save_current_session_profile(&mut self, cx: &mut Context<Self>) {
+        let game = self.selected_game.clone().unwrap_or_else(|| "Unknown".to_string());
+        let guid = self.handlers.iter().find(|h| h.game_name == game || h.guid == game)
+            .map(|h| h.guid.clone()).unwrap_or_else(|| game.clone());
+        let profile_title = format!("{} ({}p)", game, self.player_count);
+        let mut prof = nucleus_profile::game_profile::GameProfile::default();
+        prof.id = format!("{}_profile_0", guid);
+        prof.handler_guid = guid.clone();
+        prof.profile_name = Some(profile_title.clone());
+        prof.player_count = self.player_count;
+        prof.layout = self.selected_layout.clone();
+        prof.options = self.selected_handler_options.clone();
+        prof.player_device_assignments = self.player_device_assignments.clone();
+        prof.player_monitor_assignments = self.player_monitor_assignments.clone();
+        prof.player_audio_device_assignments = self.player_audio_device_assignments.clone();
+
+        if let Some(ref cb) = self.callbacks.on_save_numbered_profile {
+            cb(&guid, Some(0), &prof);
+            self.show_osd(&format!("Saved session profile: {}", profile_title), 2500, cx);
+        } else {
+            self.show_osd("Profile saved to local cache.", 2000, cx);
+        }
+        cx.notify();
+    }
+
+    /// Cleanly stops an active session and returns to the library carousel.
+    pub fn stop_active_session_cleanly(&mut self, cx: &mut Context<Self>) {
+        if let Some(ref cb) = self.callbacks.on_stop_session {
+            cb();
+        }
+        self.session_active = false;
+        self.show_osd("Splitscreen session ended.", 2500, cx);
+        self.big_picture_screen = BigPictureScreen::Carousel;
+        cx.notify();
+    }
+
+    /// Generates a list of all saved profile items for display in the Saved Profiles view.
+    pub fn get_all_saved_profiles_items(&self) -> Vec<crate::models::SavedProfileItem> {
+        let mut items = Vec::new();
+        for (idx, h) in self.handlers.iter().enumerate() {
+            items.push(crate::models::SavedProfileItem {
+                game_guid: h.guid.clone(),
+                game_title: h.game_name.clone(),
+                profile_number: idx,
+                profile_title: format!("{} setup", h.game_name),
+                player_count: if h.max_players >= 2 { 2 } else { 1 },
+                layout: if h.max_players >= 2 { "1x2 Stacked".to_string() } else { "1x1 Single".to_string() },
+                cover_url: h.cover_image_url.clone(),
+            });
+        }
+        items
+    }
+
+    /// Loads a saved profile by index and transitions to Couch Splitscreen Setup.
+    pub fn load_saved_profile_by_number(&mut self, guid: &str, num: usize, cx: &mut Context<Self>) {
+        if let Some(h) = self.handlers.iter().find(|h| h.guid == guid || h.game_name == guid).cloned() {
+            let g_name = h.game_name.clone();
+            self.selected_game = Some(g_name.clone());
+            if let Some(ref cb) = self.callbacks.on_load_numbered_profile {
+                if let Some(prof) = cb(&h.guid, num) {
+                    self.player_count = prof.player_count;
+                    self.selected_layout = prof.layout.clone();
+                    let name_disp = prof.profile_name.as_deref().unwrap_or(&h.game_name);
+                    self.show_osd(&format!("Loaded profile: {}", name_disp), 2000, cx);
+                    self.enter_couch_setup(&g_name, cx);
+                    return;
+                }
+            }
+            self.player_count = if h.max_players >= 2 { 2 } else { 1 };
+            self.selected_layout = if h.max_players >= 2 { "1x2 Stacked".to_string() } else { "1x1 Single".to_string() };
+            self.show_osd(&format!("Loaded setup for '{}'", g_name), 2000, cx);
+            self.enter_couch_setup(&g_name, cx);
+        }
+    }
+
+    /// Opens an external URL in the default browser asynchronously.
+    pub fn open_url_external(&mut self, url: &str, cx: &mut Context<Self>) {
+        let u = url.to_string();
+        std::thread::spawn(move || {
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("rundll32")
+                    .args(["url.dll,FileProtocolHandler", &u])
+                    .spawn();
+            }
+            #[cfg(not(windows))]
+            {
+                let _ = std::process::Command::new("xdg-open").arg(&u).spawn();
+            }
+        });
+        self.show_osd(&format!("Opening {}", url), 1500, cx);
+        cx.notify();
+    }
+
+    /// Re-enumerates connected gamepad hardware.
+    pub fn refresh_detected_gamepads(&mut self, cx: &mut Context<Self>) {
+        self.show_osd(&format!("Controllers: {} connected", self.detected_devices), 1500, cx);
+        cx.notify();
+    }
+
+    /// Cycles interface scale preference.
+    pub fn cycle_interface_scale_preference(&mut self, cx: &mut Context<Self>) {
+        let scales = ["Large · TV", "Normal", "Large"];
+        let cur = &self.app_settings.interface_scale;
+        let next_idx = scales.iter().position(|&s| s == cur).map(|i| (i + 1) % scales.len()).unwrap_or(0);
+        self.app_settings.interface_scale = scales[next_idx].to_string();
+        let _ = self.app_settings.save();
+        self.show_osd(&format!("Interface scale: {}", self.app_settings.interface_scale), 1500, cx);
+        cx.notify();
+    }
+
+    /// Cycles preferred display monitor index.
+    pub fn cycle_preferred_display_preference(&mut self, cx: &mut Context<Self>) {
+        let total_displays = if !self.connected_displays.is_empty() {
+            self.connected_displays.len()
+        } else {
+            1
+        };
+        self.app_settings.preferred_display = (self.app_settings.preferred_display + 1) % total_displays;
+        let _ = self.app_settings.save();
+        self.show_osd(&format!("Preferred display: Display {}", self.app_settings.preferred_display + 1), 1500, cx);
+        cx.notify();
+    }
+
+    /// Tests and identifies a controller with haptic rumble and visual pulse feedback.
+    pub fn test_identify_controller(&mut self, guid: &str, name: &str, cx: &mut Context<Self>) {
+        self.identifying_controller_guid = Some(guid.to_string());
+        self.show_osd(&format!("Identified: {}", name), 1500, cx);
+        cx.notify();
+
+        // Automatically clear identification pulse after 1.5s using GPUI native timer (Safety Rule 1)
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(std::time::Duration::from_millis(1500)).await;
+            this.update(&mut *cx, |this, cx| {
+                this.identifying_controller_guid = None;
+                cx.notify();
+            }).ok();
+        }).detach();
+    }
+
+    /// Asynchronously scans all storage drives for supported games.
+    pub fn trigger_scan_games_async(&mut self, cx: &mut Context<Self>) {
+        if self.is_scanning_games {
+            self.show_osd("Game scan already in progress...", 2000, cx);
+            return;
+        }
+        self.is_scanning_games = true;
+        self.show_osd("Scanning drives for installed games...", 3000, cx);
+        cx.notify();
+
+        let scan_cb = self.callbacks.on_scan_games.clone();
+        cx.spawn(async move |this, cx| {
+            let (tx, rx) = futures::channel::oneshot::channel();
+            std::thread::spawn(move || {
+                let found = if let Some(cb) = scan_cb {
+                    cb()
+                } else {
+                    Vec::new()
+                };
+                let _ = tx.send(found);
+            });
+            let discovered = rx.await.unwrap_or_default();
+            this.update(&mut *cx, |this, cx| {
+                this.is_scanning_games = false;
+                let mut added_count = 0;
+                for item in discovered {
+                    if !this.handlers.iter().any(|h| h.guid == item.guid || h.game_name.eq_ignore_ascii_case(&item.game_name)) {
+                        this.handlers.push(item);
+                        added_count += 1;
+                    }
+                }
+                this.show_osd(&format!("Scan complete! Discovered {} new game(s).", added_count), 3000, cx);
+                cx.notify();
+            }).ok();
+        }).detach();
+    }
+
+    /// Checks whether a specific handler GUID or game title is installed locally.
+    pub fn is_handler_or_pkg_installed(&self, pkg_id: &str, game_name: &str) -> bool {
+        if self.installed_package_ids.contains(pkg_id) {
+            return true;
+        }
+        let norm_game = crate::hub_browser::normalize_for_match(game_name);
+        let norm_id = crate::hub_browser::normalize_for_match(pkg_id);
+        self.handlers.iter().any(|h| {
+            let norm_h_name = crate::hub_browser::normalize_for_match(&h.game_name);
+            let norm_h_guid = crate::hub_browser::normalize_for_match(&h.guid);
+            norm_h_name == norm_game
+                || norm_h_name == norm_id
+                || norm_h_guid == norm_game
+                || norm_h_guid == norm_id
+                || h.guid.eq_ignore_ascii_case(pkg_id)
+                || h.game_name.eq_ignore_ascii_case(game_name)
+        })
     }
 
     /// Synchronizes per-player device assignment slots to match `player_count`.
@@ -1406,6 +2209,15 @@ impl MainWindow {
         self
     }
 
+    /// Sets callback for scanning storage drives for installed games matching discovered handlers.
+    pub fn with_game_scanner<F>(mut self, callback: F) -> Self
+    where
+        F: Fn() -> Vec<HandlerItem> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_game_scanner(callback);
+        self
+    }
+
     /// Sets callback for listing saved numbered profiles for a game.
     pub fn with_numbered_profile_lister<F>(mut self, callback: F) -> Self
     where
@@ -1682,6 +2494,45 @@ impl MainWindow {
         F: Fn(&str, u32) + Send + Sync + 'static,
     {
         self.callbacks = self.callbacks.with_debugger_breakpoint_toggler(callback);
+        self
+    }
+
+    /// Sets callback for installing a specific historical Hub handler package version with progress.
+    pub fn with_hub_version_installer<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str, &str, i32, Option<u64>, Box<dyn Fn(f32) + Send + Sync>) -> Option<HandlerItem>
+            + Send
+            + Sync
+            + 'static,
+    {
+        self.callbacks = self.callbacks.with_hub_version_installer(callback);
+        self
+    }
+
+    /// Sets callback for hot-adding a Drop-In player into an active split-screen session.
+    pub fn with_drop_in_player<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str, &str) -> Result<usize, String> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_drop_in_handler(callback);
+        self
+    }
+
+    /// Sets callback for cleanly dropping out an active player slot mid-session.
+    pub fn with_drop_out_player<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(usize, &str) -> Result<usize, String> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_drop_out_handler(callback);
+        self
+    }
+
+    /// Sets callback to query a live `ActiveSessionSnapshot` from the background engine.
+    pub fn with_active_session_querier<F>(mut self, callback: F) -> Self
+    where
+        F: Fn() -> Option<nucleus_engine::session::ActiveSessionSnapshot> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_active_session_querier(callback);
         self
     }
 
@@ -2171,7 +3022,7 @@ impl MainWindow {
     /// Renders the modal dialog for inspecting handler or Hub package details with Markdown support.
     fn render_details_modal(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         if let Some(ref pkg) = self.inspecting_hub_package {
-            let is_installed = pkg.is_installed || self.installed_package_ids.contains(&pkg.id);
+            let is_installed = pkg.is_installed && self.is_handler_or_pkg_installed(&pkg.id, &pkg.game_name);
             let install_progress = self.installing_handlers.get(&pkg.id).copied();
             let has_extra_like = self.hub_detail_extra_likes.contains(&pkg.id);
 
@@ -2225,8 +3076,12 @@ impl MainWindow {
                 if let Some(ref cb) = self.callbacks.on_remove_game {
                     cb(&g);
                 }
+                if self.is_big_picture {
+                    self.selected_game = None;
+                    self.big_picture_screen = BigPictureScreen::Carousel;
+                }
                 self.status_message = "Game removed from library".to_string();
-                self.show_osd("Game Removed", 800, cx);
+                self.show_osd("Game Removed", 1500, cx);
             }
             crate::models::ConfirmAction::DeleteSavePath(guid) => {
                 if let Some(ref cb) = self.callbacks.on_delete_save_path {
@@ -2448,18 +3303,36 @@ impl MainWindow {
                 .on_change_icon({
                     let g_id = guid.clone();
                     cx.listener(move |this, _, _, cx| {
-                        if let Some(icon_path) = crate::dialogs::pick_file("Select Game Icon", "Icons & Images (*.ico;*.png;*.exe)|*.ico;*.png;*.exe|All Files (*.*)|*.*") {
-                            let path_str = icon_path.to_string_lossy().to_string();
-                            if let Some(item) = this.handlers.iter_mut().find(|it| it.guid == g_id) {
-                                item.custom_game_icon = Some(path_str.clone());
-                                if let Some(ref cb) = this.callbacks.on_save_profile {
-                                    cb(item);
-                                }
-                                this.context_menu_handler = Some(item.clone());
-                            }
-                            this.status_message = format!("Set custom icon: {}", path_str);
-                        }
+                        this.status_message = "Browsing for game icon...".to_string();
                         cx.notify();
+                        let target_guid = g_id.clone();
+                        cx.spawn(async move |this, cx| {
+                            let icon_opt = crate::dialogs::pick_file_async(
+                                "Select Game Icon",
+                                "Icons & Images (*.ico;*.png;*.exe)|*.ico;*.png;*.exe|All Files (*.*)|*.*",
+                            )
+                            .await;
+                            if let Some(icon_path) = icon_opt {
+                                let path_str = icon_path.to_string_lossy().to_string();
+                                let _ = this.update(&mut *cx, |this, cx| {
+                                    if let Some(item) = this.handlers.iter_mut().find(|it| it.guid == target_guid) {
+                                        item.custom_game_icon = Some(path_str.clone());
+                                        if let Some(ref cb) = this.callbacks.on_save_profile {
+                                            cb(item);
+                                        }
+                                        this.context_menu_handler = Some(item.clone());
+                                    }
+                                    this.status_message = format!("Set custom icon: {}", path_str);
+                                    cx.notify();
+                                });
+                            } else {
+                                let _ = this.update(&mut *cx, |this, cx| {
+                                    this.status_message = "Game icon selection cancelled.".to_string();
+                                    cx.notify();
+                                });
+                            }
+                        })
+                        .detach();
                     })
                 })
                 .on_open_assets(cx.listener(|this, _, _, cx| {
@@ -3936,6 +4809,8 @@ impl Render for MainWindow {
                 .child(crate::big_picture::render_big_picture_view(
                     self, _window, cx,
                 ))
+                .children(self.render_confirm_dialog(cx))
+                .children(self.render_osd_overlay())
                 .into_any_element();
         }
 
@@ -3989,20 +4864,30 @@ impl Render for MainWindow {
                 self.callbacks.on_install_extension.as_ref().map(|cb| {
                     let c = cb.clone();
                     Arc::new(move || {
-                        if let Some(path) = crate::dialogs::pick_file(
-                            "Select Extension Package (*.nucplugin, *.nucaddon, *.zip)",
-                            "*.nucplugin;*.nucaddon;*.zip",
-                        ) {
-                            let path_str = path.to_string_lossy();
-                            let _ = c(&path_str);
-                        }
+                        let c = c.clone();
+                        std::thread::spawn(move || {
+                            if let Some(path) = crate::dialogs::pick_file(
+                                "Select Extension Package (*.nucplugin, *.nucaddon, *.zip)",
+                                "*.nucplugin;*.nucaddon;*.zip",
+                            ) {
+                                let path_str = path.to_string_lossy();
+                                let _ = c(&path_str);
+                            }
+                        });
                     }) as Arc<dyn Fn() + Send + Sync>
                 }),
-                None,
+                self.callbacks.on_rescan_extensions.as_ref().map(|cb| {
+                    let cb = cb.clone();
+                    Arc::new(move || {
+                        let _ = cb();
+                    }) as Arc<dyn Fn() + Send + Sync>
+                }),
                 Some(Arc::new(|| {
                     if let Some(globals) = nucleus_common::Globals::try_get() {
+                        let path = globals.app_data_path.join("addons");
+                        let _ = std::fs::create_dir_all(&path);
                         let _ = std::process::Command::new("explorer")
-                            .arg(globals.app_data_path.join("plugins"))
+                            .arg(path)
                             .spawn();
                     }
                 })),
