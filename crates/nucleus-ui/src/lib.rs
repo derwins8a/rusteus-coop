@@ -1,4 +1,4 @@
-#![recursion_limit = "4096"]
+#![recursion_limit = "8192"]
 //! # nucleus-ui
 //!
 //! Graphical user interface layer for NucleusCoop built with GPUI Kit components.
