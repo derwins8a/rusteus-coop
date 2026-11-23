@@ -1659,9 +1659,12 @@ fn launch_gui(
 
     let gm_stop = gm.clone();
     let stop_session_cb = move || {
-        if let Ok(mut mgr) = gm_stop.lock() {
-            let _ = mgr.stop_game();
-        }
+        let gm_stop_clone = gm_stop.clone();
+        std::thread::spawn(move || {
+            if let Ok(mut mgr) = gm_stop_clone.lock() {
+                let _ = mgr.stop_game();
+            }
+        });
     };
 
     let gm_check = gm.clone();
@@ -1676,6 +1679,9 @@ fn launch_gui(
     let platform_topmost = platform.clone();
     let gm_topmost = gm.clone();
     let osd_topmost_cb = move |is_topmost: bool, summoner_slot: Option<usize>| {
+        if let Ok(mut mgr) = gm_topmost.lock() {
+            mgr.set_osd_visible(is_topmost);
+        }
         let wm = platform_topmost.window_manager();
         if let Ok(Some(hwnd)) = wm.find_window_by_title("Nucleus Co-op", true) {
             if is_topmost {
@@ -1901,6 +1907,20 @@ fn launch_gui(
         }
     };
 
+    let gm_uninstall_ext = gm.clone();
+    let uninstall_ext_cb = move |ext_id: &str| -> Result<(), String> {
+        println!("[Game Engine] Uninstalling extension: {}", ext_id);
+        if let Ok(mgr) = gm_uninstall_ext.lock() {
+            if let Some(ext_mgr) = mgr.extension_manager() {
+                ext_mgr.lock().uninstall_extension(ext_id)
+            } else {
+                Err("Extension manager unavailable".to_string())
+            }
+        } else {
+            Err("Engine busy".to_string())
+        }
+    };
+
     let gm_grant_perm = gm.clone();
     let grant_perm_cb = move |ext_id: &str, perm_name: &str| {
         println!(
@@ -1929,6 +1949,24 @@ fn launch_gui(
                 };
                 let _ = ext_mgr.lock().grant_permission(ext_id, perm);
             }
+        }
+    };
+
+    let gm_save_script = gm.clone();
+    let save_handler_script_cb = move |guid_or_name: &str, content: &str| -> Result<(), String> {
+        if let Ok(mgr) = gm_save_script.lock() {
+            mgr.save_handler_script(guid_or_name, content)
+        } else {
+            Err("Engine lock busy".to_string())
+        }
+    };
+
+    let gm_read_script = gm.clone();
+    let read_handler_script_cb = move |guid_or_name: &str| -> Result<String, String> {
+        if let Ok(mgr) = gm_read_script.lock() {
+            mgr.read_handler_script(guid_or_name)
+        } else {
+            Err("Engine lock busy".to_string())
         }
     };
 
@@ -2040,6 +2078,7 @@ fn launch_gui(
                         .with_player_save_slot_setter(set_player_save_slot_cb)
                         .with_extension_toggler(toggle_ext_cb)
                         .with_extension_installer(install_ext_cb)
+                        .with_extension_uninstaller(uninstall_ext_cb)
                         .with_extension_rescanner(rescan_ext_cb)
                         .with_extension_permission_granter(grant_perm_cb)
                         .with_debugger_resume(debug_resume_cb)
@@ -2050,6 +2089,8 @@ fn launch_gui(
                         .with_debugger_stop(debug_stop_cb)
                         .with_debugger_eval(debug_eval_cb)
                         .with_debugger_breakpoint_toggler(debug_toggle_bp_cb)
+                        .with_handler_script_reader(read_handler_script_cb)
+                        .with_handler_script_saver(save_handler_script_cb)
                         .with_hub_version_installer(hub_version_install_cb)
                         .with_drop_in_player(drop_in_cb)
                         .with_drop_out_player(drop_out_cb)

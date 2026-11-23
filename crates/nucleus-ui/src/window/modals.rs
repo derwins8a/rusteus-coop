@@ -1540,11 +1540,45 @@ impl MainWindow {
             this.save_slots_modal.close();
             cx.notify();
         });
+
+        let selected_slot_cell = Arc::new(std::sync::Mutex::new(None::<Option<String>>));
+        let cell_for_cb = selected_slot_cell.clone();
+        let target_p = self.save_slots_modal.target_player_index;
+        let set_slot_cb = self.callbacks.on_set_player_save_slot.clone();
+        let on_select_slot = set_slot_cb.map(move |cb| {
+            let c = cb.clone();
+            let cell = cell_for_cb.clone();
+            Arc::new(move |g: &str, p: usize, opt: Option<String>| {
+                if let Ok(mut lock) = cell.lock() {
+                    *lock = Some(opt.clone());
+                }
+                c(g, p, opt);
+            }) as Arc<dyn Fn(&str, usize, Option<String>) + Send + Sync>
+        });
+
+        let cell_for_refresh = selected_slot_cell.clone();
+        let on_refresh = cx.listener(move |this: &mut MainWindow, _, _, cx| {
+            let guid = this.save_slots_modal.game_guid.clone();
+            if let Some(ref lister) = this.callbacks.on_list_save_slots {
+                this.current_save_slots = lister(&guid);
+            }
+            if let Ok(mut lock) = cell_for_refresh.lock() {
+                if let Some(new_opt) = lock.take() {
+                    if target_p < this.player_save_slots.len() {
+                        this.player_save_slots[target_p] = new_opt;
+                    } else {
+                        this.player_save_slots.resize(target_p + 1, None);
+                        this.player_save_slots[target_p] = new_opt;
+                    }
+                }
+            }
+            cx.notify();
+        });
         Some(crate::save_slots_modal::render_save_slots_modal(
             &self.save_slots_modal,
             &self.current_save_slots,
             active_slot,
-            self.callbacks.on_set_player_save_slot.clone(),
+            on_select_slot,
             self.callbacks.on_create_save_slot.as_ref().map(|cb| {
                 let c = cb.clone();
                 Arc::new(move |g: &str, d: &str, t: &str, h: &str| {
@@ -1564,6 +1598,7 @@ impl MainWindow {
                 }) as Arc<dyn Fn(&str, &str) + Send + Sync>
             }),
             Arc::new(on_close),
+            Some(Arc::new(on_refresh)),
         ))
     }
 }

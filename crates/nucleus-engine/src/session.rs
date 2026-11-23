@@ -21,6 +21,8 @@ pub struct GameSession {
     pub is_running: bool,
     /// Whether the game processes are currently frozen/suspended.
     pub is_frozen: bool,
+    /// Whether the In-Game Couch OSD overlay is currently visible.
+    pub is_osd_visible: bool,
     /// Instant when session started.
     pub started_at: Option<std::time::Instant>,
     /// Timestamp of last playtime flush to profile/metaInfo.
@@ -77,6 +79,7 @@ impl GameSession {
             handler: None,
             is_running: false,
             is_frozen: false,
+            is_osd_visible: false,
             started_at: None,
             last_playtime_flush: None,
             flushed_seconds: 0,
@@ -241,8 +244,8 @@ impl GameSession {
                     return Ok(());
                 }
 
-                // Re-enforce window positions for active instances only
-                if !handler.windows_minimized && !handler.cutscenes_active {
+                // Re-enforce window positions for active instances only (skip while In-Game OSD is active to prevent z-order occlusion)
+                if !handler.windows_minimized && !handler.cutscenes_active && !self.is_osd_visible {
                     for slot_idx in handler.active_slot_indices() {
                         let _ = handler.reposition_instance_window(slot_idx);
                     }

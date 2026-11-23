@@ -1926,7 +1926,7 @@ fn render_step_4_launch(
 }
 
 fn render_km_assignment_bar(
-    _win: &MainWindow,
+    win: &MainWindow,
     state: &CouchSetupState,
     cx: &mut Context<MainWindow>,
 ) -> AnyElement {
@@ -1971,36 +1971,38 @@ fn render_km_assignment_bar(
                     cx.notify();
                 })),
         )
-        // 2. Individual ProtoInput Keyboard button
-        .child(
-            CouchButton::secondary("btn-add-raw-keyboard", "Add Raw Keyboard")
-                .size(CouchButtonSize::Lg)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    let count = this
-                        .couch_setup_state
-                        .slots
-                        .iter()
-                        .filter(|s| s.has_raw_keyboard())
-                        .count();
-                    this.couch_setup_state.add_raw_keyboard(count);
-                    cx.notify();
-                })),
-        )
-        // 3. Individual ProtoInput Mouse button
-        .child(
-            CouchButton::secondary("btn-add-raw-mouse", "Add Raw Mouse")
-                .size(CouchButtonSize::Lg)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    let count = this
-                        .couch_setup_state
-                        .slots
-                        .iter()
-                        .filter(|s| s.has_raw_mouse())
-                        .count();
-                    this.couch_setup_state.add_raw_mouse(count);
-                    cx.notify();
-                })),
-        )
+        // 2. Individual ProtoInput Keyboard & Mouse buttons (Developer Mode only)
+        .when(win.app_settings.developer_mode, |parent| {
+            parent
+                .child(
+                    CouchButton::secondary("btn-add-raw-keyboard", "Add Raw Keyboard")
+                        .size(CouchButtonSize::Lg)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            let count = this
+                                .couch_setup_state
+                                .slots
+                                .iter()
+                                .filter(|s| s.has_raw_keyboard())
+                                .count();
+                            this.couch_setup_state.add_raw_keyboard(count);
+                            cx.notify();
+                        })),
+                )
+                .child(
+                    CouchButton::secondary("btn-add-raw-mouse", "Add Raw Mouse")
+                        .size(CouchButtonSize::Lg)
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            let count = this
+                                .couch_setup_state
+                                .slots
+                                .iter()
+                                .filter(|s| s.has_raw_mouse())
+                                .count();
+                            this.couch_setup_state.add_raw_mouse(count);
+                            cx.notify();
+                        })),
+                )
+        })
         .into_any_element()
 }
 
@@ -2622,7 +2624,7 @@ pub fn render_virtual_monitor_partition_box(
                 .flex()
                 .items_center()
                 .justify_between()
-                .w(px(540.0))
+                .w_full()
                 .px_1()
                 .child(
                     div()
@@ -2653,8 +2655,8 @@ pub fn render_virtual_monitor_partition_box(
                 .id("virtual-monitor-chassis")
                 .flex()
                 .flex_col()
-                .w(px(540.0))
-                .h(px(220.0))
+                .w_full()
+                .h(px(200.0))
                 .p_2()
                 .rounded_xl()
                 .bg(theme::bg_panel())

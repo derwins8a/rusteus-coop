@@ -27,8 +27,7 @@ pub fn render_big_picture_settings_view(
         .flex_col()
         .size_full()
         .px_10()
-        .py_6()
-        .overflow_y_scroll()
+        .py_3()
         .bg(theme::bg_main())
         .text_color(theme::text_primary())
         // Header
@@ -37,7 +36,7 @@ pub fn render_big_picture_settings_view(
                 .flex()
                 .flex_col()
                 .gap_1()
-                .pb_6()
+                .pb_3()
                 .child(
                     div()
                         .text_3xl()
@@ -324,7 +323,7 @@ fn render_general_panel(
     div()
         .flex()
         .flex_col()
-        .gap_3()
+        .gap_2()
         .w_full()
         // Row 1: Start in Big Picture
         .child(render_setting_toggle_row(
@@ -336,7 +335,15 @@ fn render_general_panel(
             |this, cx| {
                 this.app_settings.start_in_big_picture = !this.app_settings.start_in_big_picture;
                 let _ = this.app_settings.save();
-                this.show_osd("Setting saved", 1200, cx);
+                this.show_osd(
+                    if this.app_settings.start_in_big_picture {
+                        "Start in Big Picture enabled"
+                    } else {
+                        "Start in Big Picture disabled"
+                    },
+                    1200,
+                    cx,
+                );
                 cx.notify();
             },
             cx,
@@ -346,7 +353,7 @@ fn render_general_panel(
             "btn-setting-interface-scale",
             "Interface scale",
             "Larger controls and text for viewing from the couch",
-            "Large · TV",
+            win.app_settings.interface_scale.clone(),
             win.settings_focus_zone == 1 && win.settings_item_index == 1,
             |this, cx| {
                 this.cycle_interface_scale_preference(cx);
@@ -358,7 +365,7 @@ fn render_general_panel(
             "btn-setting-preferred-display",
             "Preferred display",
             "Where new sessions open by default",
-            "Display 1",
+            format!("Display {}", win.app_settings.preferred_display + 1),
             win.settings_focus_zone == 1 && win.settings_item_index == 2,
             |this, cx| {
                 this.cycle_preferred_display_preference(cx);
@@ -370,10 +377,20 @@ fn render_general_panel(
             "btn-toggle-interface-sounds",
             "Interface sounds",
             "Play a sound when moving focus or confirming",
-            true,
+            win.app_settings.interface_sounds,
             win.settings_focus_zone == 1 && win.settings_item_index == 3,
             |this, cx| {
-                this.show_osd("Sound effects toggled", 1200, cx);
+                this.app_settings.interface_sounds = !this.app_settings.interface_sounds;
+                let _ = this.app_settings.save();
+                this.show_osd(
+                    if this.app_settings.interface_sounds {
+                        "Interface sounds enabled"
+                    } else {
+                        "Interface sounds muted"
+                    },
+                    1200,
+                    cx,
+                );
                 cx.notify();
             },
             cx,
@@ -383,11 +400,10 @@ fn render_general_panel(
             "btn-setting-language",
             "Language",
             "Language used for the Nucleus interface",
-            "English",
+            win.app_settings.language.clone(),
             win.settings_focus_zone == 1 && win.settings_item_index == 4,
             |this, cx| {
-                this.show_osd("English (Default)", 1200, cx);
-                cx.notify();
+                this.cycle_language_preference(cx);
             },
             cx,
         ))
@@ -396,10 +412,20 @@ fn render_general_panel(
             "btn-toggle-check-updates",
             "Check for updates",
             "Keep Nucleus and game handlers up to date",
-            true,
+            win.app_settings.check_for_updates,
             win.settings_focus_zone == 1 && win.settings_item_index == 5,
             |this, cx| {
-                this.show_osd("Auto-updates enabled", 1200, cx);
+                this.app_settings.check_for_updates = !this.app_settings.check_for_updates;
+                let _ = this.app_settings.save();
+                this.show_osd(
+                    if this.app_settings.check_for_updates {
+                        "Auto-updates enabled"
+                    } else {
+                        "Auto-updates disabled"
+                    },
+                    1200,
+                    cx,
+                );
                 cx.notify();
             },
             cx,
@@ -687,7 +713,8 @@ where
         .flex()
         .items_center()
         .justify_between()
-        .p_4()
+        .py_2p5()
+        .px_4()
         .rounded_xl()
         .bg(theme::bg_panel())
         .border_2()
@@ -749,7 +776,7 @@ fn render_setting_nav_row<F>(
     id: &'static str,
     title: &'static str,
     subtitle: &'static str,
-    value_label: &'static str,
+    value_label: impl Into<SharedString>,
     has_focus_ring: bool,
     on_click_action: F,
     cx: &mut Context<MainWindow>,
@@ -757,13 +784,15 @@ fn render_setting_nav_row<F>(
 where
     F: Fn(&mut MainWindow, &mut Context<MainWindow>) + Send + Sync + 'static,
 {
+    let val_str: SharedString = value_label.into();
     div()
         .id(id)
         .cursor_pointer()
         .flex()
         .items_center()
         .justify_between()
-        .p_4()
+        .py_2p5()
+        .px_4()
         .rounded_xl()
         .bg(theme::bg_panel())
         .border_2()
@@ -806,7 +835,7 @@ where
                         .text_xs()
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(theme::accent())
-                        .child(value_label),
+                        .child(val_str),
                 )
                 .child(
                     Icon::new(IconName::ChevronRight)

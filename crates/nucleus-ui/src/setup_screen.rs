@@ -229,6 +229,17 @@ fn render_profile_management_section(
                 .icon(IconName::Plus)
                 .size(NefosButtonSize::Sm)
                 .on_click(cx.listener(move |this, _, _, cx| {
+                    if this.app_settings.disable_game_profiles
+                        || this
+                            .handlers
+                            .iter()
+                            .find(|h| h.guid == g_save || h.game_name == g_save)
+                            .map_or(false, |h| h.disable_profile)
+                    {
+                        this.status_message = "Profiles are disabled for this game.".to_string();
+                        cx.notify();
+                        return;
+                    }
                     let mut prof = nucleus_profile::GameProfile::default();
                     prof.player_count = this.player_count;
                     prof.layout = this.selected_layout.clone();
@@ -256,6 +267,17 @@ fn render_profile_management_section(
                 .icon(IconName::Save)
                 .size(NefosButtonSize::Sm)
                 .on_click(cx.listener(move |this, _, _, cx| {
+                    if this.app_settings.disable_game_profiles
+                        || this
+                            .handlers
+                            .iter()
+                            .find(|h| h.guid == g_save || h.game_name == g_save)
+                            .map_or(false, |h| h.disable_profile)
+                    {
+                        this.status_message = "Profiles are disabled for this game.".to_string();
+                        cx.notify();
+                        return;
+                    }
                     let mut prof = nucleus_profile::GameProfile::default();
                     prof.player_count = this.player_count;
                     prof.layout = this.selected_layout.clone();
@@ -1167,7 +1189,7 @@ pub fn render_setup_view(
                         ),
                 )
                 // Section 1: Profile Management Section
-                .when(!app_settings.disable_game_profiles, |this_sec| {
+                .when(!app_settings.disable_game_profiles && !selected_handler.map_or(false, |h| h.disable_profile), |this_sec| {
                     this_sec.child(render_profile_management_section(
                         selected_handler,
                         selected_game,
@@ -1459,19 +1481,42 @@ pub fn render_setup_view(
 
                                             if is_merged {
                                                 sc = sc.on_split(cx.listener(move |this, _, _, cx| {
-                                                    if p_idx < this.player_device_assignments.len() {
+                                                    if p_idx < this.player_device_assignments.len() && this.player_device_assignments.len() < 32 {
                                                         let dev = this.player_device_assignments[p_idx].clone();
                                                         if is_merged_kbm_str(&dev) {
-                                                            let without_suffix = dev
-                                                                .replace(" (ProtoInput)", "")
-                                                                .replace(" (ProtoInput Pair)", "");
-                                                            let parts: Vec<&str> = without_suffix.split('+').collect();
-                                                            let kb_part = parts.first().map(|s| s.trim()).unwrap_or("Keyboard #1");
-                                                            let mouse_part = parts.get(1).map(|s| s.trim()).unwrap_or("Mouse #1");
+                                                            let (kb_name, mouse_name) = if dev.contains('&') {
+                                                                ("Keyboard #1".to_string(), "Mouse #1".to_string())
+                                                            } else if dev.contains('+') {
+                                                                let without_suffix = dev
+                                                                    .replace(" (ProtoInput)", "")
+                                                                    .replace(" (ProtoInput Pair)", "");
+                                                                let parts: Vec<String> = without_suffix.split('+').map(|s| s.trim().to_string()).collect();
+                                                                let kb = parts.first().cloned().unwrap_or_else(|| "Keyboard #1".to_string());
+                                                                let ms = parts.get(1).cloned().unwrap_or_else(|| "Mouse #1".to_string());
+                                                                (kb, ms)
+                                                            } else {
+                                                                ("Keyboard #1".to_string(), "Mouse #1".to_string())
+                                                            };
 
-                                                            this.player_device_assignments[p_idx] = format!("{} (ProtoInput)", kb_part);
-                                                            this.player_device_assignments.insert(p_idx + 1, format!("{} (ProtoInput)", mouse_part));
-                                                            this.player_count = this.player_device_assignments.len();
+                                                            let final_kb = if kb_name.contains("Mouse") {
+                                                                "Keyboard #1 (ProtoInput)".to_string()
+                                                            } else if kb_name.contains("(ProtoInput)") {
+                                                                kb_name
+                                                            } else {
+                                                                format!("{} (ProtoInput)", kb_name)
+                                                            };
+
+                                                            let final_mouse = if mouse_name.contains("Keyboard") {
+                                                                "Mouse #1 (ProtoInput)".to_string()
+                                                            } else if mouse_name.contains("(ProtoInput)") {
+                                                                mouse_name
+                                                            } else {
+                                                                format!("{} (ProtoInput)", mouse_name)
+                                                            };
+
+                                                            this.player_device_assignments[p_idx] = final_kb;
+                                                            this.player_device_assignments.insert(p_idx + 1, final_mouse);
+                                                            this.player_count = this.player_device_assignments.len().min(32);
                                                             this.setup_screen.player_count = this.player_count;
                                                             this.status_message = format!("Split composite K&M on Player Slot {} into separate slots.", p_idx + 1);
                                                         }
@@ -1564,12 +1609,14 @@ pub fn render_setup_view(
                                                     if !keyboard_taken {
                                                         dev_opts.push("Keyboard & Mouse (Paired)".to_string());
                                                     }
-                                                    dev_opts.push("Keyboard #1 (ProtoInput)".to_string());
-                                                    dev_opts.push("Keyboard #2 (ProtoInput)".to_string());
-                                                    dev_opts.push("Mouse #1 (ProtoInput)".to_string());
-                                                    dev_opts.push("Mouse #2 (ProtoInput)".to_string());
-                                                    dev_opts.push("Keyboard #1 + Mouse #1 (ProtoInput)".to_string());
-                                                    dev_opts.push("Keyboard #2 + Mouse #2 (ProtoInput)".to_string());
+                                                    if app_settings.developer_mode {
+                                                        dev_opts.push("Keyboard #1 (ProtoInput)".to_string());
+                                                        dev_opts.push("Keyboard #2 (ProtoInput)".to_string());
+                                                        dev_opts.push("Mouse #1 (ProtoInput)".to_string());
+                                                        dev_opts.push("Mouse #2 (ProtoInput)".to_string());
+                                                        dev_opts.push("Keyboard #1 + Mouse #1 (ProtoInput)".to_string());
+                                                        dev_opts.push("Keyboard #2 + Mouse #2 (ProtoInput)".to_string());
+                                                    }
                                                     if detected_devices.iter().any(|d| !d.is_virtual) {
                                                         dev_opts.push("DirectInput Emulation (x360ce)".to_string());
                                                     }
@@ -1683,18 +1730,6 @@ pub fn render_setup_view(
                             NefosCard::surface("setup-options-summary-card")
                                 .title_text("5. Custom Handler Options (Game.AddOption)")
                                 .description_text("Configure per-game script settings, rendering parameters, and player flags")
-                                .header_action(
-                                    NefosButton::secondary(
-                                        "btn-open-options-modal",
-                                        "Configure Options (Modal)",
-                                    )
-                                    .size(NefosButtonSize::Sm)
-                                    .icon(IconName::Settings)
-                                    .on_click(cx.listener(|this, _, _, cx| {
-                                        this.setup_screen.options_modal_open = true;
-                                        cx.notify();
-                                    })),
-                                )
                                 .child(
                                     div()
                                         .flex()

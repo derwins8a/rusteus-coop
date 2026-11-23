@@ -1135,6 +1135,13 @@ impl GameManager {
         self.active_session.as_mut()
     }
 
+    /// Updates the In-Game OSD visibility flag on the active session.
+    pub fn set_osd_visible(&mut self, visible: bool) {
+        if let Some(session) = &mut self.active_session {
+            session.is_osd_visible = visible;
+        }
+    }
+
     /// Returns a reference to the Community Hub client.
     pub fn hub(&self) -> &HubClient {
         &self.hub
@@ -1185,6 +1192,47 @@ impl GameManager {
     /// Sets or updates a game profile.
     pub fn set_profile(&mut self, guid: String, profile: GameProfile) {
         self.profiles.insert(guid, profile);
+    }
+
+    /// Reads the raw handler JavaScript source code for a game by GUID or game name.
+    pub fn read_handler_script(&self, guid_or_name: &str) -> Result<String, String> {
+        if let Some(prof) = self.get_profile(guid_or_name) {
+            let path = std::path::Path::new(&prof.handler_path);
+            if path.exists() {
+                return std::fs::read_to_string(path).map_err(|e| e.to_string());
+            }
+        }
+        let candidate = self.handlers_dir.join(format!("{}.js", guid_or_name));
+        if candidate.exists() {
+            return std::fs::read_to_string(&candidate).map_err(|e| e.to_string());
+        }
+        if let Ok(entries) = std::fs::read_dir(&self.handlers_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_file() && p.extension().map_or(false, |ext| ext == "js") {
+                    if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                        if stem.eq_ignore_ascii_case(guid_or_name) {
+                            return std::fs::read_to_string(&p).map_err(|e| e.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Err(format!("Handler script not found for '{}'", guid_or_name))
+    }
+
+    /// Saves updated handler JavaScript source code to disk.
+    pub fn save_handler_script(&self, guid_or_name: &str, content: &str) -> Result<(), String> {
+        let target_path = if let Some(prof) = self.get_profile(guid_or_name) {
+            if !prof.handler_path.is_empty() {
+                std::path::PathBuf::from(&prof.handler_path)
+            } else {
+                self.handlers_dir.join(format!("{}.js", guid_or_name))
+            }
+        } else {
+            self.handlers_dir.join(format!("{}.js", guid_or_name))
+        };
+        std::fs::write(&target_path, content).map_err(|e| e.to_string())
     }
 
     /// Ticks the currently active session, re-enforcing window bounds, checking process liveness,

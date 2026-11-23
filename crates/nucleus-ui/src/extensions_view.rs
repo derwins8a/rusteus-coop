@@ -222,36 +222,62 @@ pub fn render_extensions_view(
                                                 ),
                                         )
                                         .child(
-                                            (if is_enabled {
-                                                CouchButton::primary(
-                                                    ElementId::Name(format!("btn-toggle-ext-{}", ext.id).into()),
-                                                    "Enabled",
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap_2()
+                                                .child(
+                                                    (if is_enabled {
+                                                        CouchButton::primary(
+                                                            ElementId::Name(format!("btn-toggle-ext-{}", ext.id).into()),
+                                                            "Enabled",
+                                                        )
+                                                    } else {
+                                                        CouchButton::secondary(
+                                                            ElementId::Name(format!("btn-toggle-ext-{}", ext.id).into()),
+                                                            "Disabled",
+                                                        )
+                                                    })
+                                                    .size(CouchButtonSize::Sm)
+                                                    .icon(if is_enabled {
+                                                        IconName::Check
+                                                    } else {
+                                                        IconName::X
+                                                    })
+                                                    .on_click(cx.listener({
+                                                        let id_str = ext.id.clone();
+                                                        let next_enabled = !is_enabled;
+                                                        move |this, _, _, cx| {
+                                                            if let Some(ref cb) = this.callbacks.on_toggle_extension {
+                                                                cb(&id_str, next_enabled);
+                                                            }
+                                                            if let Some(item) = this.installed_extensions.iter_mut().find(|e| e.id == id_str) {
+                                                                item.is_enabled = next_enabled;
+                                                            }
+                                                            cx.notify();
+                                                        }
+                                                    })),
                                                 )
-                                            } else {
-                                                CouchButton::secondary(
-                                                    ElementId::Name(format!("btn-toggle-ext-{}", ext.id).into()),
-                                                    "Disabled",
-                                                )
-                                            })
-                                            .size(CouchButtonSize::Sm)
-                                            .icon(if is_enabled {
-                                                IconName::Check
-                                            } else {
-                                                IconName::X
-                                            })
-                                            .on_click(cx.listener({
-                                                let id_str = ext.id.clone();
-                                                let next_enabled = !is_enabled;
-                                                move |this, _, _, cx| {
-                                                    if let Some(ref cb) = this.callbacks.on_toggle_extension {
-                                                        cb(&id_str, next_enabled);
-                                                    }
-                                                    if let Some(item) = this.installed_extensions.iter_mut().find(|e| e.id == id_str) {
-                                                        item.is_enabled = next_enabled;
-                                                    }
-                                                    cx.notify();
-                                                }
-                                            })),
+                                                .child(
+                                                    CouchButton::danger(
+                                                        ElementId::Name(format!("btn-uninstall-ext-{}", ext.id).into()),
+                                                        "Uninstall",
+                                                    )
+                                                    .size(CouchButtonSize::Sm)
+                                                    .icon(IconName::Trash)
+                                                    .on_click(cx.listener({
+                                                        let id_str = ext.id.clone();
+                                                        move |this, _, _, cx| {
+                                                            if let Some(ref cb) = this.callbacks.on_uninstall_extension {
+                                                                let _ = cb(&id_str);
+                                                            }
+                                                            this.installed_extensions.retain(|e| e.id != id_str);
+                                                            this.status_message = format!("Extension uninstalled: {}", id_str);
+                                                            this.show_osd("Extension Uninstalled", 1500, cx);
+                                                            cx.notify();
+                                                        }
+                                                    })),
+                                                ),
                                         ),
                                 )
                                 .child(

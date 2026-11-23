@@ -139,7 +139,10 @@ impl MainWindow {
     /// Re-enforces window layout boundaries for active instances.
     pub fn re_enforce_windows(&mut self, cx: &mut Context<Self>) {
         if let Some(ref cb) = self.callbacks.on_re_enforce_windows {
-            cb();
+            let cb_clone = cb.clone();
+            std::thread::spawn(move || {
+                cb_clone();
+            });
         }
         self.status_message = "Window bounds re-enforced".to_string();
         cx.notify();
@@ -164,13 +167,17 @@ impl MainWindow {
     /// Stops the currently active splitscreen session and returns to carousel.
     pub fn stop_session(&mut self, cx: &mut Context<Self>) {
         self.session_active = false;
-        if let Some(ref cb) = self.callbacks.on_stop_session {
-            cb();
-        }
         self.set_osd_visible(false);
         self.big_picture_screen = BigPictureScreen::Carousel;
         self.status_message = "Session stopped. Returned to Big Picture.".to_string();
         cx.notify();
+
+        if let Some(ref cb) = self.callbacks.on_stop_session {
+            let cb_clone = cb.clone();
+            std::thread::spawn(move || {
+                cb_clone();
+            });
+        }
     }
 
     /// Handles confirmation of the selected OSD action.

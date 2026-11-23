@@ -72,6 +72,11 @@ impl PermissionStore {
         self.grants.insert(plugin_id.to_string(), grant);
     }
 
+    /// Revokes all granted permissions for a plugin.
+    pub fn revoke_plugin(&mut self, plugin_id: &str) {
+        self.grants.remove(plugin_id);
+    }
+
     /// Checks if a plugin is authorized for a specific permission, verifying its binary hash has NOT changed.
     pub fn is_authorized(
         &self,

@@ -13,7 +13,6 @@ use crate::theme;
 use crate::{Icon, IconName};
 use gpui::prelude::*;
 use gpui::*;
-use std::sync::Arc;
 
 /// Active top-level navigation view tab.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -727,6 +726,15 @@ impl MainWindow {
         self
     }
 
+    /// Sets callback for uninstalling an extension.
+    pub fn with_extension_uninstaller<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str) -> Result<(), String> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_extension_uninstaller(callback);
+        self
+    }
+
     /// Sets callback for rescanning extensions from disk and immediately populates installed_extensions.
     pub fn with_extension_rescanner<F>(mut self, callback: F) -> Self
     where
@@ -817,6 +825,24 @@ impl MainWindow {
         F: Fn(&str, u32) + Send + Sync + 'static,
     {
         self.callbacks = self.callbacks.with_debugger_breakpoint_toggler(callback);
+        self
+    }
+
+    /// Sets callback for reading handler script source code.
+    pub fn with_handler_script_reader<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str) -> Result<String, String> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_handler_script_reader(callback);
+        self
+    }
+
+    /// Sets callback for saving handler script source code.
+    pub fn with_handler_script_saver<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str, &str) -> Result<(), String> + Send + Sync + 'static,
+    {
+        self.callbacks = self.callbacks.with_handler_script_saver(callback);
         self
     }
 
@@ -1334,22 +1360,7 @@ impl Render for MainWindow {
             ),
             ActiveTab::Settings => crate::settings_view::render_settings_view(self, cx),
             ActiveTab::Extensions => crate::extensions_view::render_extensions_view(self, cx),
-            ActiveTab::Debugger => crate::debugger_view::render_debugger_view(
-                &self.debugger_view_state,
-                self.callbacks.on_debug_resume.clone(),
-                self.callbacks.on_debug_step_over.clone(),
-                self.callbacks.on_debug_step_into.clone(),
-                self.callbacks.on_debug_step_out.clone(),
-                self.callbacks.on_debug_pause.clone(),
-                self.callbacks.on_debug_stop.clone(),
-                self.callbacks.on_debug_eval.as_ref().map(|cb| {
-                    let c = cb.clone();
-                    Arc::new(move |expr: &str| {
-                        let _ = c(expr);
-                    }) as Arc<dyn Fn(&str) + Send + Sync>
-                }),
-                self.callbacks.on_debug_toggle_breakpoint.clone(),
-            ),
+            ActiveTab::Debugger => crate::debugger_view::render_debugger_view(self, cx),
         };
 
         div()

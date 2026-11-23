@@ -128,6 +128,8 @@ pub struct MainWindowCallbacks {
     pub on_rescan_extensions: Option<Arc<dyn Fn() -> Vec<crate::extensions_view::ExtensionItem> + Send + Sync>>,
     /// Optional callback to grant a permission to an extension: `(id, perm_name)`.
     pub on_grant_extension_permission: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
+    /// Optional callback to uninstall an extension: `(id)`.
+    pub on_uninstall_extension: Option<Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>>,
     /// Optional callback for debugger resume.
     pub on_debug_resume: Option<Arc<dyn Fn() + Send + Sync>>,
     /// Optional callback for debugger step over.
@@ -144,6 +146,10 @@ pub struct MainWindowCallbacks {
     pub on_debug_eval: Option<Arc<dyn Fn(&str) -> Result<String, String> + Send + Sync>>,
     /// Optional callback for toggling breakpoint: `(file_id, line)`.
     pub on_debug_toggle_breakpoint: Option<Arc<dyn Fn(&str, u32) + Send + Sync>>,
+    /// Optional callback to read handler script source code: `(guid_or_name) -> Result<String, String>`.
+    pub on_read_handler_script: Option<Arc<dyn Fn(&str) -> Result<String, String> + Send + Sync>>,
+    /// Optional callback to save handler script source code: `(guid_or_name, code) -> Result<(), String>`.
+    pub on_save_handler_script: Option<Arc<dyn Fn(&str, &str) -> Result<(), String> + Send + Sync>>,
 }
 
 impl MainWindowCallbacks {
@@ -515,6 +521,15 @@ impl MainWindowCallbacks {
         self
     }
 
+    /// Sets callback for uninstalling an extension.
+    pub fn with_extension_uninstaller<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str) -> Result<(), String> + Send + Sync + 'static,
+    {
+        self.on_uninstall_extension = Some(Arc::new(callback));
+        self
+    }
+
     /// Sets callback for debugger resume.
     pub fn with_debugger_resume<F>(mut self, callback: F) -> Self
     where
@@ -584,6 +599,24 @@ impl MainWindowCallbacks {
         F: Fn(&str, u32) + Send + Sync + 'static,
     {
         self.on_debug_toggle_breakpoint = Some(Arc::new(callback));
+        self
+    }
+
+    /// Sets callback for reading handler script source code.
+    pub fn with_handler_script_reader<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str) -> Result<String, String> + Send + Sync + 'static,
+    {
+        self.on_read_handler_script = Some(Arc::new(callback));
+        self
+    }
+
+    /// Sets callback for saving handler script source code.
+    pub fn with_handler_script_saver<F>(mut self, callback: F) -> Self
+    where
+        F: Fn(&str, &str) -> Result<(), String> + Send + Sync + 'static,
+    {
+        self.on_save_handler_script = Some(Arc::new(callback));
         self
     }
 }

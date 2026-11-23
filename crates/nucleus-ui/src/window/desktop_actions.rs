@@ -250,6 +250,17 @@ impl MainWindow {
     /// Loads the last saved profile for the currently selected game.
     pub fn load_last_saved_profile_for_selected(&mut self, cx: &mut Context<Self>) {
         if let Some(ref game) = self.selected_game.clone() {
+            let is_disabled = self.app_settings.disable_game_profiles
+                || self
+                    .handlers
+                    .iter()
+                    .find(|h| h.game_name == *game || h.guid == *game)
+                    .map_or(false, |h| h.disable_profile);
+            if is_disabled {
+                self.show_osd("Game profiles are disabled.", 2000, cx);
+                self.enter_couch_setup(game, cx);
+                return;
+            }
             let guid = self.handlers.iter().find(|h| h.game_name == *game || h.guid == *game)
                 .map(|h| h.guid.clone()).unwrap_or_else(|| game.clone());
             if let Some(ref cb) = self.callbacks.on_load_numbered_profile {
@@ -311,13 +322,17 @@ impl MainWindow {
 
     /// Cleanly stops an active session and returns to the library carousel.
     pub fn stop_active_session_cleanly(&mut self, cx: &mut Context<Self>) {
-        if let Some(ref cb) = self.callbacks.on_stop_session {
-            cb();
-        }
         self.session_active = false;
         self.show_osd("Splitscreen session ended.", 2500, cx);
         self.big_picture_screen = BigPictureScreen::Carousel;
         cx.notify();
+
+        if let Some(ref cb) = self.callbacks.on_stop_session {
+            let cb_clone = cb.clone();
+            std::thread::spawn(move || {
+                cb_clone();
+            });
+        }
     }
 
     /// Generates a list of all saved profile items for display in the Saved Profiles view.
@@ -405,6 +420,17 @@ impl MainWindow {
         self.app_settings.preferred_display = (self.app_settings.preferred_display + 1) % total_displays;
         let _ = self.app_settings.save();
         self.show_osd(&format!("Preferred display: Display {}", self.app_settings.preferred_display + 1), 1500, cx);
+        cx.notify();
+    }
+
+    /// Cycles UI language preference.
+    pub fn cycle_language_preference(&mut self, cx: &mut Context<Self>) {
+        let languages = ["English", "Spanish", "French", "German", "Portuguese", "Russian", "Japanese", "Simplified Chinese"];
+        let cur = &self.app_settings.language;
+        let next_idx = languages.iter().position(|&l| l.eq_ignore_ascii_case(cur)).map(|i| (i + 1) % languages.len()).unwrap_or(0);
+        self.app_settings.language = languages[next_idx].to_string();
+        let _ = self.app_settings.save();
+        self.show_osd(&format!("Language: {}", self.app_settings.language), 1500, cx);
         cx.notify();
     }
 
@@ -607,13 +633,15 @@ impl MainWindow {
             options.push("Keyboard & Mouse (Paired)".to_string());
         }
 
-        // 3. ProtoInput Individual Keyboards & Mice
-        options.push("Keyboard #1 (ProtoInput)".to_string());
-        options.push("Keyboard #2 (ProtoInput)".to_string());
-        options.push("Mouse #1 (ProtoInput)".to_string());
-        options.push("Mouse #2 (ProtoInput)".to_string());
-        options.push("K#1 + M#1 (ProtoInput Pair)".to_string());
-        options.push("K#2 + M#2 (ProtoInput Pair)".to_string());
+        // 3. ProtoInput Individual Keyboards & Mice (Developer Mode only)
+        if self.app_settings.developer_mode {
+            options.push("Keyboard #1 (ProtoInput)".to_string());
+            options.push("Keyboard #2 (ProtoInput)".to_string());
+            options.push("Mouse #1 (ProtoInput)".to_string());
+            options.push("Mouse #2 (ProtoInput)".to_string());
+            options.push("K#1 + M#1 (ProtoInput Pair)".to_string());
+            options.push("K#2 + M#2 (ProtoInput Pair)".to_string());
+        }
 
         // 3. DirectInput Emulation (x360ce) - if at least one physical gamepad is detected
         if self.detected_devices_list.iter().any(|d| !d.is_virtual) {
@@ -729,6 +757,50 @@ impl MainWindow {
             }
         })
         .detach();
+    }
+
+    /// Reads and loads the JavaScript handler script for the specified handler into the integrated editor/debugger.
+    pub fn load_debugger_handler_script(&mut self, handler_id: &str, cx: &mut Context<Self>) {
+        if let Some(reader) = &self.callbacks.on_read_handler_script {
+            match reader(handler_id) {
+                Ok(content) => {
+                    let title = self
+                        .handlers
+                        .iter()
+                        .find(|h| h.guid == handler_id)
+                        .map(|h| h.game_name.clone())
+                        .unwrap_or_else(|| handler_id.to_string());
+                    self.debugger_view_state.selected_handler_guid = Some(handler_id.to_string());
+                    self.debugger_view_state.selected_game_title = Some(title.clone());
+                    let filename = format!("{}.js", title.to_lowercase().replace(' ', "_"));
+                    self.debugger_view_state.load_script(&filename, &content);
+                    self.debugger_view_state.status_message = Some(format!("Loaded script for {}", title));
+                }
+                Err(err) => {
+                    self.debugger_view_state.status_message = Some(format!("Error loading handler: {}", err));
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    /// Saves the modified handler script buffer back to disk via the registered callback.
+    pub fn save_debugger_handler_script(&mut self, cx: &mut Context<Self>) {
+        if let Some(guid) = self.debugger_view_state.selected_handler_guid.clone() {
+            if let Some(saver) = &self.callbacks.on_save_handler_script {
+                let content = self.debugger_view_state.full_script_content();
+                match saver(&guid, &content) {
+                    Ok(()) => {
+                        self.debugger_view_state.is_dirty = false;
+                        self.debugger_view_state.status_message = Some("Handler script saved successfully!".to_string());
+                    }
+                    Err(err) => {
+                        self.debugger_view_state.status_message = Some(format!("Failed to save script: {}", err));
+                    }
+                }
+            }
+        }
+        cx.notify();
     }
 
 }

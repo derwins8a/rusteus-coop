@@ -68,6 +68,7 @@ pub fn render_save_slots_modal(
     on_clone_slot: Option<Arc<dyn Fn(&str, &str, &str) + Send + Sync>>,
     on_delete_slot: Option<Arc<dyn Fn(&str, &str) + Send + Sync>>,
     on_close: Arc<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
+    on_refresh: Option<Arc<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
 ) -> AnyElement {
     if !state.is_open {
         return div().into_any_element();
@@ -109,11 +110,15 @@ pub fn render_save_slots_modal(
                         .icon(IconName::Plus)
                         .on_click({
                             let create_cb = on_create_slot.clone();
+                            let refresh_cb = on_refresh.clone();
                             let g = guid.clone();
                             let default_name = format!("Player {} Slot", player_idx + 1);
-                            move |_ev, _win, _app| {
+                            move |ev, win, app| {
                                 if let Some(ref cb) = create_cb {
                                     cb(&g, &default_name, &g, "manual");
+                                }
+                                if let Some(ref r) = refresh_cb {
+                                    r(ev, win, app);
                                 }
                             }
                         }),
@@ -160,10 +165,6 @@ pub fn render_save_slots_modal(
                         .map(|slot| {
                             let is_assigned = active_slot_id == Some(&slot.slot_id);
                             let slot_id = slot.slot_id.clone();
-                            let select_cb = on_select_slot.clone();
-                            let clone_cb = on_clone_slot.clone();
-                            let delete_cb = on_delete_slot.clone();
-                            let g = guid.clone();
 
                             div()
                                 .id(ElementId::Name(format!("slot-card-{}", slot.slot_id).into()))
@@ -246,7 +247,10 @@ pub fn render_save_slots_modal(
                                             })
                                             .on_click({
                                                 let s_id = slot_id.clone();
-                                                move |_ev, _win, _app| {
+                                                let select_cb = on_select_slot.clone();
+                                                let refresh_cb = on_refresh.clone();
+                                                let g = guid.clone();
+                                                move |ev, win, app| {
                                                     if let Some(ref cb) = select_cb {
                                                         let new_val = if is_assigned {
                                                             None
@@ -254,6 +258,9 @@ pub fn render_save_slots_modal(
                                                             Some(s_id.clone())
                                                         };
                                                         cb(&g, player_idx, new_val);
+                                                    }
+                                                    if let Some(ref r) = refresh_cb {
+                                                        r(ev, win, app);
                                                     }
                                                 }
                                             }),
@@ -268,10 +275,15 @@ pub fn render_save_slots_modal(
                                             .on_click({
                                                 let s_id = slot_id.clone();
                                                 let g2 = guid.clone();
+                                                let clone_cb = on_clone_slot.clone();
+                                                let refresh_cb = on_refresh.clone();
                                                 let new_name = format!("{} (Copy)", slot.display_name);
-                                                move |_ev, _win, _app| {
+                                                move |ev, win, app| {
                                                     if let Some(ref cb) = clone_cb {
                                                         cb(&g2, &s_id, &new_name);
+                                                    }
+                                                    if let Some(ref r) = refresh_cb {
+                                                        r(ev, win, app);
                                                     }
                                                 }
                                             }),
@@ -286,9 +298,14 @@ pub fn render_save_slots_modal(
                                             .on_click({
                                                 let s_id = slot_id.clone();
                                                 let g3 = guid.clone();
-                                                move |_ev, _win, _app| {
+                                                let delete_cb = on_delete_slot.clone();
+                                                let refresh_cb = on_refresh.clone();
+                                                move |ev, win, app| {
                                                     if let Some(ref cb) = delete_cb {
                                                         cb(&g3, &s_id);
+                                                    }
+                                                    if let Some(ref r) = refresh_cb {
+                                                        r(ev, win, app);
                                                     }
                                                 }
                                             }),

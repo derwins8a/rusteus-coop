@@ -392,6 +392,20 @@ impl ExtensionManager {
 
         results
     }
+
+    /// Uninstalls an extension by deleting its directory on disk and removing it from loaded plugins.
+    pub fn uninstall_extension(&mut self, id: &str) -> Result<(), String> {
+        if let Some(plugin) = self.loaded_plugins.remove(id) {
+            if plugin.root_dir.exists() {
+                let _ = fs::remove_dir_all(&plugin.root_dir);
+            }
+            self.permission_store.revoke_plugin(id);
+            let _ = self.permission_store.save_to_file(&self.permissions_path);
+            Ok(())
+        } else {
+            Err(format!("Extension '{}' not found", id))
+        }
+    }
 }
 
 #[cfg(test)]

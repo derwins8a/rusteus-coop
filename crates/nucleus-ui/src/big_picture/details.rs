@@ -59,9 +59,7 @@ pub fn render_game_details_view(
         .flex_col()
         .size_full()
         .px_10()
-        .py_6()
-        .pb_16()
-        .overflow_y_scroll()
+        .py_4()
         .bg(theme::bg_main())
         .text_color(theme::text_primary())
         // Breadcrumb Title
@@ -119,7 +117,7 @@ pub fn render_game_details_view(
                             div()
                                 .relative()
                                 .w_full()
-                                .h(px(220.0))
+                                .h(px(180.0))
                                 .rounded_xl()
                                 .overflow_hidden()
                                 .bg(theme::bg_panel())
@@ -147,17 +145,17 @@ pub fn render_game_details_view(
                                         .flex_col()
                                         .justify_end()
                                         .size_full()
-                                        .p_6()
+                                        .p_4()
                                         .child(
                                             div()
-                                                .text_3xl()
+                                                .text_2xl()
                                                 .font_weight(FontWeight::BOLD)
                                                 .text_color(theme::text_primary())
                                                 .child(game_title.clone()),
                                         )
                                         .child(
                                             div()
-                                                .text_sm()
+                                                .text_xs()
                                                 .font_weight(FontWeight::MEDIUM)
                                                 .text_color(theme::text_muted())
                                                 .child(format!(
@@ -165,15 +163,15 @@ pub fn render_game_details_view(
                                                     min_players, max_players
                                                 )),
                                         ),
-                                ),
+                                 ),
                         )
                         // "Read first" Card
                         .child(
                             div()
                                 .flex()
                                 .flex_col()
-                                .gap_3()
-                                .p_5()
+                                .gap_2()
+                                .p_4()
                                 .rounded_xl()
                                 .bg(theme::bg_panel())
                                 .border_1()
@@ -198,6 +196,10 @@ pub fn render_game_details_view(
                                 )
                                 .child(
                                     div()
+                                        .id("details-handler-notes-scroll")
+                                        .max_h(px(160.0))
+                                        .overflow_y_scroll()
+                                        .pr_1()
                                         .text_xs()
                                         .font_weight(FontWeight::NORMAL)
                                         .line_height(relative(1.4))
@@ -218,8 +220,8 @@ pub fn render_game_details_view(
                             div()
                                 .flex()
                                 .flex_col()
-                                .gap_3()
-                                .p_5()
+                                .gap_2p5()
+                                .p_4()
                                 .rounded_xl()
                                 .bg(theme::bg_panel())
                                 .border_1()
@@ -327,8 +329,8 @@ pub fn render_game_details_view(
                             div()
                                 .flex()
                                 .flex_col()
-                                .gap_3()
-                                .p_5()
+                                .gap_2p5()
+                                .p_4()
                                 .rounded_xl()
                                 .bg(theme::bg_panel())
                                 .border_1()

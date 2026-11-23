@@ -44,6 +44,10 @@ pub struct SettingsView {
     pub editing_player: Option<(usize, PlayerEditField)>,
     /// Audio instance row currently displaying device selection dropdown.
     pub dropdown_audio_instance: Option<usize>,
+    /// Active page for Audio tab (0 for Instances 1-8, 1 for Instances 9-16, 2 for Instances 17-24, 3 for Instances 25-32).
+    pub audio_page: usize,
+    /// Whether user is currently editing the custom Windows account password.
+    pub editing_password: bool,
 }
 
 /// Settings categories available in the panel.
@@ -1249,20 +1253,106 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
                         .flex()
                         .flex_wrap()
                         .items_center()
-                        .gap_1p5()
-                        .child(
+                        .gap_2()
+                        // Editable text input box
+                        .child({
+                            let is_editing = win.settings_view.editing_password;
+                            let pass_val = settings.nucleus_account_password.clone();
                             div()
+                                .id("custom-password-input")
+                                .cursor_pointer()
+                                .flex()
+                                .items_center()
+                                .gap_2()
                                 .px_3()
-                                .py_1()
+                                .py_1p5()
                                 .rounded_md()
-                                .bg(theme::bg_panel())
+                                .bg(if is_editing { theme::bg_panel() } else { theme::bg_subtle() })
                                 .border_1()
-                                .border_color(theme::border_color())
-                                .text_xs()
-                                .font_weight(FontWeight::BOLD)
-                                .text_color(theme::text_primary())
-                                .child(settings.nucleus_account_password.clone()),
-                        )
+                                .border_color(if is_editing { theme::accent() } else { theme::border_color() })
+                                .when(is_editing, |box_el| {
+                                    box_el.child(
+                                        div()
+                                            .id("input-field-custom-pwd")
+                                            .key_context("settings_custom_password")
+                                            .on_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, _, cx| {
+                                                if event.keystroke.modifiers.control || event.keystroke.modifiers.alt || event.keystroke.modifiers.platform {
+                                                    return;
+                                                }
+                                                let key = event.keystroke.key.as_str();
+                                                match key {
+                                                    "backspace" => {
+                                                        this.app_settings.nucleus_account_password.pop();
+                                                        let _ = this.app_settings.save();
+                                                        cx.notify();
+                                                    }
+                                                    "escape" | "enter" => {
+                                                        this.settings_view.editing_password = false;
+                                                        let _ = this.app_settings.save();
+                                                        cx.notify();
+                                                    }
+                                                    _ => {
+                                                        if let Some(ref s) = event.keystroke.key_char {
+                                                            this.app_settings.nucleus_account_password.push_str(s);
+                                                            let _ = this.app_settings.save();
+                                                            cx.notify();
+                                                        } else if key.chars().count() == 1 {
+                                                            this.app_settings.nucleus_account_password.push_str(key);
+                                                            let _ = this.app_settings.save();
+                                                            cx.notify();
+                                                        }
+                                                    }
+                                                }
+                                            }))
+                                            .text_xs()
+                                            .font_weight(FontWeight::BOLD)
+                                            .text_color(theme::text_primary())
+                                            .child(format!("{}|", pass_val))
+                                    )
+                                    .child(
+                                        div()
+                                            .id("btn-done-custom-password")
+                                            .cursor_pointer()
+                                            .px_2()
+                                            .py_0p5()
+                                            .rounded_sm()
+                                            .bg(theme::accent())
+                                            .text_xs()
+                                            .text_color(theme::text_on_accent())
+                                            .font_weight(FontWeight::BOLD)
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.settings_view.editing_password = false;
+                                                let _ = this.app_settings.save();
+                                                cx.notify();
+                                            }))
+                                            .child("Done")
+                                    )
+                                })
+                                .when(!is_editing, |box_el| {
+                                    box_el
+                                        .on_click(cx.listener(|this, _, _, cx| {
+                                            this.settings_view.editing_password = true;
+                                            cx.notify();
+                                        }))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::text_primary())
+                                                .child(if pass_val.is_empty() { "Click to type password...".to_string() } else { pass_val })
+                                        )
+                                        .child(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap_1()
+                                                .text_xs()
+                                                .text_color(theme::accent())
+                                                .child(Icon::new(IconName::Pencil).size(px(11.0)))
+                                                .child("Custom")
+                                        )
+                                })
+                        })
                         .children(
                             ["12345", "nucleus2026", "splitscreen", "gamerpass"]
                                 .iter()
@@ -1295,6 +1385,8 @@ pub fn render_card_general_isolation(win: &MainWindow, cx: &mut Context<MainWind
                                         .on_click(cx.listener(move |this, _, _, cx| {
                                             this.app_settings.nucleus_account_password =
                                                 preset.to_string();
+                                            this.settings_view.editing_password = false;
+                                            let _ = this.app_settings.save();
                                             this.status_message =
                                                 format!("Account password set to: {}", preset);
                                             cx.notify();
@@ -2560,21 +2652,53 @@ pub fn render_card_audio_mode(win: &MainWindow, cx: &mut Context<MainWindow>) ->
 /// Renders Card: Per-Instance Audio Endpoints.
 pub fn render_card_audio_endpoints(win: &MainWindow, cx: &mut Context<MainWindow>) -> AnyElement {
     let settings = &win.app_settings;
+    let current_page = win.settings_view.audio_page.min(3);
+    let start_idx = current_page * 8;
+    let end_idx = start_idx + 8;
 
     NefosCard::surface("card-audio-endpoints")
-        .title_text("Per-Instance Audio Endpoints (Instance 1 through 8)")
-        .description_text("Assign physical or virtual audio output playback devices to individual player instances")
+        .title_text(format!("Per-Instance Audio Endpoints (Instance {} through {})", start_idx + 1, end_idx))
+        .description_text("Assign physical or virtual audio output playback devices to individual player instances (up to 32 players)")
         .header_action(
-            CouchButton::secondary("btn-refresh-audio", "Refresh Endpoints")
-                .icon(IconName::RefreshCw)
-                .size(CouchButtonSize::Sm)
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.status_message = "Audio endpoints refreshed".to_string();
-                    this.show_osd("Audio Devices Refreshed", 800, cx);
-                    cx.notify();
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .children([0, 1, 2, 3].into_iter().map(|page| {
+                    let is_active = page == current_page;
+                    let label = format!("{}-{}", page * 8 + 1, (page + 1) * 8);
+                    div()
+                        .id(("audio-page-btn", page))
+                        .cursor_pointer()
+                        .px_2p5()
+                        .py_1()
+                        .rounded_md()
+                        .text_xs()
+                        .font_weight(FontWeight::BOLD)
+                        .bg(if is_active { theme::accent() } else { theme::bg_subtle() })
+                        .text_color(if is_active { theme::text_on_accent() } else { theme::text_muted() })
+                        .border_1()
+                        .border_color(if is_active { theme::accent() } else { theme::border_color() })
+                        .hover(|s| s.bg(theme::bg_hover()))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.settings_view.audio_page = page;
+                            this.settings_view.dropdown_audio_instance = None;
+                            cx.notify();
+                        }))
+                        .child(label)
                 }))
+                .child(
+                    CouchButton::secondary("btn-refresh-audio", "Refresh")
+                        .icon(IconName::RefreshCw)
+                        .size(CouchButtonSize::Sm)
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.status_message = "Audio endpoints refreshed".to_string();
+                            this.show_osd("Audio Devices Refreshed", 800, cx);
+                            cx.notify();
+                        }))
+                )
         )
-        .children((0..8).map(|idx| {
+        .children((start_idx..end_idx).map(|idx| {
             let dev = settings.get_audio_instance(idx);
             let is_open = win.settings_view.dropdown_audio_instance == Some(idx);
             render_audio_instance_row(idx, dev.to_string(), is_open, cx)
