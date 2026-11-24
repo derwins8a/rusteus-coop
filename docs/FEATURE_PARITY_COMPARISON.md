@@ -79,6 +79,7 @@
 | **Handler AST Debugger** | ❌ Print debugging only | ✅ Interactive step debugger & inspector | **New in Rust**: AST breakpoint probes, step-into/over, cycle-safe variable inspector. |
 | **WASM Plugin Sandbox** | ❌ Insecure C# DLL reflection | ✅ Metered WebAssembly (`wasmi` v0.40) | **New in Rust**: 50M gas instruction limit, permission store with SHA-256 validation. |
 | **Splitscreen.Me Hub Integration** | ✅ Synchronous WebClient downloads | ✅ Async HTTP + Meteor DDP WebSockets | **Superior in Rust**: Streaming chunk downloads with live progress; account login. |
+| **Desktop Shortcuts & Launcher CLI** | ⚠️ Separate `Profiles Launcher.exe` | ✅ Native Win32 `IShellLinkW` `.lnk` + `--launch-profile` | **Superior in Rust**: Direct headless profile execution for Playnite & Steam + 1-click shortcut export. |
 
 ---
 

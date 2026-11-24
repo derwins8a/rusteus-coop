@@ -142,7 +142,26 @@ While playing, press **`Ctrl + Shift + O`** on your keyboard, or press the **Gui
 
 ---
 
-## 7. Troubleshooting & FAQ
+## 7. Desktop Shortcuts, Playnite & Steam Integration
+
+Rusteus-Coop supports 1-click headless launching of pre-configured splitscreen sessions via desktop shortcuts, **Playnite**, and **Steam Big Picture**.
+
+### Creating a Desktop Shortcut
+1. Right-click any game card in your **Library** (or open the **Setup Screen** for a game) and click **Create Desktop Shortcut**.
+2. Rusteus-Coop creates a native `.lnk` shortcut (or `.desktop` entry on Linux) on your Desktop using the game's icon.
+3. Double-clicking the shortcut immediately launches that game's saved splitscreen profile without opening the main launcher window.
+
+### Playnite & Steam Command-Line Integration
+You can copy the exact launch command directly from the game's context menu (**Copy Launch Command (Playnite / Steam)**) or Setup Screen (**Copy Launch Cmd**):
+```bash
+nucleus-coop.exe --launch-profile "<game-guid>" [profile_number]
+```
+- **Aliases**: `--profile`, `--play-profile`
+- When launched via Playnite or as a Non-Steam Game, Rusteus-Coop runs the session headlessly, enforces borderless viewports and hotkeys (`VK_END` / `Ctrl+Q`), and cleanly exits with code `0` once all game instances close so Playnite and Steam accurately track playtime.
+
+---
+
+## 8. Troubleshooting & FAQ
 
 ### Q1: The game crashes immediately on launch with "Access Denied" or fails to stage files.
 - **Cause**: Rusteus or the game is located on a FAT32/exFAT drive, or Windows Developer Mode is required for non-admin symlinks.
