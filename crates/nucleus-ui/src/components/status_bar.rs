@@ -4,7 +4,7 @@
 //! session state, connected gamepad counts, and runtime platform.
 
 use gpui::prelude::FluentBuilder;
-use gpui::{AnyElement, IntoElement, ParentElement, Styled, div, px};
+use gpui::{AnyElement, FontWeight, IntoElement, ParentElement, Styled, div, px, rgb};
 
 use crate::theme;
 
@@ -14,6 +14,7 @@ pub struct CouchStatusBar {
     pub status_message: String,
     pub detected_devices: usize,
     pub session_active: bool,
+    pub input_locked: bool,
 }
 
 impl Default for CouchStatusBar {
@@ -29,6 +30,7 @@ impl CouchStatusBar {
             status_message: "Ready".to_string(),
             detected_devices: 0,
             session_active: false,
+            input_locked: false,
         }
     }
 
@@ -47,6 +49,12 @@ impl CouchStatusBar {
     /// Sets whether a game session is actively running.
     pub fn session_active(mut self, active: bool) -> Self {
         self.session_active = active;
+        self
+    }
+
+    /// Sets whether raw input is currently locked.
+    pub fn input_locked(mut self, locked: bool) -> Self {
+        self.input_locked = locked;
         self
     }
 
@@ -99,6 +107,18 @@ impl CouchStatusBar {
                     .items_center()
                     .gap_4()
                     .text_color(theme::text_muted())
+                    .when(self.input_locked, |d| {
+                        d.child(
+                            div()
+                                .px_2()
+                                .py_0p5()
+                                .rounded_md()
+                                .bg(rgb(0xd97706))
+                                .text_color(rgb(0xffffff))
+                                .font_weight(FontWeight::BOLD)
+                                .child("🔒 INPUT LOCKED (VK_END to unlock)"),
+                        )
+                    })
                     .child(
                         div()
                             .child(session_label)
@@ -130,11 +150,13 @@ mod tests {
         let bar = CouchStatusBar::new()
             .message("Testing status")
             .detected_devices(4)
-            .session_active(true);
+            .session_active(true)
+            .input_locked(true);
 
         assert_eq!(bar.status_message, "Testing status");
         assert_eq!(bar.detected_devices, 4);
         assert!(bar.session_active);
+        assert!(bar.input_locked);
     }
 
     #[test]
@@ -143,5 +165,6 @@ mod tests {
         assert_eq!(bar.status_message, "Ready");
         assert_eq!(bar.detected_devices, 0);
         assert!(!bar.session_active);
+        assert!(!bar.input_locked);
     }
 }

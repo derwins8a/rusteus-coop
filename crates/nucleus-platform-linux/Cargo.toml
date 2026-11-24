@@ -7,3 +7,4 @@ edition.workspace = true
 nucleus-common = { workspace = true }
 nucleus-platform = { workspace = true }
 tracing = { workspace = true }
+dirs = { workspace = true }

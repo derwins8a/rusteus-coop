@@ -425,6 +425,20 @@ impl MainWindow {
                         sel_cb(lang, win, app);
                     }
                 })
+                .on_create_desktop_shortcut({
+                    let g_id = guid.clone();
+                    cx.listener(move |this, _, _, cx| {
+                        this.context_menu_handler = None;
+                        this.create_desktop_shortcut_for_handler(&g_id, cx);
+                    })
+                })
+                .on_copy_launch_cmd({
+                    let g_id = guid.clone();
+                    cx.listener(move |this, _, _, cx| {
+                        this.context_menu_handler = None;
+                        this.copy_launch_cmd_for_handler(&g_id, cx);
+                    })
+                })
                 .on_remove_game({
                     let g_id = guid.clone();
                     let g_name = game_name.clone();

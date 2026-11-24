@@ -217,6 +217,10 @@ pub struct MainWindow {
     pub hub_focus_zone: usize,
     /// Top action card focus for Screen 8 (0 = Scan for games, 1 = Browse files).
     pub hub_top_card_index: usize,
+    /// Whether raw input is currently locked.
+    pub input_locked: bool,
+    /// Platform services provider.
+    pub platform: std::sync::Arc<dyn nucleus_platform::PlatformServices>,
 }
 
 impl MainWindow {
@@ -335,6 +339,8 @@ impl MainWindow {
             settings_item_index: 0,
             hub_focus_zone: 1,
             hub_top_card_index: 0,
+            input_locked: false,
+            platform: crate::default_platform(),
         };
 
         win.sync_player_assignments();
@@ -373,6 +379,15 @@ impl MainWindow {
         self.detected_devices = self.detected_devices_list.len();
         self.sync_player_assignments();
         self.status_message = "Cleared virtual mock gamepads.".to_string();
+    }
+
+    /// Sets the platform services implementation.
+    pub fn with_platform(
+        mut self,
+        platform: std::sync::Arc<dyn nucleus_platform::PlatformServices>,
+    ) -> Self {
+        self.platform = platform;
+        self
     }
 
     /// Sets explicit rich `HandlerItem` instances from GameManager.
@@ -967,6 +982,7 @@ impl MainWindow {
             .message(&self.status_message)
             .detected_devices(self.detected_devices)
             .session_active(self.is_session_active())
+            .input_locked(self.input_locked)
             .into_any_element()
     }
 

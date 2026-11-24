@@ -156,6 +156,7 @@ impl MainWindow {
             !self.in_game_osd.input_locked
         };
         self.in_game_osd.input_locked = is_locked;
+        self.input_locked = is_locked;
         self.status_message = if is_locked {
             "Raw Input Locked (VK_END)".to_string()
         } else {
@@ -167,6 +168,7 @@ impl MainWindow {
     /// Stops the currently active splitscreen session and returns to carousel.
     pub fn stop_session(&mut self, cx: &mut Context<Self>) {
         self.session_active = false;
+        self.input_locked = false;
         self.set_osd_visible(false);
         self.big_picture_screen = BigPictureScreen::Carousel;
         self.status_message = "Session stopped. Returned to Big Picture.".to_string();

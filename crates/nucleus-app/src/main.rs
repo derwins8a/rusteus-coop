@@ -5,6 +5,7 @@ use nucleus_common::logging;
 use nucleus_engine::GameManager;
 use nucleus_input::InputManager;
 use nucleus_input::gamepad::GamepadDevice;
+use nucleus_platform::PlatformServices;
 use nucleus_profile::AppSettings;
 use nucleus_ui::{DeviceItem, HandlerItem, HubPackageItem};
 use std::path::Path;
@@ -155,6 +156,133 @@ fn build_handler_item(
         item.steam_language = p.steam_language.clone();
     }
     item
+}
+
+/// Prints CLI usage information and available commands.
+fn print_cli_usage() {
+    println!("NucleusCoop CLI Usage:");
+    println!("  --launch-profile <guid> [profile_number]   Launch session using saved profile (aliases: --profile, --play-profile)");
+    println!("  --play <guid> <exe_path> [options]         Launch splitscreen session");
+    println!("      --players, -p <N>                      Number of players (default: 2)");
+    println!("      --layout, -l <Layout>                  Layout (e.g. Auto, Vertical, Horizontal)");
+    println!("  --scan                                     Scan local drives for games");
+    println!("  --list-handlers                            List all discovered game handlers");
+    println!("  --hub-search <query>                       Search Splitscreen.Me Hub for handlers");
+    println!("  --hub-detail <handler-id>                  Show detailed information for a handler");
+    println!("  --hub-install <handler-id>                 Download and install a handler from Hub");
+    println!("  --set-handlers-dir <path>                  Configure handlers directory");
+    println!("  --set-theme <theme>                        Configure UI theme");
+    println!("  --help, -h                                 Show this help message");
+}
+
+/// Executes the active splitscreen session loop with hotkey listeners and periodic tick.
+fn run_cli_session_loop(
+    game_manager: &mut GameManager,
+    app_settings: &AppSettings,
+    platform: &Arc<dyn PlatformServices>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Game session started! Press Ctrl+C or kill instances to end session.");
+    if let Some(session) = game_manager.active_session() {
+        println!(
+            "Active session ID: {}, status: {:?}",
+            session.profile.id,
+            session.status()
+        );
+    }
+    let mut hotkeys = nucleus_input::HotkeyListener::new();
+    let lock_key = app_settings.lock_key_code();
+    let _ = hotkeys.register_hotkey(lock_key, lock_key, 0);
+    let _ = hotkeys.register_from_settings(app_settings);
+    let mut input_lock = nucleus_input::InputLock::new();
+    input_lock.set_toggle_key(lock_key);
+
+    let mut tick_counter = 0;
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        tick_counter += 1;
+        if tick_counter >= 5 {
+            tick_counter = 0;
+            let is_running = game_manager
+                .active_session()
+                .map_or(false, |s| s.is_running);
+            if !is_running {
+                let _ = game_manager.stop_game();
+                break;
+            }
+            let _ = game_manager.tick();
+        }
+
+        let triggered = hotkeys.poll_hotkeys();
+        for hk in triggered {
+            if hk == nucleus_input::HOTKEY_ID_LOCK || hk == lock_key {
+                input_lock.toggle_with_osd(Some(platform.osd_manager()));
+            } else if hk == nucleus_input::HOTKEY_ID_CUTSCENES {
+                // Cutscenes mode passes through input lock state (C# HotkeyListener.cs:107)
+                let _ = game_manager.toggle_cutscenes_mode();
+            } else if hk == nucleus_input::HOTKEY_ID_COUCH_OSD {
+                platform
+                    .osd_manager()
+                    .show(2000, "Couch In-Game Menu (OSD) Toggled");
+            } else if input_lock.is_locked() {
+                // Parity with C# HotkeyListener.cs:161:
+                // Suppress action and prompt user to unlock inputs first
+                platform.osd_manager().show(
+                    1600,
+                    &format!(
+                        "Unlock Inputs First (Press {} Key)",
+                        app_settings.lock_inputs_key
+                    ),
+                );
+            } else {
+                match hk {
+                    nucleus_input::HOTKEY_ID_STOP | nucleus_input::HOTKEY_ID_CLOSE => {
+                        info!("Stop hotkey triggered, ending session...");
+                        let _ = game_manager.stop_game();
+                        return Ok(());
+                    }
+                    nucleus_input::HOTKEY_ID_RESET_WINDOWS => {
+                        info!(
+                            "Reset windows hotkey triggered, repositioning windows..."
+                        );
+                        platform
+                            .osd_manager()
+                            .show(1000, "Resetting game windows. Please wait...");
+                        let _ = game_manager.tick();
+                        platform.osd_manager().show(2000, "Game Windows Resetted");
+                    }
+                    nucleus_input::HOTKEY_ID_SET_FOCUS => {
+                        platform.osd_manager().show(2000, "Game Windows Unfocused");
+                    }
+                    nucleus_input::HOTKEY_ID_SWITCH => {
+                        let mode_desc = game_manager.switch_layout().unwrap_or(None);
+                        let text = mode_desc
+                            .map(|d| format!("Layout Switched: {}", d))
+                            .unwrap_or_else(|| "Switching Layouts".to_string());
+                        platform.osd_manager().show(1600, &text);
+                    }
+                    nucleus_input::HOTKEY_ID_TOPMOST => {
+                        let _ = game_manager.toggle_minimize_windows();
+                    }
+                    nucleus_input::HOTKEY_ID_REMINDER => {
+                        platform
+                            .osd_manager()
+                            .show(1000, "Shortcuts Reminder Toggled");
+                    }
+                    nucleus_input::HOTKEY_ID_MERGER_SWITCH => {
+                        platform.osd_manager().show(800, "Merger Focus Switched");
+                    }
+                    nucleus_input::HOTKEY_ID_COUCH_OSD => {
+                        platform
+                            .osd_manager()
+                            .show(2000, "Couch In-Game Menu (OSD) Toggled");
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    let _ = game_manager.stop_game();
+    Ok(())
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -318,6 +446,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 | "--set-handlers-dir"
                 | "--set-theme"
                 | "--play"
+                | "--launch-profile"
+                | "--profile"
+                | "--play-profile"
+                | "--help"
+                | "-h"
         );
 
     if is_cli_command {
@@ -474,110 +607,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 profile.player_count = players;
                 profile.layout = layout;
                 game_manager.start_game(guid, profile)?;
-                println!("Game session started! Press Ctrl+C or kill instances to end session.");
-                if let Some(session) = game_manager.active_session() {
-                    println!(
-                        "Active session ID: {}, status: {:?}",
-                        session.profile.id,
-                        session.status()
-                    );
-                }
-                let mut hotkeys = nucleus_input::HotkeyListener::new();
-                let lock_key = app_settings.lock_key_code();
-                let _ = hotkeys.register_hotkey(lock_key, lock_key, 0);
-                let _ = hotkeys.register_from_settings(&app_settings);
-                let mut input_lock = nucleus_input::InputLock::new();
-                input_lock.set_toggle_key(lock_key);
-
-                let mut tick_counter = 0;
-                loop {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    tick_counter += 1;
-                    if tick_counter >= 5 {
-                        tick_counter = 0;
-                        let is_running = game_manager
-                            .active_session()
-                            .map_or(false, |s| s.is_running);
-                        if !is_running {
-                            let _ = game_manager.stop_game();
-                            break;
-                        }
-                        let _ = game_manager.tick();
+                run_cli_session_loop(&mut game_manager, &app_settings, &platform)?;
+            }
+            "--launch-profile" | "--profile" | "--play-profile" => {
+                let guid = match args.get(2) {
+                    Some(g) if !g.trim().is_empty() => g.trim(),
+                    _ => {
+                        eprintln!("Error: Missing game GUID.\nUsage: --launch-profile <guid> [profile_number]");
+                        print_cli_usage();
+                        std::process::exit(1);
                     }
+                };
+                let profile_number: Option<usize> = args.get(3).and_then(|s| s.parse().ok());
 
-                    let triggered = hotkeys.poll_hotkeys();
-                    for hk in triggered {
-                        if hk == nucleus_input::HOTKEY_ID_LOCK || hk == lock_key {
-                            input_lock.toggle_with_osd(Some(platform.osd_manager()));
-                        } else if hk == nucleus_input::HOTKEY_ID_CUTSCENES {
-                            // Cutscenes mode passes through input lock state (C# HotkeyListener.cs:107)
-                            let _ = game_manager.toggle_cutscenes_mode();
-                        } else if hk == nucleus_input::HOTKEY_ID_COUCH_OSD {
-                            platform
-                                .osd_manager()
-                                .show(2000, "Couch In-Game Menu (OSD) Toggled");
-                        } else if input_lock.is_locked() {
-                            // Parity with C# HotkeyListener.cs:161:
-                            // Suppress action and prompt user to unlock inputs first
-                            platform.osd_manager().show(
-                                1600,
-                                &format!(
-                                    "Unlock Inputs First (Press {} Key)",
-                                    app_settings.lock_inputs_key
-                                ),
-                            );
-                        } else {
-                            match hk {
-                                nucleus_input::HOTKEY_ID_STOP | nucleus_input::HOTKEY_ID_CLOSE => {
-                                    info!("Stop hotkey triggered, ending session...");
-                                    let _ = game_manager.stop_game();
-                                    break;
-                                }
-                                nucleus_input::HOTKEY_ID_RESET_WINDOWS => {
-                                    info!(
-                                        "Reset windows hotkey triggered, repositioning windows..."
-                                    );
-                                    platform
-                                        .osd_manager()
-                                        .show(1000, "Resetting game windows. Please wait...");
-                                    let _ = game_manager.tick();
-                                    platform.osd_manager().show(2000, "Game Windows Resetted");
-                                }
-                                nucleus_input::HOTKEY_ID_SET_FOCUS => {
-                                    platform.osd_manager().show(2000, "Game Windows Unfocused");
-                                }
-                                nucleus_input::HOTKEY_ID_SWITCH => {
-                                    let mode_desc = game_manager.switch_layout().unwrap_or(None);
-                                    let text = mode_desc
-                                        .map(|d| format!("Layout Switched: {}", d))
-                                        .unwrap_or_else(|| "Switching Layouts".to_string());
-                                    platform.osd_manager().show(1600, &text);
-                                }
-                                nucleus_input::HOTKEY_ID_TOPMOST => {
-                                    let _ = game_manager.toggle_minimize_windows();
-                                }
-                                nucleus_input::HOTKEY_ID_REMINDER => {
-                                    platform
-                                        .osd_manager()
-                                        .show(1000, "Shortcuts Reminder Toggled");
-                                }
-                                nucleus_input::HOTKEY_ID_MERGER_SWITCH => {
-                                    platform.osd_manager().show(800, "Merger Focus Switched");
-                                }
-                                nucleus_input::HOTKEY_ID_COUCH_OSD => {
-                                    platform
-                                        .osd_manager()
-                                        .show(2000, "Couch In-Game Menu (OSD) Toggled");
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
+                println!(
+                    "Starting splitscreen session for '{}' from saved profile...",
+                    guid
+                );
+                game_manager.start_game_by_profile_selector(guid, profile_number)?;
+                run_cli_session_loop(&mut game_manager, &app_settings, &platform)?;
+                let _ = game_manager.stop_game();
+                std::process::exit(0);
+            }
+            "--help" | "-h" => {
+                print_cli_usage();
+                std::process::exit(0);
             }
             _ => unreachable!(),
         }
     } else {
+        if args.len() > 1 {
+            let is_gui_option = matches!(
+                args[1].as_str(),
+                "--tab"
+                    | "--game"
+                    | "--players"
+                    | "-p"
+                    | "--layout"
+                    | "-l"
+                    | "--search"
+                    | "-s"
+                    | "--controller-shortcuts"
+                    | "--hub-details"
+                    | "--hub-tab"
+                    | "--big-picture"
+                    | "--big-picture-screen"
+                    | "--elevated"
+                    | "--admin"
+            );
+            if !is_gui_option {
+                eprintln!("Error: Unknown or invalid argument '{}'", args[1]);
+                print_cli_usage();
+                std::process::exit(1);
+            }
+        }
         let initial_tab = args
             .iter()
             .position(|a| a == "--tab")
@@ -2425,5 +2508,59 @@ mod tests {
             .cloned();
         assert!(big_picture);
         assert_eq!(big_picture_screen.as_deref(), Some("osd"));
+    }
+
+    #[test]
+    fn test_is_cli_command_matching() {
+        let is_cli = |arg: &str| {
+            matches!(
+                arg,
+                "--scan"
+                    | "--list-handlers"
+                    | "--hub-search"
+                    | "--hub-detail"
+                    | "--hub-install"
+                    | "--set-handlers-dir"
+                    | "--set-theme"
+                    | "--play"
+                    | "--launch-profile"
+                    | "--profile"
+                    | "--play-profile"
+                    | "--help"
+                    | "-h"
+            )
+        };
+        assert!(is_cli("--launch-profile"));
+        assert!(is_cli("--profile"));
+        assert!(is_cli("--play-profile"));
+        assert!(is_cli("--help"));
+        assert!(is_cli("-h"));
+        assert!(is_cli("--play"));
+        assert!(!is_cli("--tab"));
+        assert!(!is_cli("--unknown"));
+    }
+
+    #[test]
+    fn test_parse_profile_selector_args() {
+        let args = vec![
+            "nucleus-coop".to_string(),
+            "--launch-profile".to_string(),
+            "test_guid".to_string(),
+            "3".to_string(),
+        ];
+        let guid = args.get(2).map(|s| s.as_str());
+        let profile_number: Option<usize> = args.get(3).and_then(|s| s.parse().ok());
+        assert_eq!(guid, Some("test_guid"));
+        assert_eq!(profile_number, Some(3));
+
+        let args_no_num = vec![
+            "nucleus-coop".to_string(),
+            "--profile".to_string(),
+            "another_guid".to_string(),
+        ];
+        let guid2 = args_no_num.get(2).map(|s| s.as_str());
+        let profile_number2: Option<usize> = args_no_num.get(3).and_then(|s| s.parse().ok());
+        assert_eq!(guid2, Some("another_guid"));
+        assert_eq!(profile_number2, None);
     }
 }

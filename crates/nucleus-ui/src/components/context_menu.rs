@@ -68,6 +68,10 @@ pub struct CouchContextMenu {
     pub on_toggle_language_picker: Option<ContextMenuClickHandler>,
     /// Callback invoked when a language is selected from the language picker.
     pub on_select_language: Option<LanguageSelectHandler>,
+    /// Callback invoked to create a desktop shortcut (.lnk / .desktop).
+    pub on_create_desktop_shortcut: Option<ContextMenuClickHandler>,
+    /// Callback invoked to copy the CLI launch command to the clipboard.
+    pub on_copy_launch_cmd: Option<ContextMenuClickHandler>,
     /// Callback invoked to prompt confirmation for removing the game from the library.
     pub on_remove_game: Option<ContextMenuClickHandler>,
 }
@@ -94,6 +98,8 @@ impl CouchContextMenu {
             on_open_assets: None,
             on_toggle_language_picker: None,
             on_select_language: None,
+            on_create_desktop_shortcut: None,
+            on_copy_launch_cmd: None,
             on_remove_game: None,
         }
     }
@@ -239,6 +245,24 @@ impl CouchContextMenu {
         F: Fn(&str, &mut Window, &mut App) + 'static,
     {
         self.on_select_language = Some(Box::new(handler));
+        self
+    }
+
+    /// Sets the handler invoked to create a desktop shortcut.
+    pub fn on_create_desktop_shortcut<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    {
+        self.on_create_desktop_shortcut = Some(Box::new(handler));
+        self
+    }
+
+    /// Sets the handler invoked to copy the CLI launch command to clipboard.
+    pub fn on_copy_launch_cmd<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    {
+        self.on_copy_launch_cmd = Some(Box::new(handler));
         self
     }
 
@@ -906,6 +930,61 @@ impl CouchContextMenu {
         // Separator
         panel = panel.child(separator());
 
+        // Action: Create Desktop Shortcut
+        let mut create_shortcut_row = div()
+            .id("ctx-create-desktop-shortcut")
+            .cursor_pointer()
+            .flex()
+            .items_center()
+            .gap_2p5()
+            .px_2p5()
+            .py_1p5()
+            .rounded_md()
+            .text_xs()
+            .text_color(theme::text_primary())
+            .hover(|s| s.bg(theme::bg_active()))
+            .child(
+                Icon::new(IconName::Monitor)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
+            .child(div().child("Create Desktop Shortcut"));
+
+        if let Some(cb) = self.on_create_desktop_shortcut {
+            create_shortcut_row =
+                create_shortcut_row.on_click(move |ev, win, app| cb(ev, win, app));
+        }
+        panel = panel.child(create_shortcut_row);
+
+        // Action: Copy Launch Command (Playnite / Steam)
+        let mut copy_launch_cmd_row = div()
+            .id("ctx-copy-launch-cmd")
+            .cursor_pointer()
+            .flex()
+            .items_center()
+            .gap_2p5()
+            .px_2p5()
+            .py_1p5()
+            .rounded_md()
+            .text_xs()
+            .text_color(theme::text_primary())
+            .hover(|s| s.bg(theme::bg_active()))
+            .child(
+                Icon::new(IconName::Copy)
+                    .size(px(16.0))
+                    .text_color(theme::text_muted()),
+            )
+            .child(div().child("Copy Launch Command (Playnite / Steam)"));
+
+        if let Some(cb) = self.on_copy_launch_cmd {
+            copy_launch_cmd_row =
+                copy_launch_cmd_row.on_click(move |ev, win, app| cb(ev, win, app));
+        }
+        panel = panel.child(copy_launch_cmd_row);
+
+        // Separator
+        panel = panel.child(separator());
+
         // Action 13: Remove Game From List (destructive/danger tone)
         let mut remove_game_row = div()
             .id("ctx-remove-game")
@@ -988,6 +1067,8 @@ mod tests {
             .on_open_assets(|_, _, _| {})
             .on_toggle_language_picker(|_, _, _| {})
             .on_select_language(|_, _, _| {})
+            .on_create_desktop_shortcut(|_, _, _| {})
+            .on_copy_launch_cmd(|_, _, _| {})
             .on_remove_game(|_, _, _| {});
 
         assert_eq!(menu.handler.game_name, "Left 4 Dead 2");
@@ -1011,6 +1092,8 @@ mod tests {
         assert!(menu.on_open_assets.is_some());
         assert!(menu.on_toggle_language_picker.is_some());
         assert!(menu.on_select_language.is_some());
+        assert!(menu.on_create_desktop_shortcut.is_some());
+        assert!(menu.on_copy_launch_cmd.is_some());
         assert!(menu.on_remove_game.is_some());
 
         // Verify conversion into AnyElement
@@ -1047,6 +1130,8 @@ mod tests {
         assert!(menu.on_open_assets.is_none());
         assert!(menu.on_toggle_language_picker.is_none());
         assert!(menu.on_select_language.is_none());
+        assert!(menu.on_create_desktop_shortcut.is_none());
+        assert!(menu.on_copy_launch_cmd.is_none());
         assert!(menu.on_remove_game.is_none());
 
         // Verify conversion into AnyElement for default state

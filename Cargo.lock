@@ -4308,6 +4308,7 @@ dependencies = [
 name = "nucleus-platform-linux"
 version = "0.1.0"
 dependencies = [
+ "dirs 6.0.0",
  "nucleus-common",
  "nucleus-platform",
  "tracing",
@@ -4412,6 +4413,9 @@ dependencies = [
  "nucleus-engine",
  "nucleus-hub",
  "nucleus-input",
+ "nucleus-platform",
+ "nucleus-platform-linux",
+ "nucleus-platform-windows",
  "nucleus-plugin",
  "nucleus-profile",
  "nucleus-script",

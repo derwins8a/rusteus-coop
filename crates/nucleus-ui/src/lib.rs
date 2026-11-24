@@ -69,6 +69,22 @@ pub fn make_tooltip(
     move |window, cx| gpui_component::tooltip::Tooltip::new(s.clone()).build(window, cx)
 }
 
+/// Returns the default platform services instance for the current OS.
+pub fn default_platform() -> std::sync::Arc<dyn nucleus_platform::PlatformServices> {
+    #[cfg(target_os = "windows")]
+    {
+        std::sync::Arc::new(nucleus_platform_windows::WindowsPlatform::new())
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::sync::Arc::new(nucleus_platform_linux::LinuxPlatform::new())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        panic!("Unsupported platform for default PlatformServices");
+    }
+}
+
 /// Initializes GPUI Kit components (Theme, GlobalState, Overlays, Tooltips, TextView).
 pub fn init(cx: &mut gpui::App) {
     gpui_component::init(cx);

@@ -6,7 +6,7 @@
 use crate::models::{HandlerItem, LibrarySortDirection, LibrarySortOption};
 use crate::nefos::*;
 use crate::theme;
-use crate::window::MainWindow;
+use crate::window::{ActiveTab, MainWindow};
 use crate::{Icon, IconName};
 use gpui::prelude::*;
 use gpui::*;
@@ -393,6 +393,11 @@ pub fn render_library_view(
                                             .child(
                                                 div()
                                                     .pt_2()
+                                                    .flex()
+                                                    .flex_wrap()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .gap_2()
                                                     .child(
                                                         NefosButton::primary("btn-empty-add-game", "Add Game (.exe)")
                                                             .icon(IconName::FolderOpen)
@@ -436,6 +441,43 @@ pub fn render_library_view(
                                                                     }
                                                                 })
                                                                 .detach();
+                                                            })),
+                                                    )
+                                                    .child(
+                                                        NefosButton::secondary("btn-empty-browse-hub", "Browse Splitscreen Hub")
+                                                            .icon(IconName::Globe)
+                                                            .size(NefosButtonSize::Sm)
+                                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                                this.active_tab = ActiveTab::Hub;
+                                                                cx.notify();
+                                                            })),
+                                                    )
+                                                    .child(
+                                                        NefosButton::secondary("btn-empty-scan-games", "Scan Drives for Games")
+                                                            .icon(IconName::Search)
+                                                            .size(NefosButtonSize::Sm)
+                                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                                this.scan_disks(cx);
+                                                            })),
+                                                    )
+                                                    .child(
+                                                        NefosButton::ghost("btn-empty-open-handlers", "Open Handlers Folder")
+                                                            .icon(IconName::Folder)
+                                                            .size(NefosButtonSize::Sm)
+                                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                                let h_dir = this.handlers_dir.clone();
+                                                                std::thread::spawn(move || {
+                                                                    #[cfg(windows)]
+                                                                    {
+                                                                        let _ = std::process::Command::new("explorer").arg(&h_dir).spawn();
+                                                                    }
+                                                                    #[cfg(not(windows))]
+                                                                    {
+                                                                        let _ = std::process::Command::new("xdg-open").arg(&h_dir).spawn();
+                                                                    }
+                                                                });
+                                                                this.show_osd(&format!("Opened handlers folder: {}", this.handlers_dir), 2000, cx);
+                                                                cx.notify();
                                                             })),
                                                     ),
                                             ),

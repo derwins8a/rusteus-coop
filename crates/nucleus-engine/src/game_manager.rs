@@ -726,6 +726,29 @@ impl GameManager {
         Ok(matched_guid)
     }
 
+    /// Starts a game session by loading an existing saved profile for the given GUID.
+    /// If `profile_number` is provided, loads `Profile[N].json`.
+    /// If `None`, attempts to load `Profile[1].json`, falling back to `get_profile(guid)` from userprofile.json.
+    pub fn start_game_by_profile_selector(
+        &mut self,
+        guid: &str,
+        profile_number: Option<usize>,
+    ) -> NucleusResult<()> {
+        let profile = if let Some(num) = profile_number {
+            self.load_numbered_profile(guid, num)?
+        } else if let Ok(p) = self.load_numbered_profile(guid, 1) {
+            p
+        } else if let Some(p) = self.get_profile(guid) {
+            p.clone()
+        } else {
+            return Err(nucleus_common::error::NucleusError::Other(format!(
+                "No saved profile found for game GUID '{}'",
+                guid
+            )));
+        };
+        self.start_game(guid, profile)
+    }
+
     /// Starts a split-screen gaming session for the specified handler GUID and profile.
     pub fn start_game(&mut self, guid: &str, profile: GameProfile) -> NucleusResult<()> {
         self.stop_game()?;
@@ -1984,5 +2007,19 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn test_start_game_by_profile_selector_no_profile() {
+        let platform = Arc::new(MockPlatform::default());
+        let mut gm = GameManager::new(platform).unwrap();
+
+        let err = gm.start_game_by_profile_selector("nonexistent_guid", Some(1));
+        assert!(err.is_err());
+
+        let err_none = gm.start_game_by_profile_selector("nonexistent_guid", None);
+        assert!(err_none.is_err());
+        let err_none_str = err_none.unwrap_err().to_string();
+        assert!(err_none_str.contains("No saved profile found for game GUID 'nonexistent_guid'"));
     }
 }

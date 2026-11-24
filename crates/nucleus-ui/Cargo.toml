@@ -13,6 +13,7 @@ nucleus-input = { workspace = true }
 nucleus-plugin = { workspace = true }
 nucleus-debug = { workspace = true }
 nucleus-tools = { workspace = true }
+nucleus-platform = { workspace = true }
 tracing = { workspace = true }
 gpui = { workspace = true }
 reqwest = { workspace = true }
@@ -28,4 +29,8 @@ smallvec = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true }
+nucleus-platform-windows = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+nucleus-platform-linux = { workspace = true }
 

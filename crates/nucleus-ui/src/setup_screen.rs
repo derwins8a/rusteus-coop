@@ -256,6 +256,24 @@ fn render_profile_management_section(
                     cx.notify();
                 }))
         })
+        .child({
+            let g_shortcut = guid.clone();
+            NefosButton::secondary("btn-export-desktop-shortcut", "Desktop Shortcut")
+                .icon(IconName::Monitor)
+                .size(NefosButtonSize::Sm)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.create_desktop_shortcut_for_handler(&g_shortcut, cx);
+                }))
+        })
+        .child({
+            let g_cmd = guid.clone();
+            NefosButton::ghost("btn-copy-launch-cmd", "Copy Launch Cmd")
+                .icon(IconName::Copy)
+                .size(NefosButtonSize::Sm)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.copy_launch_cmd_for_handler(&g_cmd, cx);
+                }))
+        })
         .when(active_id.is_some(), |bar| {
             let g_save = guid.clone();
             let cur_id = active_id.unwrap();

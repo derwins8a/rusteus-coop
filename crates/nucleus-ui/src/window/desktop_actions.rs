@@ -803,4 +803,81 @@ impl MainWindow {
         cx.notify();
     }
 
+    /// Creates a native desktop shortcut (.lnk / .desktop) for the specified game handler.
+    pub fn create_desktop_shortcut_for_handler(
+        &mut self,
+        handler_identifier: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let handler = match self.handlers.iter().find(|it| {
+            it.guid == handler_identifier || it.game_name == handler_identifier
+        }) {
+            Some(h) => h.clone(),
+            None => {
+                self.show_osd(&format!("Handler '{}' not found", handler_identifier), 3000, cx);
+                return;
+            }
+        };
+
+        let current_exe = std::env::current_exe()
+            .unwrap_or_else(|_| std::path::PathBuf::from("nucleus-coop.exe"));
+        let working_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
+        let arguments = format!("--launch-profile \"{}\"", handler.guid);
+        let icon_path = handler.executable_path.as_deref().map(std::path::Path::new);
+        let description = format!("Play {} in splitscreen with NucleusCoop", handler.game_name);
+
+        match self.platform.filesystem_manager().create_desktop_shortcut(
+            &handler.game_name,
+            &current_exe,
+            &arguments,
+            working_dir,
+            icon_path,
+            &description,
+        ) {
+            Ok(path) => {
+                let msg = format!(
+                    "Desktop Shortcut Created: {}",
+                    path.file_name().unwrap_or_default().to_string_lossy()
+                );
+                self.show_osd(&msg, 3000, cx);
+                self.status_message = msg;
+            }
+            Err(e) => {
+                let msg = format!("Failed to create shortcut: {}", e);
+                self.show_osd(&msg, 4000, cx);
+            }
+        }
+        cx.notify();
+    }
+
+    /// Copies the CLI launch command (for Playnite, Steam, or batch files) to the clipboard.
+    pub fn copy_launch_cmd_for_handler(
+        &mut self,
+        handler_identifier: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let handler = match self.handlers.iter().find(|it| {
+            it.guid == handler_identifier || it.game_name == handler_identifier
+        }) {
+            Some(h) => h.clone(),
+            None => {
+                self.show_osd(&format!("Handler '{}' not found", handler_identifier), 3000, cx);
+                return;
+            }
+        };
+
+        let current_exe = std::env::current_exe()
+            .unwrap_or_else(|_| std::path::PathBuf::from("nucleus-coop.exe"));
+        let cmd = format!("\"{}\" --launch-profile \"{}\"", current_exe.display(), handler.guid);
+        cx.write_to_clipboard(gpui::ClipboardItem::new_string(cmd.clone()));
+        self.show_osd("Copied Playnite/Steam launch command to clipboard!", 2500, cx);
+        self.status_message = format!("Copied launch command for '{}'", handler.game_name);
+        cx.notify();
+    }
+
+    /// Scans local drives for installed games matching discovered handlers.
+    pub fn scan_disks(&mut self, cx: &mut Context<Self>) {
+        self.trigger_scan_games_async(cx);
+    }
+
 }

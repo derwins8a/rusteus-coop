@@ -1,6 +1,6 @@
 //! Platform-agnostic filesystem link operations.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use nucleus_common::error::NucleusResult;
 
@@ -25,5 +25,22 @@ pub trait FilesystemManager: Send + Sync {
     fn get_volume_filesystem(&self, path: &Path) -> NucleusResult<String> {
         let _ = path;
         Ok("NTFS".to_string())
+    }
+
+    /// Creates a desktop shortcut pointing to `target_exe` with `arguments`.
+    /// Returns the path to the created shortcut file (e.g. `<Desktop>/<name>.lnk` on Windows or `<Desktop>/<name>.desktop` on Linux).
+    fn create_desktop_shortcut(
+        &self,
+        name: &str,
+        target_exe: &Path,
+        arguments: &str,
+        working_dir: &Path,
+        icon_path: Option<&Path>,
+        description: &str,
+    ) -> NucleusResult<PathBuf> {
+        let _ = (name, target_exe, arguments, working_dir, icon_path, description);
+        Err(nucleus_common::error::NucleusError::Unsupported(
+            "Desktop shortcut creation not supported on this platform".into(),
+        ))
     }
 }
